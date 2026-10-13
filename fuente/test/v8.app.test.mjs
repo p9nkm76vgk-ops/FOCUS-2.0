@@ -81,3 +81,14 @@ test('cena y ducha: sin estudio de 20:30 a 22:00 por defecto; una instalación a
   assert.equal(JSON.stringify(r2.S.settings.availability[3]), JSON.stringify([{ start: 930, end: 1230 }, { start: 1290, end: 1350 }]), 'lo que añades a mano se respeta en el siguiente arranque');
   assert.match(a.t.V.aj(), /Cena y ducha/);
 });
+
+test('regenerar: la versión anterior desaparece por completo (sin «sustituidas» ni omitidas de rutina futuras) y no quedan solapes', async () => {
+  const a = await boot(); await mk(a, { when: '5', size: '5' });
+  a.S.habit.push({ id: 'hab:2026-10-16:930:x', date: '2026-10-16', start: 930, end: 980, subjectId: a.S.subjects[0].id, kind: 'estudio', title: 'x', detail: '', status: 'replaced', pinned: false });
+  a.S.habit.push({ id: 'hab:2026-10-17:930:x', date: '2026-10-17', start: 930, end: 980, subjectId: a.S.subjects[0].id, kind: 'estudio', title: 'x', detail: '', status: 'skipped', pinned: false });
+  await a.click('replan');
+  const fut = a.S.habit.filter(h => h.date >= '2026-10-12');
+  assert.ok(!fut.some(h => ['replaced', 'displaced', 'skipped'].includes(h.status)), 'sin fantasmas ' + JSON.stringify(fut.filter(h => h.status !== 'planned')));
+  const live = [...a.S.blocks.filter(b => b.status === 'planned'), ...a.S.habit.filter(h => h.status === 'planned')];
+  for (const x of live) for (const y of live) if (x !== y && x.date === y.date) assert.ok(x.end <= y.start || y.end <= x.start, `solape ${x.date} ${x.start}`);
+});

@@ -116,3 +116,7 @@ Además: lo difícil a primera hora de la ventana y lo fácil más tarde; sin re
 - Instalaciones existentes: una sola vez (`cenaV`) se recorta esa franja de la disponibilidad. Lo que añadas después en Ajustes se respeta.
 - Ajustes muestra una nota sobre la franja. Test nuevo en `v8.app.test.mjs`.
 - Verificado: 224 tests Node, 140/140 comprobaciones Chromium, simulación sin sesiones tardías. Safari/iPad sin probar.
+
+## v9.2 — «Regenerar futuro» borra la versión anterior por completo
+- Antes quedaban en el calendario los bloques de rutina «sustituidos»/«sin hueco»/omitidos del plan anterior. Ahora el botón elimina todo lo futuro no hecho ni fijado (sesiones y rutina) y genera una versión limpia, sin solapes. Se conservan historial, hechas, fijadas y manuales.
+- Test nuevo en `v8.app.test.mjs` (225 tests Node).
