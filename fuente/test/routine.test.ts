@@ -76,3 +76,9 @@ test('regenerar conserva hechos, fijados, omitidos y sustituidos; es idempotente
 test('el lunes puede mezclar rutina y obligaciones sin dos actividades simultáneas (varias semanas)', () => {
   const g = gen({ works: [task('Física', { dueDate: '2026-10-16', estMin: 120 })] }); const r = proposeSchedule({ settings: DEFAULT_SETTINGS, works: [task('Física', { dueDate: '2026-10-16', estMin: 120 })], blocks: [], activities: [], routine: R(), habit: g, now: NOW }); noOverlap(items(r)); windowsOk(items(r));
 });
+test('reparto semanal justo: en una semana «equilibrada» (21 bloques) todas las asignaturas aparecen y ninguna acapara estudio ni repasos', () => {
+  const g = gen({ from: '2026-10-12', to: '2026-10-18' }), cnt = (n: string, k?: string) => g.filter(h => h.subjectId === sid(n) && (!k || h.kind === k)).length;
+  assert.equal(g.length, 21); assert.equal(g.filter(h => h.kind === 'repaso').length, 7);
+  for (const n of names) { assert.ok(cnt(n) >= 2 && cnt(n) <= 3, `${n}: ${cnt(n)} bloques`); assert.ok(cnt(n, 'repaso') <= 2, `${n}: repasos ${cnt(n, 'repaso')}`); }
+  assert.ok(cnt('Historia de España') >= 2 && cnt('Historia de la Filosofía') >= 2, 'las Historias no quedan fuera');
+});

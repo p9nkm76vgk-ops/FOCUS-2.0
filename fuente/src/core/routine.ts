@@ -56,8 +56,10 @@ export function generate(i: { settings: Settings; routine: Routine; subjects: Su
     let cap = I.daily - today.filter(h => h.kind === 'estudio').length;
     // Días activos que quedan en la semana (hoy incluido): si una asignatura necesita tantos bloques como días quedan, HAY que ponerla hoy aunque ayer también toque (p. ej. 5 clases por semana).
     let dl = 0; for (let e = d; e <= addDays(mon, 6); e = addDays(e, 1)) if (e >= i.now.date && R.activeDays.includes(weekday(e))) dl++;
-    const cand = subs.filter(s => quota(s.id) - have(s.id) > 0 && !used.has(s.id)).map(s => ({ s, k: [quota(s.id) - have(s.id) >= dl ? 0 : prev.has(s.id) ? 1 : 0, -(quota(s.id) - have(s.id)), last[s.id] ?? '', subs.indexOf(s)] as const }))
-      .sort((a, b) => a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.k[2].localeCompare(b.k[2]) || a.k[3] - b.k[3]);
+    // «Más antigua primero» cuenta también lo ya planificado (no solo lo hecho): así las asignaturas rotan en vez de ganar siempre las primeras de la lista.
+    const seen = (sid: string) => all.reduce((m, h) => h.subjectId === sid && h.status !== 'displaced' && h.date < d && h.date > m ? h.date : m, last[sid] ?? '');
+    const cand = subs.filter(s => quota(s.id) - have(s.id) > 0 && !used.has(s.id)).map(s => ({ s, k: [quota(s.id) - have(s.id) >= dl ? 0 : prev.has(s.id) ? 1 : 0, -quota(s.id), -(quota(s.id) - have(s.id)), seen(s.id), subs.indexOf(s)] as const }))
+      .sort((a, b) => a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.k[2] - b.k[2] || a.k[3].localeCompare(b.k[3]) || a.k[4] - b.k[4]);
     const place = (s: Subj, min: number, kind: 'estudio' | 'repaso') => {
       const w = windows(c, d).find(x => x.end - up5(x.start) >= min); if (!w) return false;
       const st = up5(w.start), n = all.filter(h => h.subjectId === s.id && h.kind === 'estudio').length;
@@ -67,7 +69,8 @@ export function generate(i: { settings: Settings; routine: Routine; subjects: Su
     };
     for (const x of cand) { if (cap <= 0) break; if (!place(x.s, R.blockMin, 'estudio')) break; cap--; used.add(x.s.id); }
     if (I.review && !all.some(h => h.date === d && h.kind === 'repaso')) {
-      const r = subs.filter(s => !used.has(s.id) && quota(s.id) > 0).sort((a, b) => (last[a.id] ?? '').localeCompare(last[b.id] ?? '') || subs.indexOf(a) - subs.indexOf(b))[0];
+      const cnt = (sid: string) => all.filter(h => h.subjectId === sid && h.status !== 'displaced' && mondayOf(h.date) === mon).length;
+      const r = subs.filter(s => !used.has(s.id) && quota(s.id) > 0).sort((a, b) => cnt(a.id) - cnt(b.id) || seen(a.id).localeCompare(seen(b.id)) || subs.indexOf(a) - subs.indexOf(b))[0];
       if (r && all.filter(h => h.date === d && h.status !== 'displaced').length < I.daily + 1) place(r, REVIEW_MIN, 'repaso');
     }
   }

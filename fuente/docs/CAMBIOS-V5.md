@@ -135,3 +135,8 @@ Además: lo difícil a primera hora de la ventana y lo fácil más tarde; sin re
 - Sin cuenta nada cambia: todo sigue local.
 - Verificado: 232 tests Node (servidor falso en memoria), 4 comprobaciones de la tarjeta en Chromium (`browser-sync.py`), RLS/privilegios comprobados por consulta al catálogo. NO verificado: inicio de sesión y subida contra el Supabase real (la red del entorno no llega), aislamiento entre dos usuarios reales, ni Safari/iPad.
 - Límites: ante edición simultánea sin conexión se elige una versión entera (no se fusionan campos). El correo de confirmación depende del proveedor de correo de Supabase (límite bajo de envíos en el plan gratuito).
+
+## v11.1 — Reparto semanal justo en la rutina
+- Con intensidad «equilibrada» (21 bloques/semana = 14 de estudio + 7 repasos) Matemáticas II acaparaba 2 estudios + 5 repasos y Historia de España, Filosofía, Inglés y Catalán solo 1 y ningún repaso: los desempates iban por orden de la lista. Ahora rotan por «la más antigua primero» contando lo ya planificado, los repasos van a la asignatura con menos bloques esa semana, y una cuota semanal mayor que la de las demás tiene prioridad.
+- Resultado en una semana: cada asignatura 2–3 bloques, ninguna con más de 2 repasos. Test nuevo en `routine.test.ts` (233 tests). Migración `metV=2`: se regenera una vez el futuro.
+- Chromium 135 (v5 35, v6 35, final 50, pages 11, sync 4).
