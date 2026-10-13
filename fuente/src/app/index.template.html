@@ -10,7 +10,8 @@ const RTN=(()=>{const {addDays,weekday,subtract,plan}=P;/*ROUTINE*/;return{DEFAU
 const PAL=(()=>{/*PALETTE*/;return{DEFAULT_SUBJECT_COLORS,SPARE_COLORS,effectiveColor,nextSpare,colorConflict,resetColors}})();
 const LIFE=(()=>{const {addDays,weekday,subtract}=P;/*LIFESTYLE*/;return{EXERCISE_TYPES,LIMITS,mondayOf,freeWindows,findSlot,conflictOf,validateActivity,weekMinutes,suggest}})();
 const MIG=(()=>{const {DEFAULT_SUBJECT_COLORS}=PAL,{DEFAULT_ROUTINE}=RTN;/*MIGRATE*/;return{migrateState,lostPaths,setEstimatorVersion,previewUpgrade,SCHEMA_VERSION}})();
-const GL=(()=>{const {addDays,daysBetween,hourBucket,weekday}=P;/*GOALS*/;return{DEFAULT_GOALS,evalOfDate,gradeEval,evalSummary,projected,subjectTarget,gapOf,boostFactor,boosts,overall,accessInfo,INTERVALS,LEVELS,newTopic,setMastery,reviewDone,syncReviews,coverage,coverageByCourse,maintenance,TOPIC_NEED,stampBase,learnedPace,QUALITY,bestHours,macro,slotStats,suggestCap,masteryFactor,examBoosts,HOUR_LABELS,DOW_NAMES}})();
+const ICS=(()=>{/*ICS*/;return{buildIcs}})();
+const GL=(()=>{const {addDays,daysBetween,hourBucket,weekday,NO_DATE}=P;/*GOALS*/;return{DEFAULT_GOALS,evalOfDate,gradeEval,evalSummary,projected,subjectTarget,gapOf,boostFactor,boosts,overall,accessInfo,INTERVALS,LEVELS,newTopic,setMastery,reviewDone,syncReviews,coverage,coverageByCourse,maintenance,TOPIC_NEED,stampBase,learnedPace,QUALITY,bestHours,macro,slotStats,suggestCap,masteryFactor,examBoosts,HOUR_LABELS,DOW_NAMES,failedTopic,weekLoads}})();
 const ST=(()=>{/*STATS*/;return{stats}})();
 /*APP*/
 </script></body></html>

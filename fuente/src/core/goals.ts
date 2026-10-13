@@ -1,4 +1,4 @@
-import { addDays, daysBetween, hourBucket, weekday } from './planner.ts';
+import { addDays, daysBetween, hourBucket, weekday, NO_DATE } from './planner.ts';
 import type { Block, Work } from './types.ts';
 
 /** Objetivos, notas, proyección de nota, temario con repaso espaciado, ritmo aprendido, curso hasta la PAU y revisión semanal.
@@ -227,4 +227,24 @@ export function examBoosts(g: Goals | undefined, grades: Grade[], topics: Topic2
   const o: Record<string, number> = {};
   for (const s of subjects) if (!s.archived) { const a = boostFactor(gapOf(g, grades, s.id, today)), m = masteryFactor(topics, s.id) ?? 1, f = r2(clamp(a * m, 0.85, 1.4)); if (f !== 1) o[s.id] = f; }
   return o;
+}
+
+// ---------- Nota baja → temas a repasar; semanas críticas ----------
+/** Un tema que salió mal en un examen: vuelve al nivel «Visto» como mucho, sin repasos acumulados y se repasa mañana. */
+export function failedTopic(t: Topic2, today: string): Topic2 {
+  return { ...t, mastery: 1, reviews: 0, last: today, next: addDays(today, 1) };
+}
+export interface WeekLoad { from: string; to: string; exams: number; tasks: number; plannedMin: number; flag: boolean; items: { title: string; date: string; kind: 'exam' | 'task' }[] }
+/** Carga de las próximas semanas (lunes a domingo): exámenes y entregas con fecha, y minutos de estudio planificados o hechos. Se marca «cargada» con ≥3 exámenes, ≥2 exámenes y ≥2 entregas, o carga ≥6 (examen = 2, entrega = 1). */
+export function weekLoads(works: Work[], blocks: Block[], today: string, weeks = 6): WeekLoad[] {
+  const mon = addDays(today, -((weekday(today) + 6) % 7)), out: WeekLoad[] = [];
+  for (let i = 0; i < weeks; i++) {
+    const from = addDays(mon, 7 * i), to = addDays(from, 6);
+    const act = works.filter(w => (w.status === 'pending' || w.status === 'in_progress') && w.auto !== 'review' && !w.noDate && w.dueDate !== NO_DATE && w.dueDate >= from && w.dueDate <= to);
+    const exams = act.filter(w => w.kind === 'exam'), tasks = act.filter(w => w.kind === 'task');
+    const plannedMin = blocks.filter(b => b.date >= from && b.date <= to && (b.status === 'planned' || b.status === 'done')).reduce((s, b) => s + b.end - b.start, 0);
+    const load = exams.length * 2 + tasks.length;
+    out.push({ from, to, exams: exams.length, tasks: tasks.length, plannedMin, flag: exams.length >= 3 || (exams.length >= 2 && tasks.length >= 2) || load >= 6, items: act.map(w => ({ title: w.title, date: w.dueDate, kind: w.kind })).sort((a, b) => a.date.localeCompare(b.date)) });
+  }
+  return out;
 }
