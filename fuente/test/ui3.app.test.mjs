@@ -14,7 +14,7 @@ test('activar la rutina: comparación previa, bloques sugeridos persistentes, ca
   const c = await boot(); c.t.A.rutOn(); await choice(c, 1); assert.equal(c.S.routine.enabled, false); assert.equal(c.S.habit.length, 0);
   const a = await withRoutine(); assert.equal(a.S.routine.enabled, true); assert.ok(a.S.habit.length >= 10); assert.ok(a.S.routine.generatedThrough >= '2026-10-25'); noOverlap(items(a));
   assert.ok(a.S.habit.every(h => h.status === 'planned' && !h.pinned && h.detail.length > 20)); assert.equal(a.S.works.length, 0, 'la rutina no crea tareas'); assert.equal(a.S.blocks.length, 0);
-  const b = await boot(a.store); assert.equal(J(b.S.habit), J(a.S.habit), 'persiste'); assert.ok(a.t.V.cal().includes('class=kind>Sugerido')); assert.match(a.t.V.hoy() + a.t.V.rut(), /Rutina semanal/);
+  const b = await boot(a.store); assert.equal(J(b.S.habit), J(a.S.habit), 'persiste'); assert.ok(/class="ev hab planned"/.test(a.t.V.cal())); assert.match(a.t.V.hoy() + a.t.V.rut(), /Rutina semanal/);
   const n = a.S.habit.length; await a.t.commit({ quiet: true }); await a.t.commit(); assert.equal(a.S.habit.length, n, 'sin duplicados al repetir');
 });
 test('EJEMPLO en la app: deberes de Historia → propuesta con comparación; aceptar sustituye Historia y mantiene Lengua', async () => {

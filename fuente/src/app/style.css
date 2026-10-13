@@ -62,3 +62,29 @@ details.more{margin:6px 0 4px;border-top:1px solid var(--line);padding-top:6px}d
 @media(max-width:600px){.cmp{grid-template-columns:1fr}h1{font-size:1.65rem}dialog{padding:18px}dialog .row{bottom:-18px}dialog .row button{flex:1 1 40%}}
 .dl{margin:10px 0 4px;font-weight:600;text-transform:capitalize}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Calendario con eje horario */
+.tg{display:flex;gap:0;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:clip}
+.tg .ax{position:relative;width:46px;flex:none;margin-top:0}.tg .axh{height:42px;position:sticky;top:var(--stick,0);z-index:5;background:var(--surface)}.tg.hasnos .axh{height:100px}
+.tg .ax i{position:absolute;left:0;width:46px;font-style:normal;font-size:.875rem;color:var(--muted);text-align:right;padding-right:6px;transform:translateY(-.55em)}
+.tg .axb{position:relative}
+.tg .days{flex:1;min-width:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.tg .day{border-left:1px solid var(--line);min-width:0}.tg .day.past{opacity:.72}
+.tg .dh{position:sticky;top:var(--stick,0);z-index:5;background:var(--surface);height:42px;display:flex;flex-direction:column;justify-content:center;align-items:center;border-bottom:1px solid var(--line)}.tg .dh b{font-size:.9rem}.tg .dh small{font-size:.875rem;color:var(--muted)}
+.tg .day.today .dh{background:color-mix(in srgb,var(--accent) 16%,transparent)}.tg .day.today .dh b{color:var(--accent)}
+.tg .nos{display:none}.tg.hasnos .nos{display:flex;flex-direction:column;gap:3px;height:58px;overflow-y:auto;padding:3px;border-bottom:1px solid var(--line)}
+.tg .chip0{font-size:.875rem;line-height:1.2;padding:3px 6px;border-radius:6px;border-left:3px solid var(--c);background:var(--surface2);cursor:pointer;min-height:44px;display:flex;align-items:center}
+.tg .dc{position:relative;background-image:repeating-linear-gradient(to bottom,var(--line) 0,var(--line) 1px,transparent 1px,transparent 90px);cursor:copy}
+.tg .dc .av{position:absolute;left:0;right:0;background:color-mix(in srgb,var(--accent) 7%,transparent);pointer-events:none}
+.tg .dc .bl{position:absolute;left:0;right:0;background:repeating-linear-gradient(45deg,rgb(128 128 128 / .22) 0 6px,transparent 6px 12px);pointer-events:none}
+.tg .ev{position:absolute;left:2px;right:2px;overflow:hidden;border-radius:8px;border-left:4px solid var(--c);padding:2px 5px;background:color-mix(in srgb,var(--c) 22%,var(--surface));cursor:pointer;display:flex;flex-direction:column;line-height:1.2}
+.tg .ev b{font-size:.875rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tg .ev span,.tg .ev small{font-size:.875rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tg .ev.hab{background:var(--surface);border:1.5px solid color-mix(in srgb,var(--c) 60%,transparent);border-left-width:4px}
+.tg .ev.act{background:var(--surface2);border-left-color:var(--muted)}
+.tg .ev.done{opacity:.65}.tg .ev.done b:after{content:" ✓";color:var(--ok)}.tg .ev.skipped,.tg .ev.rescheduled,.tg .ev.replaced{opacity:.45;text-decoration:line-through}
+.tg .ev.manual{outline:1px dashed var(--muted)}
+.tg .nowl{position:absolute;left:0;right:0;height:2px;background:var(--warn);z-index:3;pointer-events:none}.tg .nowl:before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.wl{margin:0 6px;font-size:1rem}
+.lg .sw.av{background:color-mix(in srgb,var(--accent) 10%,transparent);border-left:0;border:1px solid var(--line)}
+
+@media(max-width:999px){:root{--stick:57px}}

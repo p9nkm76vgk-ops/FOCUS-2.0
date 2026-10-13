@@ -144,7 +144,11 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     if (left > 0 && !d.clipped) deficit.set(d.w.id, (deficit.get(d.w.id) ?? 0) + left);
     if (d.clipped) clippedW.add(d.w.id);
   }
-  for (const [id, min] of deficit) { const w = byId.get(id)!; warnings.push({ workId: id, type: 'deficit', deficitMin: min, message: isUndated(w) ? `No caben ${min} min de "${w.title}" (sin fecha) en los próximos ${UNDATED_SPAN} días. Amplía disponibilidad o reduce la estimación.` : `No caben ${min} min de "${w.title}" antes del ${w.dueDate}. Amplía disponibilidad, reduce la estimación o mueve la fecha.` }); }
+  for (const [id, min] of deficit) {
+    const w = byId.get(id)!, und = isUndated(w), lastD = und ? addDays(now.date, UNDATED_SPAN - 1) : w.dueDate > horizonEnd ? horizonEnd : w.dueDate < now.date ? now.date : w.dueDate;
+    const nd = Math.max(1, daysBetween(now.date, lastD) + 1), extra = Math.ceil(min / nd / 5) * 5;
+    warnings.push({ workId: id, type: 'deficit', deficitMin: min, message: (und ? `No caben ${min} min de "${w.title}" (sin fecha) en los próximos ${UNDATED_SPAN} días.` : `No caben ${min} min de "${w.title}" antes del ${w.dueDate}.`) + ` Cabría con unos ${extra} min más de estudio al día${und ? '' : ' hasta esa fecha'}, reduciendo la estimación${und ? '' : ' o moviendo la fecha'}.` });
+  }
 
   // 4) Cerrar sesiones incumplidas y ensamblar
   const future = [...manualF, ...kept, ...created];

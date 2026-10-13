@@ -55,7 +55,7 @@ test('minutos exactos y ritmo personal siguen disponibles como corrección opcio
 });
 test('calendario sencillo: solo «Obligatorio» y «Sugerido», sin etiquetas antiguas; tocar un bloque abre sus acciones', async () => {
   const a = await boot(); a.t.A.rutOn(); a.t.A.choice({ dataset: { i: '0' } }); await a.tick(); await a.click('addTask'); await a.submit(opts(a, { when: '3' }));
-  a.t.A.nav({ dataset: { r: 'cal' } }); const cal = a.t.V.cal(); assert.match(cal, /class=kind>Obligatorio/); assert.match(cal, /class=kind>Sugerido/); assert.match(cal, /class=lg>/);
+  a.t.A.nav({ dataset: { r: 'cal' } }); const cal = a.t.V.cal(); assert.match(cal, /Obligatorio/); assert.match(cal, /Sugerido/); assert.match(cal, /class=lg>/); assert.match(cal, /class="ev ob planned"/); assert.match(cal, /class="ev hab planned"/);
   for (const old of ['Obligación', 'Rutina · sugerido', 'class="tag ob"', 'class="tag rt"', 'borde discontinuo']) assert.ok(!cal.includes(old), old);
   assert.doesNotMatch(cal, /data-a=doneBlk|data-a=habDone/, 'el calendario no se llena de botones'); assert.match(cal, /data-a=blkMenu data-t=ob/); assert.match(cal, /data-a=blkMenu data-t=hab/);
   const id = a.S.blocks.find(b => b.status === 'planned').id; a.t.A.blkMenu({ dataset: { id, t: 'ob' } }); assert.match(a.h.dlg.innerHTML, />Hecho</); assert.match(a.h.dlg.innerHTML, />Mover</);
@@ -83,4 +83,20 @@ test('compatibilidad hacia atrás: la versión 4 abre datos con tareas sin fecha
   const prev = await boot(a.store, { dist: 'test/fixtures/prev-dist.html' }); assert.doesNotMatch(prev.h.main.innerHTML, /Datos no válidos/); assert.equal(J(prev.S.works.map(w => [w.id, w.noDate, w.dueDate, w.createdAt])), J(a.S.works.map(w => [w.id, w.noDate, w.dueDate, w.createdAt])), 'la versión 4 conserva los campos nuevos');
   assert.equal(J(prev.S.works.find(w => w.topics).topics.map(t => t.auto)), J(a.S.works.find(w => w.topics).topics.map(t => t.auto)), 'y los temas automáticos');
   const v4 = JSON.parse(fs.readFileSync('test/fixtures/export-v2.json', 'utf8')); const { app, schema, exportedAt, ...st } = v4; const b = await boot({ 'focusos.v1': J(st) }); assert.doesNotMatch(b.h.main.innerHTML, /Datos no válidos/); assert.equal(b.S.works.length, st.works.length); assert.equal(J(b.S.works.map(w => [w.id, w.title, w.dueDate])), J(st.works.map(w => [w.id, w.title, w.dueDate])));
+});
+
+test('calendario con eje horario: cada bloque en su hora real, dentro de la franja, sin solaparse; aviso de déficit descartable', async () => {
+  const a = await boot(); for (let i = 0; i < 6; i++) { await a.click('addTask'); await a.submit(opts(a, { subjectId: a.S.subjects[i].id, when: '1', size: '5', difficulty: '5', importance: '5' })); }
+  const cal = a.t.V.cal(); assert.match(cal, /class="tg/); assert.match(cal, /class=nowl/, 'línea de hora actual en el día de hoy');
+  assert.match(cal, /data-a=slot/, 'huecos tocables');
+  // cada columna: ninguna pareja de bloques con hora se solapa en pantalla salvo que ya se solapen en datos (no deben)
+  const rows = [...cal.matchAll(/class="ev [^"]*" style="--c:[^;]+;top:([\d.]+)px;height:([\d.]+)px"/g)].map(m => [+m[1], +m[2]]);
+  assert.ok(rows.length > 0); for (const [t, h] of rows) assert.ok(t >= 0 && h >= 18);
+  const dayCols = cal.split('class="day').slice(1);
+  for (const col of dayCols) { const r = [...col.matchAll(/top:([\d.]+)px;height:([\d.]+)px" data-a=blkMenu/g)].map(m => [+m[1], +m[1] + +m[2]]).sort((x, y) => x[0] - y[0]); for (let i = 1; i < r.length; i++) assert.ok(r[i][0] >= r[i - 1][1] - 3, 'sin solapes visuales'); }
+  const before = a.t.V.hoy(), m = before.match(/data-a=warnOff data-id="([^"]+)" data-k=(\d+)/);
+  assert.ok(m, 'con una tarea imposible de cumplir aparece el aviso con «Entendido»'); assert.match(before, /No caben/); assert.match(before, /min más de estudio al día/);
+  a.t.A.warnOff({ dataset: { id: m[1], k: m[2] } }); await a.tick(); assert.equal(a.S.warnOff[m[1]], +m[2]); assert.ok(!a.t.V.hoy().includes('warnOff data-id="' + m[1]), 'ese aviso ya no sale');
+  for (let g = 0; g < 8; g++) { const n = a.t.V.hoy().match(/data-a=warnOff data-id="([^"]+)" data-k=(\d+)/); if (!n) break; a.t.A.warnOff({ dataset: { id: n[1], k: n[2] } }); await a.tick(); }
+  assert.doesNotMatch(a.t.V.hoy(), /No caben/);
 });

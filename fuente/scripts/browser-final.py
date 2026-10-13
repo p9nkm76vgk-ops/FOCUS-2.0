@@ -46,7 +46,7 @@ try:
     n_log = len(st['suggestionLog']); p.reload(); p.wait_for_selector('#main h1'); ck('Tras recargar: log persistido y sin duplicados', len(ls(p)['suggestionLog']) == n_log)
     go(p, 'hoy'); p.click('button[data-a=addTask]'); fill_form(p, title='Prueba aislada', dueDate='2026-10-20', estOverride='120'); st = ls(p)
     ck('Tarea creada con sesiones planificadas', len(st['works']) == 1 and len(st['blocks']) > 0)
-    go(p, 'cal'); blk = p.evaluate("(()=>{const e=document.querySelector('#main .blk.planned');return e?[getComputedStyle(e).borderLeftColor,e.closest('.wk')?e.innerText:'']:null})()")
+    go(p, 'cal'); blk = p.evaluate("(()=>{const e=document.querySelector('#main .tg .ev.planned');return e?[getComputedStyle(e).borderLeftColor,e.closest('.tg')?e.innerText:'']:null})()")
     ck('Calendario: bloque con el color de Matemáticas II (#4A7BA3) y su nombre', blk and blk[0] == 'rgb(74, 123, 163)' and 'Matemáticas II' in blk[1], str(blk))
     go(p, 'exa'); p.click('button[data-a=addExam]'); fill_form(p, title='Parcial prueba', dueDate='2026-10-14', topics='Límites; 5; 5; 0; 12\nDerivadas; 5; 5; 0'); 
     go(p, 'hoy'); h = p.inner_text('#main').lower(); ck('Trabajo urgente sin cubrir: «Trabajo real primero» y sin botones de sugerencia', 'trabajo real primero' in h and p.locator('button[data-a=suggStart]').count() == 0)
@@ -105,7 +105,7 @@ try:
     p.click('#dlg button[data-i="1"]'); p.wait_for_timeout(200); ck('Cancelar la activación no cambia nada', ls(p)['habit'] == [] and ls(p)['routine']['enabled'] is False)
     p.click('#main button[data-a=rutOn]'); p.click('#dlg button.pri'); p.wait_for_timeout(400); st = ls(p); ck('Rutina activada: bloques sugeridos persistidos, sin crear obligaciones', st['routine']['enabled'] and len(st['habit']) >= 10 and not st['works'] and not st['blocks'])
     ok = all(a['date'] != bb['date'] or a['end'] <= bb['start'] or bb['end'] <= a['start'] for a in st['habit'] for bb in st['habit'] if a is not bb); ck('Sin solapamientos entre bloques de rutina', ok)
-    go(p, 'cal'); ck('Calendario distingue Obligatorio y Sugerido (solo dos tipos, el sugerido solo con contorno)', p.locator('#main .blk.hab').count() > 0 and p.evaluate("getComputedStyle(document.querySelector('#main .blk.hab')).backgroundColor") == 'rgba(0, 0, 0, 0)')
+    go(p, 'cal'); ck('Calendario distingue Obligatorio y Sugerido (solo dos tipos, el sugerido solo con contorno)', p.locator('#main .ev.hab').count() > 0 and p.evaluate("getComputedStyle(document.querySelector('#main .ev.hab')).backgroundColor!==getComputedStyle(document.querySelector('#main .ev.ob')).backgroundColor"))
     sid = {s['name']: s['id'] for s in st['subjects']}; seed = dict(st); seed['habit'] = [{'id': f"hab:2026-10-12:1020:{sid['Historia de España']}", 'date': '2026-10-12', 'start': 1020, 'end': 1065, 'subjectId': sid['Historia de España'], 'kind': 'estudio', 'title': 'Historia de España: Repasar el último tema', 'detail': 'Reconstruye de memoria las ideas principales y comprueba después con los apuntes.', 'status': 'planned', 'pinned': False},
         {'id': f"hab:2026-10-12:1080:{sid['Lengua Castellana']}", 'date': '2026-10-12', 'start': 1080, 'end': 1125, 'subjectId': sid['Lengua Castellana'], 'kind': 'estudio', 'title': 'Lengua Castellana: Comentario de texto', 'detail': 'Estructura el comentario y revisa con una rúbrica orientativa.', 'status': 'planned', 'pinned': False}]; c.close()
     def adapt(choice_i):

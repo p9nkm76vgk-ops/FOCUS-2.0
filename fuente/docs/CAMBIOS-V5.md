@@ -27,3 +27,9 @@
 
 ## Para volver atrás
 El historial de GitHub conserva la versión 4 (commit anterior). Tus datos no cambian de formato.
+
+## Addendum: calendario con eje horario y avisos
+- Calendario semanal reescrito: cada sesión ocupa su hora real en un eje (07:00–22:00 ampliable), con franja de estudio disponible, días bloqueados, línea de «ahora», carga planificada por día y cabecera fija al desplazarse. Cabe sin scroll horizontal en iPad apaisado y vertical (comprobado en Chromium, no en Safari).
+- Tocar un hueco libre propone una sesión a esa hora; el pasado se rechaza.
+- Aviso «No caben N min…»: ahora indica cuántos min/día más harían falta y se puede descartar con «Entendido» (reaparece solo si el déficit crece). Las tareas sin fecha ya no muestran ese aviso.
+- Pruebas: 160 en Node, 39 comprobaciones en Chromium.
