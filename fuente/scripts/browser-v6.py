@@ -29,14 +29,11 @@ try:
     # --- objetivo
     go(p, 'obj'); ck('Objetivos pide definir el objetivo', 'AÚN NO HAY OBJETIVO' in p.inner_text('#main').upper()); shot(p, 'v6-01-objetivo-vacio')
     p.click('#main button.pri >> text=Definir objetivo'); p.wait_for_selector('#dlg[open]')
-    p.fill('#dlg input[name=target]', '9'); p.click('#dlg details:has-text("Notas finales de 1") summary')
-    names = p.evaluate("[...document.querySelectorAll('#dlg input[name^=p_]')].map(e=>e.name)")
-    vals = [6.5, 7.2, 6, 8, 9, 7.5, 8.5, 6.8, 7]
-    for n, v in zip(names, vals): p.fill(f'#dlg input[name={n}]', str(v))
+    p.fill('#dlg input[name=target]', '9'); p.fill('#dlg input[name=prevAvg]', '7.4'); ck('el formulario solo pide la media de 1.º (sin una nota por asignatura)', p.locator('#dlg input[name^=p_]').count()==0)
     p.click('#dlg details:has-text("PAU") summary'); p.fill('#dlg input[name=pauDate]', '2027-06-02'); p.fill('#dlg input[name=pauExpected]', '8'); shot(p, 'v6-02-form-objetivo')
     p.click('#dlg button.pri'); p.wait_for_timeout(400)
     S = json.loads(p.evaluate("localStorage.getItem('focusos.v1')"))
-    ck('objetivo guardado en localStorage con 9 notas de 1.º y fecha PAU', S['goals']['target'] == 9 and len(S['goals']['prev']) == 9 and S['goals']['pauDate'] == '2027-06-02', json.dumps(S['goals'])[:200])
+    ck('objetivo guardado con media de 1.º y fecha PAU', S['goals']['target'] == 9 and S['goals']['prevAvg'] == 7.4 and S['goals']['pauDate'] == '2027-06-02', json.dumps(S['goals'])[:200])
     p.reload(); p.wait_for_selector('#main h1'); go(p, 'obj'); txt = p.inner_text('#main')
     ck('tras recargar se ve la media proyectada y la tabla por asignatura', 'MEDIA PROYECTADA' in txt.upper() and 'MATEMÁTICAS II' in txt.upper() and 'HORAS DE EXAMEN' in txt.upper()); shot(p, 'v6-03-objetivos')
     ck('la tabla de asignaturas no desborda la página', p.evaluate("document.documentElement.scrollWidth<=innerWidth+1"))

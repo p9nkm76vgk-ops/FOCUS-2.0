@@ -15,7 +15,7 @@ function ensureFeatures(s: any, steps: string[]) {
   if (!Array.isArray(s.suggestionLog)) { s.suggestionLog = []; steps.push('suggestionLog=[]'); }
   if (!s.routine || typeof s.routine !== 'object') { s.routine = clone(DEFAULT_ROUTINE); steps.push('routine'); }
   if (!Array.isArray(s.habit)) { s.habit = []; steps.push('habit=[]'); }
-  if (!s.goals || typeof s.goals !== 'object') { s.goals = { target: null, prev: {}, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null }; steps.push('goals'); }
+  if (!s.goals || typeof s.goals !== 'object') { s.goals = { target: null, prevAvg: null, prev: {}, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null }; steps.push('goals'); }
   if (!Array.isArray(s.grades)) { s.grades = []; steps.push('grades=[]'); }
   if (!Array.isArray(s.syllabus)) { s.syllabus = []; steps.push('syllabus=[]'); }
   if (!s.explore || !Array.isArray(s.explore.log)) { s.explore = { log: [] }; steps.push('explore'); }

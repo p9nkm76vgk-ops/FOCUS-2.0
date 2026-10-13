@@ -51,3 +51,6 @@ El historial de GitHub conserva la versión 4 (commit anterior). Tus datos no ca
 - Mantenimiento: todo tema visto exige repaso hasta la PAU. El coste semanal (25 min × 7 / intervalo actual) se descuenta de la capacidad para temario nuevo y se muestra el coste futuro con todo visto (intervalo de 90 días). Se cuentan los repasos atrasados.
 - Altas en bloque escalonadas (3 temas por día) para no crear una avalancha de repasos.
 - Pruebas: 188 en Node; Chromium 34 + 39 correctas.
+
+## v6.2: solo la media de 1.º
+- El formulario de objetivo pide una única nota media de 1.º (las asignaturas de 1.º no coinciden con las de 2.º). Es el punto de partida común de todas; cada asignatura la va sustituyendo con sus notas de 2.º (peso 2 frente a las notas). Los datos con notas de 1.º por asignatura siguen funcionando.

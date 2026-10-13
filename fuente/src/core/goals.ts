@@ -5,9 +5,9 @@ import type { Block, Work } from './types.ts';
  *  Todo son funciones PURAS y deterministas sobre datos persistidos. Los números marcados «heurístico» son aproximaciones, no mediciones. */
 export type GradeKind = 'examen' | 'tarea' | 'evaluacion';
 export interface Grade { id: string; subjectId: string; score: number; kind: GradeKind; date: string; label?: string; workId?: string }
-export interface Goals { target: number | null; prev: Record<string, number>; subjTarget: Record<string, number>; pauDate: string | null; start: string | null; pauExpected: number | null; accessTarget: number | null }
+export interface Goals { target: number | null; prevAvg?: number | null; prev: Record<string, number>; subjTarget: Record<string, number>; pauDate: string | null; start: string | null; pauExpected: number | null; accessTarget: number | null }
 export interface Topic2 { id: string; subjectId: string; name: string; course?: 1 | 2; mastery: 0 | 1 | 2 | 3; reviews: number; last: string | null; next: string | null; createdAt: number }
-export const DEFAULT_GOALS: Goals = { target: null, prev: {}, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
+export const DEFAULT_GOALS: Goals = { target: null, prevAvg: null, prev: {}, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 const r2 = (x: number) => Math.round(x * 100) / 100;
@@ -22,7 +22,7 @@ export const PSEUDO_PREV = 2;
 export type ProjSource = 'notas' | '1º' | 'mixta' | null;
 export function projected(g: Goals | undefined, grades: Grade[], sid: string): { value: number | null; n: number; source: ProjSource } {
   const gs = grades.filter(x => x.subjectId === sid && Number.isFinite(x.score)).sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
-  const prev = g?.prev?.[sid];
+  const prev = g?.prev?.[sid] ?? g?.prevAvg ?? undefined; // las asignaturas de 1.º no coinciden: basta la media de 1.º como punto de partida común
   const hasPrev = typeof prev === 'number' && Number.isFinite(prev);
   let W = 0, S = 0;
   gs.forEach((x, i) => { const w = KIND_W[x.kind] * (1 + 0.15 * i); W += w; S += w * x.score; });
