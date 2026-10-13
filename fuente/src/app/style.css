@@ -98,3 +98,5 @@ details.more{margin:6px 0 4px;border-top:1px solid var(--line);padding-top:6px}d
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px}.kpis b{display:block;font-size:1.4rem}.kpis small{color:var(--muted);font-size:.875rem}
 .rl{display:flex;gap:12px;align-items:center;justify-content:space-between}.rl.warn{border-left:4px solid var(--warn)}.rl.ok{border-left:4px solid var(--ok)}.rl.tip{border-left:4px solid var(--muted)}
 .tg.one .day:not(.sel){display:none}.tg.one .days{grid-template-columns:minmax(0,1fr)}.tg.one .ev b,.tg.one .ev span,.tg.one .ev small{font-size:.95rem}
+
+.cr{margin:14px 0 2px;color:var(--muted);font-size:.875rem;text-transform:uppercase;letter-spacing:.07em}

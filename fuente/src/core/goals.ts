@@ -6,7 +6,7 @@ import type { Block, Work } from './types.ts';
 export type GradeKind = 'examen' | 'tarea' | 'evaluacion';
 export interface Grade { id: string; subjectId: string; score: number; kind: GradeKind; date: string; label?: string; workId?: string }
 export interface Goals { target: number | null; prev: Record<string, number>; subjTarget: Record<string, number>; pauDate: string | null; start: string | null; pauExpected: number | null; accessTarget: number | null }
-export interface Topic2 { id: string; subjectId: string; name: string; mastery: 0 | 1 | 2 | 3; reviews: number; last: string | null; next: string | null; createdAt: number }
+export interface Topic2 { id: string; subjectId: string; name: string; course?: 1 | 2; mastery: 0 | 1 | 2 | 3; reviews: number; last: string | null; next: string | null; createdAt: number }
 export const DEFAULT_GOALS: Goals = { target: null, prev: {}, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
@@ -71,8 +71,9 @@ export function trend(grades: Grade[], sid: string): number | null {
 // ---------- Temario y repaso espaciado ----------
 export const INTERVALS = [2, 7, 21, 45, 90];
 export const LEVELS = ['Sin ver', 'Visto', 'Entendido', 'Dominado'];
-export function newTopic(id: string, subjectId: string, name: string, mastery: number, today: string, createdAt = 0): Topic2 {
-  return setMastery({ id, subjectId, name, mastery: 0, reviews: 0, last: null, next: null, createdAt }, mastery, today);
+export function newTopic(id: string, subjectId: string, name: string, mastery: number, today: string, createdAt = 0, course: 1 | 2 = 2, stagger = 0): Topic2 {
+  const t = setMastery({ id, subjectId, name, course, mastery: 0, reviews: 0, last: null, next: null, createdAt }, mastery, today);
+  return t.next && stagger > 0 ? { ...t, next: addDays(t.next, stagger) } : t; // altas en bloque: primeros repasos escalonados para no crear una avalancha
 }
 export function setMastery(t: Topic2, level: number, today: string): Topic2 {
   const L = clamp(Math.round(level), 0, 3) as 0 | 1 | 2 | 3;
@@ -109,9 +110,18 @@ export function syncReviews(works: Work[], blocks: Block[], topics: Topic2[], su
   }
   return { works: out, added, removed };
 }
+export function coverageByCourse(topics: Topic2[]) {
+  return ([1, 2] as const).map(c => { const ts = topics.filter(t => (t.course ?? 2) === c), n = ts.length, seen = ts.filter(t => t.mastery >= 1).length; return { course: c, n, seen, pctSeen: n ? Math.round(100 * seen / n) : null, pctMastery: n ? Math.round(100 * ts.reduce((a, t) => a + t.mastery, 0) / (3 * n)) : null }; });
+}
 export function coverage(topics: Topic2[], sid: string) {
   const ts = topics.filter(t => t.subjectId === sid), n = ts.length, seen = ts.filter(t => t.mastery >= 1).length, sum = ts.reduce((a, t) => a + t.mastery, 0);
   return { n, seen, pctSeen: n ? Math.round(100 * seen / n) : null, pctMastery: n ? Math.round(100 * sum / (3 * n)) : null, due: ts.filter(t => t.mastery >= 1 && t.next && t.next <= addDays('9999-12-31', 0)).length };
+}
+/** El PAU examina TODO el temario acumulado (1.º y 2.º): cada tema visto exige mantenimiento hasta la PAU. Minutos/semana de repaso según el intervalo actual de cada tema. */
+export const MAINT_STEADY_DAYS = INTERVALS[INTERVALS.length - 1];
+export function maintenance(topics: Topic2[]): { nowWeekMin: number; steadyWeekMin: number } {
+  let now = 0; for (const t of topics) if (t.mastery >= 1) now += 7 * REVIEW_MIN / INTERVALS[Math.min(t.reviews, INTERVALS.length - 1)];
+  return { nowWeekMin: Math.round(now), steadyWeekMin: Math.round(topics.length * 7 * REVIEW_MIN / MAINT_STEADY_DAYS) };
 }
 /** Minutos que faltan por tema según su nivel (heurístico): sin ver 120, visto 60, entendido 30, dominado 10 (mantenimiento). */
 export const TOPIC_NEED = [120, 60, 30, 10];
@@ -163,13 +173,15 @@ export function macro(a: { goals: Goals; topics: Topic2[]; settings: { availabil
   const phase = a.today <= covEnd ? phases[0] : a.today <= pracEnd ? phases[1] : phases[2];
   const need = a.topics.reduce((s, t) => s + TOPIC_NEED[t.mastery], 0);
   const left = Math.max(0, daysBetween(a.today, covEnd)), REAL = 0.7; // se asume que solo el 70 % de la capacidad teórica se cumple
-  const capCov = Math.round(weekCap * REAL * left / 7), capAll = Math.round(weekCap * REAL * days / 7);
+  const mt = maintenance(a.topics), backlog = a.topics.filter(t => t.mastery >= 1 && t.next && t.next < a.today).length;
+  const netWeek = Math.max(0, weekCap * REAL - mt.nowWeekMin); // lo que sobra para temario nuevo una vez pagado el mantenimiento
+  const capCov = Math.round(netWeek * left / 7), capAll = Math.round(weekCap * REAL * days / 7);
   const ratio = need === 0 ? null : capCov / need;
   const seen = a.topics.length ? a.topics.filter(t => t.mastery >= 1).length / a.topics.length : null;
   const total = g.start && covEnd > g.start ? daysBetween(g.start, covEnd) : 0;
   const expected = total > 0 ? clamp(daysBetween(g.start!, a.today) / total, 0, 1) : null;
   const status = a.topics.length === 0 ? 'sin temario' : need === 0 ? 'bien' : left === 0 ? (need > 0 ? 'no llegas' : 'bien') : ratio! >= 1.3 ? 'bien' : ratio! >= 1 ? 'justo' : 'no llegas';
-  return { past: false as const, days, weeks: Math.round(days / 7), weekCap, phase, phases, needMin: need, capCoverageMin: capCov, capTotalMin: capAll, status, seenPct: seen == null ? null : Math.round(100 * seen), expectedPct: expected == null ? null : Math.round(100 * expected) };
+  return { past: false as const, days, weeks: Math.round(days / 7), weekCap, phase, phases, needMin: need, capCoverageMin: capCov, capTotalMin: capAll, maintNowWeekMin: mt.nowWeekMin, maintSteadyWeekMin: mt.steadyWeekMin, backlog, status, seenPct: seen == null ? null : Math.round(100 * seen), expectedPct: expected == null ? null : Math.round(100 * expected) };
 }
 
 // ---------- Revisión semanal ----------

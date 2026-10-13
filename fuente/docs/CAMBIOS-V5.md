@@ -45,3 +45,9 @@ El historial de GitHub conserva la versión 4 (commit anterior). Tus datos no ca
 - **Planificador**: evita dos sesiones de la misma asignatura pegadas cuando hay alternativa; las tareas fáciles (dificultad ≤2) buscan el último hueco del día.
 - **Calendario**: vista de día; recordatorio semanal de copia de seguridad en Hoy.
 - NO hecho: arrastrar sesiones con el dedo; sincronización en la nube. Pruebas: 186 en Node, 34 + 39 + 57 + 11 en Chromium. Sin Safari/iPad real.
+
+## v6.1: el temario se arrastra de 1.º a 2.º
+- Cada tema tiene curso (1.º o 2.º); el temario los agrupa y «Curso hasta la PAU» muestra cobertura por curso.
+- Mantenimiento: todo tema visto exige repaso hasta la PAU. El coste semanal (25 min × 7 / intervalo actual) se descuenta de la capacidad para temario nuevo y se muestra el coste futuro con todo visto (intervalo de 90 días). Se cuentan los repasos atrasados.
+- Altas en bloque escalonadas (3 temas por día) para no crear una avalancha de repasos.
+- Pruebas: 188 en Node; Chromium 34 + 39 correctas.

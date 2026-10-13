@@ -90,3 +90,13 @@ test('estado antiguo (sin goals/grades/syllabus) abre sin errores y los añade; 
   const c = await boot(); await c.t.importText(JSON.stringify({ app: 'focus-os', schema: 3, ...JSON.parse(a.store['focusos.v1']) })); await c.tick();
   assert.equal(c.S.grades.length, 1); assert.equal(c.S.syllabus.length, 1); assert.equal(c.S.goals.target, 9);
 });
+
+test('temario por curso: 1.º y 2.º en bloques separados, altas escalonadas (3 por día) para no crear avalancha de repasos', async () => {
+  const a = await boot(); const sid = a.S.subjects[0].id; await a.click('addTopics', sid); assert.match(a.h.dlg.innerHTML, /Curso al que pertenecen/); assert.match(a.h.dlg.innerHTML, /todo el temario acumulado/);
+  const names = Array.from({ length: 9 }, (_, i) => 'Tema ' + (i + 1)).join('\n'); assert.equal(await a.submit({ names, course: '1', level: '2' }), '');
+  assert.ok(a.S.syllabus.every(t => t.course === 1)); const nx = a.S.syllabus.map(t => t.next); assert.equal(J(nx), J(['2026-10-14', '2026-10-14', '2026-10-14', '2026-10-15', '2026-10-15', '2026-10-15', '2026-10-16', '2026-10-16', '2026-10-16']));
+  assert.equal(a.S.works.filter(w => w.auto === 'review').length, 3, 'solo los 3 que tocan en ≤2 días; el resto entra día a día');
+  await a.click('addTopics', sid); assert.equal(await a.submit({ names: 'Tema de 2.º', course: '2', level: '0' }), '');
+  const v = a.t.V.tem(); assert.match(v, /1\.º de Bachillerato/); assert.match(v, /2\.º de Bachillerato/); assert.ok(v.indexOf('1.º de Bachillerato</h4>') < v.indexOf('2.º de Bachillerato</h4>'));
+  await a.click('editGoals'); await a.submit({ target: '9', pauDate: '2027-06-02' }); const c = a.t.V.cur(); assert.match(c, /Todo se arrastra hasta la PAU/); assert.match(c, /Cobertura por curso/);
+});

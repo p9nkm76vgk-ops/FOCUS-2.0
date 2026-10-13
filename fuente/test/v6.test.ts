@@ -146,3 +146,15 @@ test('estado antiguo sin goals/grades/syllabus: la migración los añade y no pi
   assert.ok(r.state.goals && Array.isArray(r.state.grades) && Array.isArray(r.state.syllabus)); assert.deepEqual(lostPaths(old, r.state), []);
   const r2 = migrateState(r.state); assert.equal(r2.changed, false, 'idempotente');
 });
+test('todo se arrastra hasta la PAU: mantenimiento semanal por intervalo, altas escalonadas, cobertura por curso y menos capacidad para temario nuevo', () => {
+  const t1 = G.newTopic('a', 's', 'Uno', 1, '2026-10-12', 0, 1), t2 = G.newTopic('b', 's', 'Dos', 0, '2026-10-12', 0, 2);
+  assert.equal(t1.course, 1); assert.equal(G.newTopic('c', 's', 'x', 2, '2026-10-12').course, 2, '2.º por defecto');
+  assert.equal(G.newTopic('d', 's', 'x', 1, '2026-10-12', 0, 1, 4).next, '2026-10-18', 'escalonado: +2 +4 días'); assert.equal(G.newTopic('e', 's', 'x', 0, '2026-10-12', 0, 1, 4).next, null);
+  const m = G.maintenance([t1, t2]); assert.equal(m.nowWeekMin, Math.round(7 * 25 / 2), 'visto hace poco: intervalo 2 días'); assert.equal(m.steadyWeekMin, Math.round(2 * 7 * 25 / 90));
+  const lots = Array.from({ length: 90 }, (_, i) => ({ ...G.newTopic('l' + i, 's', 'L' + i, 3, '2026-10-12', 0, 1), reviews: 4 })); assert.equal(G.maintenance(lots).nowWeekMin, Math.round(90 * 7 * 25 / 90), '90 temas dominados: 175 min/semana de mantenimiento');
+  const cc = G.coverageByCourse([t1, t2, G.newTopic('f', 's', 'F', 2, '2026-10-12', 0, 1)]); assert.equal(cc[0].n, 2); assert.equal(cc[0].seen, 2); assert.equal(cc[1].n, 1); assert.equal(cc[1].pctSeen, 0);
+  const S0 = { availability: DEFAULT_SETTINGS.availability, maxDayMin: 240 }, g = goals({ pauDate: '2027-06-02', start: '2026-10-12' }), a = Array.from({ length: 10 }, (_, i) => G.newTopic('n' + i, 's', 'N' + i, 0, '2026-10-12'));
+  const m0 = G.macro({ goals: g, topics: a, settings: S0, today: '2026-10-12' }) as any, m1 = G.macro({ goals: g, topics: [...a, ...lots], settings: S0, today: '2026-10-12' }) as any;
+  assert.ok(m1.maintNowWeekMin > m0.maintNowWeekMin); assert.ok(m1.capCoverageMin < m0.capCoverageMin, 'el mantenimiento de lo visto resta capacidad para lo nuevo'); assert.equal(m1.backlog, 0);
+  const late = G.macro({ goals: g, topics: [{ ...t1, next: '2026-10-01' }], settings: S0, today: '2026-10-12' }) as any; assert.equal(late.backlog, 1);
+});
