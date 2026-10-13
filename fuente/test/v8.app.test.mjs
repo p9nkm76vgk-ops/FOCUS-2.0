@@ -49,3 +49,18 @@ test('.ics: avisa con el número de eventos y descarga un archivo de calendario 
 test('«Luego» de la copia y «Ahora no» del máximo diario se recuerdan tras recargar', async () => {
   const a = await boot(); await mk(a); await a.click('backupLater'); const r = await boot(a.store); assert.ok(!r.t.V.hoy().includes('Haz una copia de seguridad'), 'sigue aplazada');
 });
+test('«No la haré» deja el hueco libre; «Nunca a esta hora» lo quita de la disponibilidad de ese día', async () => {
+  const a = await boot(); await mk(a, { when: '0', size: '5' }); const b = today(a); assert.ok(b);
+  await a.click('skipBlk', b.id); a.t.A.choice({ dataset: { i: '0' } }); await a.tick();
+  const sk = a.S.blocks.find(x => x.id === b.id); assert.equal(sk.status, 'skipped');
+  assert.ok(!a.S.blocks.some(x => x.status === 'planned' && x.date === sk.date && x.start < sk.end && x.end > sk.start), 'no se rellena el mismo hueco');
+  const b2 = today(a); assert.ok(b2, 'queda otra sesión hoy'); { const wd = new Date(b2.date + 'T00:00:00Z').getUTCDay(), before = JSON.stringify(a.S.settings.availability[wd]); await a.click('skipBlk', b2.id); a.t.A.choice({ dataset: { i: '4' } }); await a.tick();
+    assert.notEqual(JSON.stringify(a.S.settings.availability[wd]), before, 'disponibilidad recortada'); assert.ok(!a.S.blocks.some(x => x.status === 'planned' && x.date === b2.date && x.start < b2.end && x.end > b2.start)); }
+});
+test('pausa del plan: no se programa estudio en esos días, lo pendiente se recoloca y al reanudar vuelve; evolución de notas visible', async () => {
+  const a = await boot(); await mk(a, { when: '14', size: '4' }); const need = () => a.S.blocks.filter(x => x.status === 'planned').reduce((s, x) => s + x.end - x.start, 0), n0 = need();
+  await a.click('pause', null, 2); assert.ok(!a.S.blocks.some(x => x.status === 'planned' && (x.date === '2026-10-12' || x.date === '2026-10-13')), 'sin sesiones en la pausa'); assert.equal(need(), n0, 'lo pendiente se recoloca después');
+  assert.match(a.t.V.hoy(), /Plan en pausa hasta/); assert.match(a.t.V.aj(), /Reanudar ya/);
+  await a.click('resume'); assert.ok(!/Plan en pausa/.test(a.t.V.hoy()));
+  const sid = a.S.subjects[0].id; await a.click('addGrade'); await a.submit({ subjectId: sid, evalNo: '1', weight: '20', score: '7', date: '2026-10-10' }); assert.match(a.t.V.obj(), /Evolución por evaluación/);
+});

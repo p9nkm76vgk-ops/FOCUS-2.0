@@ -37,3 +37,16 @@ test('tema fallado: vuelve a «Visto», pierde repasos acumulados y se repasa ma
   assert.equal(f.mastery, 1); assert.equal(f.reviews, 0); assert.equal(f.next, '2026-10-14'); assert.equal(f.last, '2026-10-13');
   assert.equal(G.failedTopic(G.newTopic('u', 's1', 'X', 0, '2026-10-13'), '2026-10-13').mastery, 1, 'sin ver también pasa a Visto: salió en el examen');
 });
+import { plan, DEFAULT_SETTINGS } from '../src/core/planner.ts';
+test('«No la haré»: el hueco liberado no se vuelve a rellenar con estudio (cena, descanso)', () => {
+  const now = { date: '2026-10-13', minute: 600 }; // martes
+  const s = { ...DEFAULT_SETTINGS, availability: { ...DEFAULT_SETTINGS.availability, 2: [{ start: 1275, end: 1320 }] } }; // solo 21:15–22:00
+  const work = w('a', { dueDate: '2026-10-13', estMin: 45 });
+  const first = plan({ settings: s, works: [work], blocks: [] }, now), blk0 = first.blocks.find(x => x.status === 'planned')!; assert.equal(blk0.date, '2026-10-13');
+  const declined = first.blocks.map(x => x.id === blk0.id ? { ...x, status: 'skipped' as const, reason: 'otro' as const } : x);
+  const again = plan({ settings: s, works: [work], blocks: declined }, now);
+  assert.ok(!again.blocks.some(x => x.status === 'planned' && x.date === '2026-10-13' && x.start < 1320 && x.end > 1275), 'nada en la franja rechazada');
+  const sinMotivo = plan({ settings: s, works: [work], blocks: first.blocks.map(x => x.id === blk0.id ? { ...x, status: 'skipped' as const } : x) }, now);
+  assert.ok(sinMotivo.blocks.some(x => x.status === 'planned'), 'una omitida sin motivo (hueco incumplido) sí se puede reprogramar');
+  assert.deepEqual(plan({ settings: s, works: [work], blocks: again.blocks }, now).created, [], 'idempotente');
+});

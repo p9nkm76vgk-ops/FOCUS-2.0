@@ -72,6 +72,8 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   const occupy = (b: Block) => { const x = day(b.date); x.occ.push({ start: b.start, end: b.end, sub: byId.get(b.workId)?.subjectId }); x.total += dur(b); x.perWork.set(b.workId, (x.perWork.get(b.workId) ?? 0) + dur(b)); };
   history.filter(b => b.status === 'done').forEach(occupy);
   manualF.forEach(occupy);
+  // Sesiones que el usuario ha dicho que NO hará (hoy o más adelante): ese hueco es suyo (cena, descanso…); no se vuelve a rellenar con estudio.
+  for (const b of history) if (b.status === 'skipped' && b.reason && b.date >= now.date) day(b.date).occ.push({ start: b.start, end: b.end });
   // Ejercicio y actividades con hora: tiempo OCUPADO (no cuenta para el tope diario de estudio). El estudio automático se coloca alrededor; nunca se mueve a la fuerza.
   for (const a of input.activities ?? []) if (a.status !== 'skipped' && a.start != null && a.end != null) day(a.date).occ.push({ start: a.start, end: a.end });
   const free = (date: string, clip: boolean) => {

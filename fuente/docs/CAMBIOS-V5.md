@@ -82,3 +82,10 @@ El historial de GitHub conserva la versión 4 (commit anterior). Tus datos no ca
 - **Semanas críticas**: tabla de las próximas 6 semanas en Exámenes (exámenes, entregas, estudio planificado o hecho) y aviso en Hoy si esta semana o la siguiente están «cargadas» (≥3 exámenes; ≥2 exámenes y ≥2 entregas; o carga ≥6 con examen=2, entrega=1). Ignora repasos, tareas sin fecha y terminadas.
 - Corregido de la v7: «Luego» (copia) y «Ahora no» (máximo diario) se perdían al recargar.
 - Tests: 216 en Node; Chromium 140 comprobaciones. Safari/iPad sin probar por mi parte.
+
+## v8.1 — «No la haré» respeta tu hueco; pausa del plan; evolución de notas
+- **«No la haré»**: la sesión pasa a omitida con motivo y su hueco queda reservado (en el planificador y en la rutina): no se vuelve a rellenar con estudio. El trabajo se recoloca en otro momento. Solo cuenta para sesiones de hoy en adelante; una sesión incumplida del pasado sin motivo sigue reprogramándose.
+- **«Nunca a esta hora (día)»**: además recorta esa franja de tu disponibilidad para ese día de la semana (reversible en Ajustes → disponibilidad).
+- **Pausar el plan** (Ajustes: 1, 2, 3 o 7 días; banner «Reanudar» en Hoy): bloquea los días completos; lo pendiente se recoloca después y nada se marca como incumplido.
+- **Evolución por evaluación** en Notas y objetivo: tu media de cada evaluación (1.ª, 2.ª, 3.ª) por asignatura.
+- Tests: 219 en Node; Chromium 140 comprobaciones.

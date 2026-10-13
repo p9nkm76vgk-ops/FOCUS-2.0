@@ -184,6 +184,8 @@ function plan(input                                                             
   const occupy = (b       ) => { const x = day(b.date); x.occ.push({ start: b.start, end: b.end, sub: byId.get(b.workId)?.subjectId }); x.total += dur(b); x.perWork.set(b.workId, (x.perWork.get(b.workId) ?? 0) + dur(b)); };
   history.filter(b => b.status === 'done').forEach(occupy);
   manualF.forEach(occupy);
+  // Sesiones que el usuario ha dicho que NO hará (hoy o más adelante): ese hueco es suyo (cena, descanso…); no se vuelve a rellenar con estudio.
+  for (const b of history) if (b.status === 'skipped' && b.reason && b.date >= now.date) day(b.date).occ.push({ start: b.start, end: b.end });
   // Ejercicio y actividades con hora: tiempo OCUPADO (no cuenta para el tope diario de estudio). El estudio automático se coloca alrededor; nunca se mueve a la fuerza.
   for (const a of input.activities ?? []) if (a.status !== 'skipped' && a.start != null && a.end != null) day(a.date).occ.push({ start: a.start, end: a.end });
   const free = (date        , clip         ) => {
@@ -615,7 +617,7 @@ const habitBusy = (h              )         => h.filter(x => x.status === 'plann
                                                                                                                               
 function cuts(c     , date        , ign                                     )        {
   const g = c.settings.minGapMin, pd = (b                                ) => ({ start: b.start - g, end: b.end + g });
-  return [...c.settings.blockedDates.filter(b => b.date === date), ...c.blocks.filter(b => b.date === date && (b.status === 'planned' || b.status === 'done') && b.id !== ign?.block).map(pd),
+  return [...c.settings.blockedDates.filter(b => b.date === date), ...c.blocks.filter(b => b.date === date && (b.status === 'planned' || b.status === 'done' || (b.status === 'skipped' && !!b.reason && date >= c.now.date)) && b.id !== ign?.block).map(pd),
     ...c.activities.filter(a => a.date === date && a.status !== 'skipped' && a.start != null).map(a => pd({ start: a.start , end: a.end  })),
     ...fixedBusy(c.routine, date, 1).map(f => pd({ start: f.start , end: f.end  })), ...c.habit.filter(h => h.date === date && (h.status === 'planned' || h.status === 'done') && h.id !== ign?.habit).map(pd)];
 }
@@ -1156,7 +1158,7 @@ function stats(blocks         , works        , _now     ) {
 }
 ;return{stats}})();
 const {plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='215f992d81',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='516a6429bd',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -1541,7 +1543,7 @@ const g0_=()=>S.goals;
 const REASONS=[['cansancio','Cansancio'],['imprevisto','Imprevisto'],['nocabia','No cabía'],['otro','Otro']];
 const backupCard=()=>(S.works.length||S.grades.length||S.syllabus.length)&&Date.now()-(UI.lastExport||0)>7*864e5&&Date.now()>(UI.backupSnooze||0)?`<div class="card item"><div><b>Haz una copia de seguridad</b><small>Tus datos viven solo en este dispositivo. Descarga una copia cada semana.</small></div><button data-a=export>Descargar copia</button><button data-a=backupLater>Luego</button></div>`:'';
 {const h0=V.hoy;V.hoy=a=>h0(a).replace(/(<h1>Hoy<\/h1><p class=m>[^<]*<\/p>)/,m=>m+hoyExtra())+backupCard()}
-function skipBlk(id){const b=S.blocks.find(x=>x.id===id);if(!b)return;choose('¿Por qué no la harás?','<p>Así el planificador distingue una mala franja de un imprevisto puntual. Buscaré otro hueco.</p>',[...REASONS.map(r=>({l:r[1],fn:()=>{b.status='skipped';b.reason=r[0];commit()}})),{l:'Cancelar',fn:()=>{}}])}
+function skipBlk(id){const b=S.blocks.find(x=>x.id===id);if(!b)return;choose('¿Por qué no la harás?','<p>Ese hueco quedará libre (no se vuelve a rellenar) y buscaré otro momento para el trabajo. «Nunca a esta hora» además lo quita de tu disponibilidad ese día de la semana.</p>',[...REASONS.map(r=>({l:r[1],fn:()=>{b.status='skipped';b.reason=r[0];commit();toast('Ese hueco queda libre: no lo vuelvo a rellenar')}})),{l:'Nunca a esta hora ('+DOW[weekday(b.date)]+')',fn:()=>{const wd=weekday(b.date),av=S.settings.availability[wd]||[];S.settings={...S.settings,availability:{...S.settings.availability,[wd]:P.subtract(av,[{start:b.start,end:b.end>=1440?1440:Math.max(b.end,...av.filter(w=>w.start<=b.start&&b.start<w.end).map(w=>w.end))}])}};b.status='skipped';b.reason='otro';commit();toast('Quitado de tu disponibilidad. Puedes cambiarlo en Ajustes')}},{l:'Cancelar',fn:()=>{}}])}
 const setFelt=(id,v)=>{S.works=S.works.map(x=>x.id===id?{...x,felt:v}:x);commit({quiet:true})};
 Object.assign(A,{quickDone:t=>logForm(t.dataset.id,true),skipBlk:t=>skipBlk(t.dataset.id),why:t=>{const b=S.blocks.find(x=>x.id===t.dataset.id);if(b){b.reason=t.dataset.k;commit({quiet:true})}},applyCap:t=>{S.settings={...S.settings,maxDayMin:+t.dataset.k};commit();toast('Máximo diario: '+hr(+t.dataset.k))},capNo:()=>{UI.capNo=Date.now()+14*864e5;saveUI();render()},backupLater:()=>{UI.backupSnooze=Date.now()+7*864e5;saveUI();render()},editGoals:goalsForm,addGrade:()=>gradeForm(),editGrade:t=>gradeForm(t.dataset.id),gradeFor:t=>{const w=wk(t.dataset.id);if(w)gradeForm(null,{subjectId:w.subjectId,workId:w.id,label:w.title,date:w.dueDate})},
  lvl:t=>{S.syllabus=S.syllabus.map(x=>x.id===t.dataset.id?GL.setMastery(x,+t.dataset.k,now().date):x);commit({quiet:true})},addTopics:t=>topicsForm(t.dataset.id),editTopic:t=>topicForm(t.dataset.id),
@@ -1580,6 +1582,15 @@ Object.assign(A,{
  weakTopics:t=>weakForm(t.dataset.id),
  icsAsk:()=>{const r=ICS.buildIcs({blocks:S.blocks,works:S.works,subjects:S.subjects,today:now().date,stampUtc:new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z'});choose('Avisos en el Calendario del iPad',`<p>Se descargará un archivo con <b>${r.count}</b> eventos: tus sesiones futuras (aviso 10 min antes), tus exámenes y tus entregas.</p><p>Ábrelo desde Descargas y elige <b>Añadir todo</b> (mejor en un calendario nuevo llamado «Focus OS»). Si lo vuelves a importar más adelante, normalmente actualiza los mismos eventos; los que quites o muevas aquí puedes borrarlos allí a mano.</p>`,[{l:'Descargar',c:'pri',fn:()=>A.icsGo()},{l:'Cerrar',fn:()=>{}}])},
  icsGo:()=>{const r=ICS.buildIcs({blocks:S.blocks,works:S.works,subjects:S.subjects,today:now().date,stampUtc:new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z'});dl(r.text,`focus-os-${now().date}.ics`,'text/calendar')}});
+
+// ===== v8b: pausa del plan y evolución de notas =====
+const pausa=()=>{const d=(S.settings.blockedDates||[]).filter(b=>b.pausa&&b.date>=now().date).map(b=>b.date).sort();return d.length?{from:d[0],to:d[d.length-1],n:d.length}:null};
+{const h1=V.hoy;V.hoy=a=>{const p=pausa(),h=h1(a);return p?h.replace(/(<h1>Hoy<\/h1><p class=m>[^<]*<\/p>)/,m=>m+`<div class="card item"><div><b>⏸ Plan en pausa hasta el ${fd(p.to)}</b><small>No se programa estudio en esos días. Lo pendiente se recoloca al reanudar.</small></div><button class=pri data-a=resume>Reanudar</button></div>`):h}}
+{const aj1=V.aj;V.aj=a=>{const p=pausa();return aj1(a)+`<div class=card><h3>Pausar el plan</h3><p class=m>${p?`En pausa hasta el ${fd(p.to)}.`:'Enfermedad, viaje, una semana imposible: no se programa estudio esos días y lo pendiente se recoloca después, sin marcar nada como incumplido.'}</p><div class=row style="justify-content:flex-start">${p?'<button class=pri data-a=resume>Reanudar ya</button>':[1,2,3,7].map(k=>`<button data-a=pause data-k=${k}>${k} ${k===1?'día':'días'}</button>`).join('')}</div></div>`}}
+{const ob1=V.obj;V.obj=a=>{ensureG(S);const rows=subsAct().map(s=>{const t=GL.subjectTarget(S.goals,s.id),c=[1,2,3].map(e=>{const r=GL.evalSummary(S.grades,s.id,e,t);return r.cur==null?'—':n1(r.cur)});return c.every(x=>x==='—')?'':`<tr><td><span class=dot style="--c:${sub(s.id).color}"></span> ${esc(s.name)}</td>${c.map(x=>`<td>${x}</td>`).join('')}</tr>`}).join('');
+ return ob1(a)+(rows?`<h2>Evolución por evaluación</h2><div class=tblw><table class=tbl><thead><tr><th>Asignatura</th><th>1.ª</th><th>2.ª</th><th>3.ª</th></tr></thead><tbody>${rows}</tbody></table></div><p class=m>Tu media de lo ya evaluado en cada evaluación.</p>`:'')}}
+Object.assign(A,{pause:t=>{const k=+t.dataset.k,n=now().date,keep=(S.settings.blockedDates||[]).filter(b=>!b.pausa);S.settings={...S.settings,blockedDates:[...keep,...Array.from({length:k},(_,i)=>({date:addDays(n,i),start:0,end:1440,pausa:true}))]};commit();toast('Plan en pausa '+k+(k===1?' día':' días'))},
+ resume:()=>{S.settings={...S.settings,blockedDates:(S.settings.blockedDates||[]).filter(b=>!b.pausa)};commit();toast('Plan reanudado')}});
 
 boot();
 </script></body></html>

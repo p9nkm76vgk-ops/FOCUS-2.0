@@ -42,7 +42,7 @@ export const habitBusy = (h: HabitBlock[]): Busy[] => h.filter(x => x.status ===
 interface Ctx { settings: Settings; routine: Routine; blocks: Block[]; activities: Activity[]; habit: HabitBlock[]; now: Now }
 function cuts(c: Ctx, date: string, ign?: { block?: string; habit?: string }): Win[] {
   const g = c.settings.minGapMin, pd = (b: { start: number; end: number }) => ({ start: b.start - g, end: b.end + g });
-  return [...c.settings.blockedDates.filter(b => b.date === date), ...c.blocks.filter(b => b.date === date && (b.status === 'planned' || b.status === 'done') && b.id !== ign?.block).map(pd),
+  return [...c.settings.blockedDates.filter(b => b.date === date), ...c.blocks.filter(b => b.date === date && (b.status === 'planned' || b.status === 'done' || (b.status === 'skipped' && !!b.reason && date >= c.now.date)) && b.id !== ign?.block).map(pd),
     ...c.activities.filter(a => a.date === date && a.status !== 'skipped' && a.start != null).map(a => pd({ start: a.start!, end: a.end! })),
     ...fixedBusy(c.routine, date, 1).map(f => pd({ start: f.start!, end: f.end! })), ...c.habit.filter(h => h.date === date && (h.status === 'planned' || h.status === 'done') && h.id !== ign?.habit).map(pd)];
 }
