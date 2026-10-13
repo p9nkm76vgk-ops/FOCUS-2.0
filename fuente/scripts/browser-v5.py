@@ -64,6 +64,9 @@ try:
     wk = {}
     for h in S['habit']:
         if h['subjectId'] == f and h['kind'] == 'estudio': d = date.fromisoformat(h['date']); wk.setdefault(d - timedelta(days=d.weekday()), set()).add(h['date'])
+    wsub = {w['id'] for w in S['works'] if w['subjectId'] == f}
+    for bb in S['blocks']:
+        if bb['workId'] in wsub and bb['status'] in ('planned', 'done'): d = date.fromisoformat(bb['date']); wk.setdefault(d - timedelta(days=d.weekday()), set()).add(bb['date'])  # las obligaciones también cuentan como sesiones de esa asignatura
     ck('rutina genera 5 bloques en una semana completa para esa asignatura (días distintos)', any(len(v) == 5 for v in wk.values()), str({str(k): len(v) for k, v in wk.items()}))
     go(p, 'cal'); shot(p, '07-calendario-rutina')
     # tema claro

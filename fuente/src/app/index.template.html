@@ -7,7 +7,7 @@ const P=(()=>{/*PLANNER*/;return{plan,priority,DEFAULT_SETTINGS,addDays,weekday,
 const EST2=(()=>{/*CONFIG*/;/*ESTIMATOR2*/;return{estimateV2,recordPrediction,closePrediction}})();
 const MET=(()=>{/*METHOD*/;return{METHOD,GENERIC,methodOf,SPACING,howFor}})();
 const EST=(()=>{const {estimateV2}=EST2;/*ESTIMATOR*/;return{reestimate,assignTopics,PARAMS}})();
-const RTN=(()=>{const {addDays,weekday,subtract,plan}=P,{METHOD,methodOf}=MET;/*ROUTINE*/;return{DEFAULT_ROUTINE,INTENSITY,HORIZON_DAYS,activityFor,fixedBusy,habitBusy,generate,reconcile,proposeSchedule,regenerate,describe,mondayOf}})();
+const RTN=(()=>{const {addDays,weekday,subtract,plan}=P,{METHOD,methodOf}=MET;/*ROUTINE*/;return{DEFAULT_ROUTINE,INTENSITY,HORIZON_DAYS,activityFor,fixedBusy,habitBusy,generate,proposeSchedule,regenerate,mondayOf}})();
 const PAL=(()=>{/*PALETTE*/;return{DEFAULT_SUBJECT_COLORS,SPARE_COLORS,effectiveColor,nextSpare,colorConflict,resetColors}})();
 const LIFE=(()=>{const {addDays,weekday,subtract}=P;/*LIFESTYLE*/;return{EXERCISE_TYPES,LIMITS,mondayOf,freeWindows,findSlot,conflictOf,validateActivity,weekMinutes,suggest}})();
 const MIG=(()=>{const {DEFAULT_SUBJECT_COLORS}=PAL,{DEFAULT_ROUTINE}=RTN;/*MIGRATE*/;return{migrateState,lostPaths,setEstimatorVersion,previewUpgrade,SCHEMA_VERSION}})();

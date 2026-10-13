@@ -140,3 +140,13 @@ Además: lo difícil a primera hora de la ventana y lo fácil más tarde; sin re
 - Con intensidad «equilibrada» (21 bloques/semana = 14 de estudio + 7 repasos) Matemáticas II acaparaba 2 estudios + 5 repasos y Historia de España, Filosofía, Inglés y Catalán solo 1 y ningún repaso: los desempates iban por orden de la lista. Ahora rotan por «la más antigua primero» contando lo ya planificado, los repasos van a la asignatura con menos bloques esa semana, y una cuota semanal mayor que la de las demás tiene prioridad.
 - Resultado en una semana: cada asignatura 2–3 bloques, ninguna con más de 2 repasos. Test nuevo en `routine.test.ts` (233 tests). Migración `metV=2`: se regenera una vez el futuro.
 - Chromium 135 (v5 35, v6 35, final 50, pages 11, sync 4).
+
+## v12 — Planificación estable: obligaciones primero, rutina solo rellena (adiós tachados, diálogos y huecos)
+Causas halladas y corregidas:
+1. **«No hay tantos minutos… ajusta»:** la rutina ocupaba tiempo antes que las obligaciones y provocaba déficits y el diálogo «Cambios propuestos». Ahora las tareas y exámenes se planifican primero; la rutina se regenera con el tiempo que sobra. La rutina ya no puede causar déficit (comprobado en 6000 estados).
+2. **Clase tachada + otra al lado:** el bloque de rutina se marcaba «sustituido» y la cuota semanal volvía a rellenar otra. Ya no existe «sustituido»/«sin hueco»: no se conserva nada tachado (los antiguos se ocultan y los futuros se eliminan al abrir), y las obligaciones de la semana cuentan para la cuota de esa asignatura.
+3. **Huecos de 20–30 min:** la compactación se reduce a cerrar cualquier hueco ≥ 15 min (antes ≥ 25), también hoy para sesiones que empiezan dentro de más de 30 min; los bloques de rutina absorben restos pequeños (≤ 25 min) o se acortan (≥ 30 min) en vez de dejar hueco. Máximo hueco entre bloques de un mismo tramo: 24 min.
+4. **Inestabilidad:** el planificador se repite hasta converger, así que repetir/regenerar no cambia nada.
+- Se eliminan `reconcile`, `describe` y el diálogo de cambios; se conservan lo hecho, omitido, fijado y pasado.
+- Nueva prueba de estrés `npm run estres` (150 secuencias aleatorias × 40 acciones, invariantes tras cada acción: sin tachados, sin solapes, dentro de disponibilidad, nunca en ejercicio/cena, estable, rutina sin déficit, sin huecos >24 min). Resultado: 6000 estados, 0 fallos.
+- Tests: 233 Node; Chromium 136 (v5 35, v6 35, final 51, pages 11, sync 4).

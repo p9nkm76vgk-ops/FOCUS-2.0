@@ -138,7 +138,7 @@ const REVIEW_SHARE = 0.25;   // parte del trabajo de un examen reservada a repas
 const REVIEW_DAYS = 2;       // el repaso ocupa los últimos N días antes del examen
 /** Desde esta hora una ventana se considera «después de cenar»: solo se usa si no cabe antes. */
 const LATE_FROM = 20 * 60 + 30;
-const MIN_HOLE = 15;       // hueco mínimo que se compacta
+const MIN_HOLE = 5;        // hueco mínimo que se compacta
 const MIN_FRAG = 20;       // si ya se colocó parte, un resto menor no se planifica
 const MIN_WORTH = 10;      // restos por debajo de esto no se planifican
 const EXAM_BUFFER_MIN = 60;  // margen antes de la hora del examen el mismo día
@@ -300,7 +300,7 @@ function plan(input                                                             
   }
 
   // 3b) Compactar: en los días futuros, un hueco de ≥15 min DENTRO de una ventana se cierra adelantando las sesiones automáticas
-  //     (nunca manuales, hechas, de hoy ni fuera de la ventana). Es estable: sobre un plan ya compacto no cambia nada.
+  //     (nunca manuales, hechas, ni fuera de la ventana; hoy solo las que empiezan dentro de más de 30 min). Es estable: sobre un plan ya compacto no cambia nada.
   {
     const fx = new Map               (), add = (m                    , d        , w     ) => m.set(d, [...(m.get(d) ?? []), w]);
     for (const b of history) if (b.status === 'done' || (b.status === 'skipped' && b.reason && b.date >= now.date)) add(fx, b.date, { start: b.start, end: b.end });
@@ -309,8 +309,8 @@ function plan(input                                                             
     const placed = new Map               (), autos = [...kept, ...created].sort(cmp), swap = new Map              ();
     for (const b of autos) {
       let nb = b;
-      if (b.date > now.date) {
-        const cuts        = [...s.blockedDates.filter(x => x.date === b.date), ...[...(fx.get(b.date) ?? []), ...(placed.get(b.date) ?? [])].map(o => ({ start: o.start - s.minGapMin, end: o.end + s.minGapMin }))];
+      if (b.date > now.date || (b.date === now.date && b.start >= up5(now.minute) + 30)) {
+        const cuts        = [...(b.date === now.date ? [{ start: 0, end: up5(now.minute) }] : []), ...s.blockedDates.filter(x => x.date === b.date), ...[...(fx.get(b.date) ?? []), ...(placed.get(b.date) ?? [])].map(o => ({ start: o.start - s.minGapMin, end: o.end + s.minGapMin }))];
         const win = subtract(s.availability[weekday(b.date)] ?? [], cuts).find(w => w.start <= b.start && b.end <= w.end), st = win ? up5(win.start) : b.start;
         const badSlot = (m        ) => (input.avoid?.hours ?? []).includes(hourBucket(m));
         if (win && b.start - st >= MIN_HOLE && !(badSlot(st) && !badSlot(b.start))) {
@@ -712,9 +712,8 @@ const RTN=(()=>{const {addDays,weekday,subtract,plan}=P,{METHOD,methodOf}=MET;/*
 
 const DEFAULT_ROUTINE          = { enabled: false, intensity: 'equilibrado', blockMin: 45, perWeek: {}, activeDays: [1, 2, 3, 4, 5, 6, 0], fixed: [], lastTopic: {}, quiet: [], generatedThrough: null };
 const INTENSITY = { ligero: { daily: 1, perWeek: 1, review: false }, equilibrado: { daily: 2, perWeek: 2, review: true }, exigente: { daily: 3, perWeek: 3, review: true } }         ;
-const HORIZON_DAYS = 14, REVIEW_MIN = 20;
+const HORIZON_DAYS = 14, REVIEW_MIN = 20, ABSORB = 25, SHORT_MIN = 30;
                                                                                                           
-                                                                                                                                                                                                                                                                
 const up5 = (m        ) => Math.ceil(m / 5) * 5, dur = (b                                ) => b.end - b.start;
 const fm = (m        ) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const mondayOf = (d        ) => addDays(d, -((weekday(d) + 6) % 7));
@@ -754,10 +753,12 @@ function generate(i                                                             
   const last                         = {};
   for (const b of i.blocks) if (b.status === 'done') { const w = i.works.find(x => x.id === b.workId); if (w && b.date > (last[w.subjectId] ?? '')) last[w.subjectId] = b.date; }
   for (const h of i.habit) if (h.status === 'done' && h.date > (last[h.subjectId] ?? '')) last[h.subjectId] = h.date;
-  const quota = (sid        ) => Math.max(0, R.perWeek[sid] ?? I.perWeek);
+  const quota = (sid        ) => Math.max(0, R.perWeek[sid] ?? I.perWeek), subjOf = new Map(i.works.map(w => [w.id, w.subjectId]));
+  // Las obligaciones de la semana cuentan como sesiones de esa asignatura: la rutina solo rellena lo que falta (no añade una clase de Lengua si ya hay deberes de Lengua).
+  const oblig = (sid        , mon        ) => i.blocks.filter(b => (b.status === 'planned' || b.status === 'done') && subjOf.get(b.workId) === sid && mondayOf(b.date) === mon).length;
   for (let d = i.from; d <= i.to; d = addDays(d, 1)) {
     if (d < i.now.date || !R.activeDays.includes(weekday(d))) continue;
-    const mon = mondayOf(d), have = (sid        ) => all.filter(h => h.subjectId === sid && h.kind === 'estudio' && h.status !== 'displaced' && mondayOf(h.date) === mon).length;
+    const mon = mondayOf(d), have = (sid        ) => all.filter(h => h.subjectId === sid && h.kind === 'estudio' && h.status !== 'displaced' && mondayOf(h.date) === mon).length + oblig(sid, mon);
     const today = all.filter(h => h.date === d && h.status !== 'displaced'), used = new Set(today.map(h => h.subjectId)), prev = new Set(all.filter(h => h.date === addDays(d, -1) && h.kind === 'estudio').map(h => h.subjectId));
     let cap = I.daily - today.filter(h => h.kind === 'estudio').length;
     // Días activos que quedan en la semana (hoy incluido): si una asignatura necesita tantos bloques como días quedan, HAY que ponerla hoy aunque ayer también toque (p. ej. 5 clases por semana).
@@ -766,8 +767,13 @@ function generate(i                                                             
     const seen = (sid        ) => all.reduce((m, h) => h.subjectId === sid && h.status !== 'displaced' && h.date < d && h.date > m ? h.date : m, last[sid] ?? '');
     const cand = subs.filter(s => quota(s.id) - have(s.id) > 0 && !used.has(s.id)).map(s => ({ s, k: [quota(s.id) - have(s.id) >= dl ? 0 : prev.has(s.id) ? 1 : 0, -quota(s.id), -(quota(s.id) - have(s.id)), seen(s.id), subs.indexOf(s)]          }))
       .sort((a, b) => a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.k[2] - b.k[2] || a.k[3].localeCompare(b.k[3]) || a.k[4] - b.k[4]);
-    const place = (s      , min        , kind                      ) => {
-      const w = windows(c, d).find(x => x.end - up5(x.start) >= min); if (!w) return false;
+    // Duración flexible para no dejar huecos: si tras colocar el bloque sobraría un trozo demasiado pequeño para otro bloque (≤ ABSORB min), el bloque lo absorbe (hasta +ABSORB);
+    // si no cabe el bloque entero en ningún hueco, se admite uno más corto (≥ SHORT_MIN) antes que dejar el hueco vacío.
+    const place = (s      , want        , kind                      , flex = true) => {
+      const fit = (m        ) => windows(c, d).find(x => x.end - up5(x.start) >= m);
+      let w = fit(want), min = want; if (!w && flex) { min = kind === 'estudio' ? Math.max(SHORT_MIN, Math.min(want, i.settings.minSessionMin)) : 0; if (min && min < want) w = fit(min); }
+      if (!w || !min) return false;
+      const room = w.end - up5(w.start); if (flex && room - min <= ABSORB) min = Math.min(room, min + ABSORB);
       const st = up5(w.start), n = all.filter(h => h.subjectId === s.id && h.kind === 'estudio').length;
       const a = kind === 'estudio' ? activityFor(s, n, R.lastTopic[s.id]) : (() => { const m = methodOf(s.name, s.colorKey); return { title: `${s.name}: ${m.repaso.title}`, detail: `${m.repaso.detail} Por qué: recuperar de memoria y espaciar es la técnica mejor respaldada.` }; })();
       const h             = { id: `hab:${d}:${st}:${s.id}`, date: d, start: st, end: st + min, subjectId: s.id, kind, title: a.title, detail: a.detail, status: 'planned', pinned: false };
@@ -775,7 +781,7 @@ function generate(i                                                             
     };
     for (const x of cand) { if (cap <= 0) break; if (!place(x.s, R.blockMin, 'estudio')) break; cap--; used.add(x.s.id); }
     if (I.review && !all.some(h => h.date === d && h.kind === 'repaso')) {
-      const cnt = (sid        ) => all.filter(h => h.subjectId === sid && h.status !== 'displaced' && mondayOf(h.date) === mon).length;
+      const cnt = (sid        ) => all.filter(h => h.subjectId === sid && h.status !== 'displaced' && mondayOf(h.date) === mon).length + oblig(sid, mon);
       const r = subs.filter(s => !used.has(s.id) && quota(s.id) > 0).sort((a, b) => cnt(a.id) - cnt(b.id) || seen(a.id).localeCompare(seen(b.id)) || subs.indexOf(a) - subs.indexOf(b))[0];
       if (r && all.filter(h => h.date === d && h.status !== 'displaced').length < I.daily + 1) place(r, REVIEW_MIN, 'repaso');
     }
@@ -783,40 +789,19 @@ function generate(i                                                             
   return out;
 }
 
-/** Adaptación a obligaciones: SUSTITUYE el bloque habitual de la misma asignatura por los deberes (si encaja) y, en modo 'soft', REUBICA los bloques
- *  desplazados por una obligación. Nunca toca bloques hechos, fijados ni manuales. Solo cambia lo necesario. */
-function reconcile(i                                                                                       ) {
-  const habit = i.habit.map(h => ({ ...h })), blocks = i.blocks.map(b => ({ ...b })), changes           = [], c      = { ...i, habit, blocks };
-  const active = i.works.filter(w => w.status === 'pending' || w.status === 'in_progress').sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  for (const w of i.absorb === false ? [] : active) {
-    const lastOk = w.kind === 'exam' ? addDays(w.dueDate, -1) : w.dueDate;
-    for (const b of blocks.filter(x => x.workId === w.id && x.status === 'planned' && !x.manual && x.part !== 'review' && x.date >= i.now.date).sort(byDT)) {
-      const bd = dur(b), h = habit.filter(x => x.status === 'planned' && !x.pinned && x.kind === 'estudio' && x.subjectId === w.subjectId && x.date >= i.now.date && x.date <= lastOk && x.date <= b.date && bd * 2 >= dur(x) && !(i.declined ?? []).includes(`${w.id}|${x.id}`)).sort(byDT)
-        .find(x => (x.date !== i.now.date || x.start >= up5(i.now.minute)) && inAvail(c, x.date, x.start, x.start + bd) && !clash(c, x.date, x.start, x.start + bd, { block: b.id, habit: x.id }));
-      if (!h) continue;
-      b.date = h.date; b.start = h.start; b.end = h.start + bd; b.id = `auto:${w.id}:${b.part ?? 'main'}:${b.date}:${b.start}`;
-      changes.push({ workId: w.id, id: h.id, kind: 'sustituido', subjectId: h.subjectId, title: h.title, from: { date: h.date, start: h.start, end: h.end }, reason: `Sustituido por «${w.title}» (misma asignatura, vence ${w.dueDate}).` });
-      h.status = 'replaced'; h.note = `Sustituido por «${w.title}»`;
-    }
-  }
-  if (i.mode === 'soft') for (const h of habit.filter(x => x.status === 'planned' && !x.pinned && x.date >= i.now.date).sort(byDT)) {
-    if (!clash(c, h.date, h.start, h.end, { habit: h.id })) continue;
-    const from = { date: h.date, start: h.start, end: h.end }, d0 = dur(h); let moved = false;
-    for (let k = 0; k <= 3 && !moved; k++) { const d = addDays(from.date, k), w = windows(c, d, { habit: h.id }).find(x => x.end - up5(x.start) >= d0 && !(d === from.date && up5(x.start) === h.start));
-      if (w) { const st = up5(w.start); h.date = d; h.start = st; h.end = st + d0; h.id = `hab:${d}:${st}:${h.subjectId}`; h.note = 'Reubicado por una obligación'; changes.push({ id: h.id, kind: 'reubicado', subjectId: h.subjectId, title: h.title, from, to: { date: d, start: st, end: st + d0 }, reason: 'Se solapaba con una obligación; hay un hueco razonable.' }); moved = true; } }
-    if (!moved) { h.status = 'displaced'; h.note = 'Sin hueco razonable: decide qué hacer'; changes.push({ id: h.id, kind: 'pendiente', subjectId: h.subjectId, title: h.title, from, reason: 'Se solapaba con una obligación y no hay hueco razonable en los próximos días.' }); }
-  }
-  return { habit, blocks, changes };
-}
-
-/** Propone el horario completo. 1º respeta la rutina como ocupada; solo si no cabe y desplazarla reduce el déficit, propone reubicarla. */
-function proposeSchedule(i                                                                                                                                                                                                                                                    ) {
-  const fx = fixedBusy(i.routine, i.now.date, i.settings.horizonDays + 2), deficits = (w                    ) => w.filter(x => x.type === 'deficit').length;
-  const run = (mode                 ) => { const p = plan({ settings: i.settings, works: i.works, blocks: i.blocks, boost: i.boost, avoid: i.avoid, activities: [...i.activities, ...fx, ...(mode === 'keep' ? habitBusy(i.habit) : [])] }, i.now);
-    return { p, r: reconcile({ settings: i.settings, routine: i.routine, works: i.works, blocks: p.blocks, activities: i.activities, habit: i.habit, now: i.now, mode, absorb: !i.quiet, declined: i.declined }) }; };
-  let pick = run('keep'), mode                  = 'keep'; const dA = deficits(pick.p.warnings);
-  if (dA > 0 && i.routine.enabled && !i.quiet) { const B = run('soft'); if (deficits(B.p.warnings) < dA) { pick = B; mode = 'soft'; } }
-  return { blocks: pick.r.blocks, habit: pick.r.habit, warnings: pick.p.warnings, changes: pick.r.changes, mode };
+/** Propone el horario completo. Las OBLIGACIONES (tareas y exámenes) se planifican primero y nunca compiten con la rutina; la rutina es una sugerencia que se
+ *  vuelve a generar cada vez con el tiempo que sobra (no se conservan bloques «sustituidos», «tachados» ni «sin hueco»). Se conservan: lo hecho, lo omitido, lo fijado y lo ya pasado.
+ *  Determinista y estable: con los mismos datos da exactamente el mismo resultado, así que repetirlo no cambia nada. */
+function proposeSchedule(i                                                                                                                                                                                                                                ) {
+  const n = i.now, on = i.routine.enabled, to = addDays(n.date, HORIZON_DAYS - 1), fx = fixedBusy(i.routine, n.date, i.settings.horizonDays + 2);
+  const keep = on ? i.habit.filter(h => h.date < n.date || (h.date === n.date && h.start < up5(n.minute)) || h.status === 'done' || h.status === 'skipped' || h.pinned) : i.habit;
+  const pinned = keep.filter(h => h.date >= n.date);
+  // La compactación del planificador puede liberar hueco para algo que quedó sin colocar: se repite hasta que el plan deja de cambiar (convergencia) y así repetir NUNCA cambia nada.
+  const pl = (blocks         ) => plan({ settings: i.settings, works: i.works, blocks, boost: i.boost, avoid: i.avoid, activities: [...i.activities, ...fx, ...habitBusy(pinned)] }, n), sig = (b         ) => JSON.stringify(b.filter(x => x.status === 'planned').map(x => [x.id, x.start, x.end]).sort());
+  let p = pl(i.blocks); for (let k = 0; k < 4; k++) { const q = pl(p.blocks); if (sig(q.blocks) === sig(p.blocks)) { p = q; break; } p = q; }
+  if (!on) return { blocks: p.blocks, habit: i.habit, warnings: p.warnings, through: null                  };
+  const gen = generate({ settings: i.settings, routine: i.routine, subjects: i.subjects, works: i.works, blocks: p.blocks, activities: i.activities, habit: keep, now: n, from: n.date, to });
+  return { blocks: p.blocks, habit: [...keep, ...gen].sort(byDT), warnings: p.warnings, through: to                  };
 }
 /** Regenera la rutina futura: conserva hechos, fijados, omitidos y sustituidos; retira lo demás y vuelve a generar. */
 function regenerate(i                                                                                                                                                   ) {
@@ -824,8 +809,7 @@ function regenerate(i                                                           
   const to = addDays(i.now.date, HORIZON_DAYS - 1);
   return { habit: [...keep, ...generate({ ...i, habit: keep, from: i.now.date, to })].sort(byDT), through: to };
 }
-const describe = (c        , name        ) => `${name} ${fm(c.from.start)}–${fm(c.from.end)}${c.to ? ` → ${c.to.date === c.from.date ? '' : c.to.date.slice(5) + ' '}${fm(c.to.start)}–${fm(c.to.end)}` : ''}: ${c.kind}. ${c.reason}`;
-;return{DEFAULT_ROUTINE,INTENSITY,HORIZON_DAYS,activityFor,fixedBusy,habitBusy,generate,reconcile,proposeSchedule,regenerate,describe,mondayOf}})();
+;return{DEFAULT_ROUTINE,INTENSITY,HORIZON_DAYS,activityFor,fixedBusy,habitBusy,generate,proposeSchedule,regenerate,mondayOf}})();
 const PAL=(()=>{/** Paleta y color por asignatura, CENTRALIZADOS. Color efectivo = personalizado (userColor) > predeterminado por clave > color heredado (`color`). */
 const DEFAULT_SUBJECT_COLORS                         = {
   'Matemáticas II': '#4A7BA3', 'Física': '#7B6AA0', 'Química': '#4E8B6E', 'Business': '#A97C20', 'Lengua Castellana': '#A9526A',
@@ -1283,7 +1267,7 @@ function stats(blocks         , works        , _now     ) {
 }
 ;return{stats}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='3dbf79b5d0',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='0f67aba8c9',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -1332,13 +1316,12 @@ function regenFuture(){const n=now();S.blocks=S.blocks.filter(b=>!(b.status==='p
 /** Regeneración total: la versión anterior desaparece (también la rutina futura no hecha ni fijada, con sus «sustituidas»/«sin hueco»). */
 function regenAll(){regenFuture();const n=now();{S.habit=(S.habit||[]).filter(h=>h.pinned||h.status==='done'||h.date<n.date||(h.date===n.date&&h.start<n.minute&&h.status!=='replaced'&&h.status!=='displaced'));if(S.routine&&S.routine.enabled){S.routine={...S.routine,generatedThrough:addDays(n.date,-1)};extendRoutine()}}}
 function ensureG(Sx){if(!Sx.goals)Sx.goals={...GL.DEFAULT_GOALS,prev:{},subjTarget:{}};if(!Array.isArray(Sx.grades))Sx.grades=[];if(!Array.isArray(Sx.syllabus))Sx.syllabus=[]}
-function scheduleOf(Sx,quiet){ensureG(Sx);const n=now();Sx.works=GL.syncReviews(Sx.works,Sx.blocks,Sx.syllabus,Sx.subjects,n.date,sid=>GL.gapOf(Sx.goals,Sx.grades,sid,n.date)).works;Sx.works=reestimate(Sx.works,Sx.blocks,ctxOf(Sx));Sx.works=GL.stampBase(Sx.works,GL.learnedPace(Sx.works,Sx.blocks));return proposeSchedule({boost:GL.examBoosts(Sx.goals,Sx.grades,Sx.syllabus,Sx.subjects,n.date),avoid:(st=>({hours:st.avoidHours,days:st.avoidDays}))(GL.slotStats(Sx.blocks,n.date)),settings:Sx.settings,works:Sx.works,blocks:Sx.blocks,activities:Sx.activities||[],routine:Sx.routine||DEFAULT_ROUTINE,habit:Sx.habit||[],now:now(),quiet,declined:(Sx.routine&&Sx.routine.declined)||[]})}
-function finish(Sx,r){const tm={};Sx.works.forEach(w=>{if(w.topics?.length&&(w.status==='pending'||w.status==='in_progress'))Object.assign(tm,assignTopics(w,r.blocks))});Sx.blocks=r.blocks.map(b=>tm[b.id]&&!b.manual&&b.topicId!==tm[b.id]?{...b,topicId:tm[b.id]}:b);Sx.habit=r.habit;W=r.warnings}
+function scheduleOf(Sx,quiet){ensureG(Sx);const n=now();Sx.works=GL.syncReviews(Sx.works,Sx.blocks,Sx.syllabus,Sx.subjects,n.date,sid=>GL.gapOf(Sx.goals,Sx.grades,sid,n.date)).works;Sx.works=reestimate(Sx.works,Sx.blocks,ctxOf(Sx));Sx.works=GL.stampBase(Sx.works,GL.learnedPace(Sx.works,Sx.blocks));return proposeSchedule({boost:GL.examBoosts(Sx.goals,Sx.grades,Sx.syllabus,Sx.subjects,n.date),avoid:(st=>({hours:st.avoidHours,days:st.avoidDays}))(GL.slotStats(Sx.blocks,n.date)),settings:Sx.settings,subjects:Sx.subjects,works:Sx.works,blocks:Sx.blocks,activities:Sx.activities||[],routine:Sx.routine||DEFAULT_ROUTINE,habit:Sx.habit||[],now:now()})}
+function finish(Sx,r){const tm={};Sx.works.forEach(w=>{if(w.topics?.length&&(w.status==='pending'||w.status==='in_progress'))Object.assign(tm,assignTopics(w,r.blocks))});Sx.blocks=r.blocks.map(b=>tm[b.id]&&!b.manual&&b.topicId!==tm[b.id]?{...b,topicId:tm[b.id]}:b);Sx.habit=r.habit;if(r.through&&Sx.routine)Sx.routine={...Sx.routine,generatedThrough:r.through};W=r.warnings}
 async function persist(){syncPred();S.version=(S.version||0)+1;LAST=JSON.stringify(S);try{await repo.save(S);typeof SY!=='undefined'&&SY.touch()}catch(e){toast('Error al guardar: '+e.message)}render()}
 function extendRoutine(){const R=S.routine;if(!R||!R.enabled)return;const n=now(),to=addDays(n.date,RTN.HORIZON_DAYS-1);if(R.generatedThrough&&R.generatedThrough>=to)return;const from=R.generatedThrough&&R.generatedThrough>=n.date?addDays(R.generatedThrough,1):n.date;S.habit=[...(S.habit||[]),...generate({settings:S.settings,routine:R,subjects:S.subjects,works:S.works,blocks:S.blocks,activities:S.activities||[],habit:S.habit||[],now:n,from,to})];S.routine={...R,generatedThrough:to}}
 /** Cambios de usuario: si la rutina cambiaría, se muestra la comparación y se pide decidir (nunca se reorganiza en silencio). */
-async function commit(o){o=o||{};if(o.quiet||!(S.routine&&S.routine.enabled)){const r=scheduleOf(S,true);finish(S,r);return persist()}
- const r=scheduleOf(S,false);if(!r.changes.length){finish(S,r);return persist()}return askChanges(r)}
+async function commit(o){const r=scheduleOf(S,true);finish(S,r);return persist()}
 const lineOf=(tipo,a,b,nom)=>`${fm(a)}–${fm(b)} ${nom} · ${tipo}`;
 function dayLines(X,d){const nm=id=>(X.subjects.find(s=>s.id===id)||{}).name||'',L=[];
  X.blocks.filter(b=>b.date===d&&(b.status==='planned'||b.status==='done')).forEach(b=>{const w=X.works.find(x=>x.id===b.workId)||{};L.push([b.start,lineOf('Obligación',b.start,b.end,nm(w.subjectId))])});
@@ -1347,11 +1330,6 @@ function dayLines(X,d){const nm=id=>(X.subjects.find(s=>s.id===id)||{}).name||''
  return L.sort((x,y)=>x[0]-y[0]).map(x=>x[1])}
 const cmpHtml=(A0,B0,dates)=>dates.map(d=>{const ul=X=>dayLines(X,d).map(l=>`<li>${esc(l)}</li>`).join('')||'<li class=m>Libre</li>';return`<div class=cmp><div><b>Antes · ${d.slice(5)}</b><ul>${ul(A0)}</ul></div><div><b>Propuesto · ${d.slice(5)}</b><ul>${ul(B0)}</ul></div></div>`}).join('');
 function choose(title,html,btns,revert){CH=btns;CHOOSING=true;PENDING=!!revert;const d=$('#dlg');d.innerHTML=`<div id=f><h3>${esc(title)}</h3>${html}<div class=row>${btns.map((b,i)=>`<button type=button class="${b.c||''}" data-a=choice data-i=${i}>${esc(b.l)}</button>`).join('')}</div></div>`;if(!d.open)d.showModal()}
-function askChanges(r){const before=JSON.parse(LAST||JSON.stringify(S)),cand=JSON.parse(JSON.stringify(S));finish(cand,r);
- const dates=[...new Set(r.changes.flatMap(c=>[c.from.date,c.to&&c.to.date].filter(Boolean)))].sort().slice(0,4);
- const pend=r.changes.filter(c=>c.kind==='pendiente').length,def=r.warnings.filter(w=>w.type==='deficit');
- choose('Cambios propuestos en tu rutina',`<p>Una obligación nueva o modificada afecta a tu rutina. Tus obligaciones tienen prioridad; los bloques de rutina son sugerencias.</p><p>${r.changes.map(c=>esc(describe(c,sub(c.subjectId).name))).join('<br>')}</p>${pend?'<p class=err>Hay bloques que no caben y quedarán pendientes: podrás moverlos u omitirlos.</p>':''}${def.length?`<p class=err>${def.map(w=>esc(w.message)).join('<br>')}</p>`:''}${cmpHtml(before,cand,dates)}`,
-  [{l:'Aceptar cambios',c:'pri',fn:async()=>{finish(S,r);await persist()}},{l:'Mantener mi rutina',fn:async()=>{S.routine={...S.routine,declined:[...((S.routine&&S.routine.declined)||[]),...r.changes.filter(c=>c.workId).map(c=>c.workId+'|'+c.id)]};const q=scheduleOf(S,true);finish(S,q);await persist()}},{l:'Cancelar (no guardar este cambio)',fn:()=>{S=JSON.parse(LAST);render()}}],true)}
 function fieldHtml(f){
  if(f.t==='check')return`<label class=chk><input type=checkbox name=${f.k}${f.v?' checked':''}> ${esc(f.l)}</label>`;
  if(f.t==='note')return`<div class="card m">${f.v}</div>`;
@@ -1498,7 +1476,7 @@ const calScroll=()=>{try{const g=CALG,n=now(),el=document.querySelector('.tg');i
 function lanesOf(ev){const L=ev.map(x=>({...x,de:Math.max(x.e,x.s+18),closed:/skipped|rescheduled|replaced/.test(x.cls)?1:0})).sort((a,b)=>a.s-b.s||a.closed-b.closed||a.e-b.e);let cl=[],ends=[],cend=-1;const flush=()=>{cl.forEach(x=>x.lanes=Math.max(1,ends.length));cl=[];ends=[]};for(const x of L){if(cl.length&&x.s>=cend)flush();let i=ends.findIndex(e=>e<=x.s);if(i<0){i=ends.length;ends.push(0)}ends[i]=x.de;x.lane=i;cend=cl.length?Math.max(cend,x.de):x.de;cl.push(x)}flush();return L}
 function calEvents(d){const ev=[],nos=[];
  for(const b of S.blocks.filter(x=>x.date===d)){const w=wk(b.workId)||{},c=sub(w.subjectId);ev.push({s:b.start,e:b.end,c:c.color,cls:'ob '+b.status+(b.manual?' manual':''),t:'ob',id:b.id,name:c.name,sub:(w.title||'')+(b.part==='review'?' · repaso':'')+(b.topicId?' · '+wTopic(b):'')+(isUndated(w)?' · sin fecha':'')+(b.status==='done'?' · hecha':b.status==='skipped'?' · omitida':b.status==='rescheduled'?' · reprogramada':''),act:b.status==='planned'})}
- for(const h of (S.habit||[]).filter(x=>x.date===d&&x.status!=='skipped')){const c=sub(h.subjectId),nm=h.title.replace(c.name+': ','');if(h.status==='displaced')nos.push({c:c.color,t:'hab',id:h.id,name:c.name,sub:'sugerido · sin hueco'});else ev.push({s:h.start,e:h.end,c:c.color,cls:'hab '+h.status,t:'hab',id:h.id,name:c.name,sub:nm+(h.status==='done'?' · hecha':h.status==='replaced'?' · sustituida':''),act:h.status==='planned'})}
+ for(const h of (S.habit||[]).filter(x=>x.date===d&&x.status!=='skipped'&&x.status!=='replaced')){const c=sub(h.subjectId),nm=h.title.replace(c.name+': ','');if(h.status==='displaced')nos.push({c:c.color,t:'hab',id:h.id,name:c.name,sub:'sugerido · sin hueco'});else ev.push({s:h.start,e:h.end,c:c.color,cls:'hab '+h.status,t:'hab',id:h.id,name:c.name,sub:nm+(h.status==='done'?' · hecha':h.status==='replaced'?' · sustituida':''),act:h.status==='planned'})}
  for(const a of S.activities.filter(x=>x.date===d)){const nm=a.category==='exercise'?'Ejercicio · '+TL(a.type):a.title||'Actividad opcional',o={c:'var(--muted)',cls:'act '+a.status,t:'act',id:a.id,name:nm,sub:a.status==='done'?'completada':a.status==='skipped'?'omitida':'',act:true};if(a.start==null)nos.push(o);else ev.push({...o,s:a.start,e:a.end})}
  ev.push({s:EJ.start,e:EJ.end,c:'var(--muted)',cls:'act fixed',t:'fix',id:'fix:'+d,name:'Ejercicio',sub:'fijo cada día',act:false});
  return{ev:lanesOf(ev),nos}}

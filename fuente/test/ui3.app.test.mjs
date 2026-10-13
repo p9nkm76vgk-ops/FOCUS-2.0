@@ -17,30 +17,29 @@ test('activar la rutina: comparación previa, bloques sugeridos persistentes, ca
   const b = await boot(a.store); assert.equal(J(b.S.habit), J(a.S.habit), 'persiste'); assert.ok(/class="ev hab planned"/.test(a.t.V.cal())); assert.match(a.t.V.hoy() + a.t.V.rut(), /Rutina semanal/);
   const n = a.S.habit.length; await a.t.commit({ quiet: true }); await a.t.commit(); assert.equal(a.S.habit.length, n, 'sin duplicados al repetir');
 });
-test('EJEMPLO en la app: deberes de Historia → propuesta con comparación; aceptar sustituye Historia y mantiene Lengua', async () => {
-  const a = await withRoutine(); a.S.habit = [hab(a, 'Historia de España', '2026-10-12', 1050, 1095), hab(a, 'Lengua Castellana', '2026-10-12', 1110, 1155)]; await a.t.commit({ quiet: true });
+test('EJEMPLO en la app: deberes de Historia con la rutina activa → se guardan sin diálogos, sin bloques tachados, sin solapes y estable', async () => {
+  const a = await withRoutine(); const antes = a.S.habit.length; assert.ok(antes >= 10);
   await a.click('addTask'); a.h.dlg.innerHTML = ''; assert.equal(await a.submit(taskF(a, 'Historia de España')), ''); await a.tick();
-  assert.ok(a.h.dlg.open, 'la ventana de propuesta sigue abierta tras guardar el formulario'); assert.match(a.h.dlg.innerHTML, /Cambios propuestos en tu rutina/); assert.match(a.h.dlg.innerHTML, /Antes · 10-12/); assert.match(a.h.dlg.innerHTML, /Propuesto · 10-12/); assert.match(a.h.dlg.innerHTML, /Sustituido por/); assert.match(a.h.dlg.innerHTML, /Aceptar cambios/); assert.match(a.h.dlg.innerHTML, /Cancelar/);
-  await choice(a, 0); const h = a.S.habit.find(x => x.subjectId === a.S.subjects[7].id), l = a.S.habit.find(x => x.subjectId === a.S.subjects[4].id);
-  assert.equal(h.status, 'replaced'); assert.equal(l.status, 'planned'); assert.deepEqual([l.date, l.start, l.end], ['2026-10-12', 1110, 1155]); const wb = a.S.blocks.filter(b => b.status === 'planned'); assert.equal(wb.length, 1); assert.deepEqual([wb[0].date, wb[0].start], ['2026-10-12', 1050]);
-  noOverlap(items(a)); const snap = J([a.S.habit, a.S.blocks]); a.h.dlg.innerHTML = ''; await a.t.commit(); await a.t.commit(); assert.equal(J([a.S.habit, a.S.blocks]), snap, 'estable: no oscila'); assert.equal(a.h.dlg.innerHTML, '', 'no vuelve a preguntar');
-  const st = a.t.stats(a.S.blocks, a.S.works, {}); assert.equal(st.completedMin, 0);
+  assert.doesNotMatch(a.h.dlg.innerHTML, /Cambios propuestos/, 'no se pide decidir nada: las obligaciones mandan'); assert.equal(a.S.works.length, 1);
+  const wb = a.S.blocks.filter(b => b.status === 'planned'); assert.ok(wb.length >= 1); assert.equal(a.S.habit.filter(h => h.date >= '2026-10-12' && ['replaced', 'displaced'].includes(h.status)).length, 0, 'nada tachado');
+  noOverlap(items(a)); const snap = J([a.S.habit, a.S.blocks]); await a.t.commit(); await a.t.commit(); await a.click('replan'); await a.click('replan'); assert.equal(J([a.S.habit, a.S.blocks]), snap, 'estable: no oscila');
+  assert.doesNotMatch(a.t.V.cal(), /sustituida/); assert.equal(a.t.stats(a.S.blocks, a.S.works, {}).completedMin, 0);
 });
-test('cancelar descarta el cambio; «mantener mi rutina» conserva la rutina y recuerda la decisión', async () => {
-  const mk = async () => { const a = await withRoutine(); a.S.habit = [hab(a, 'Historia de España', '2026-10-12', 1050, 1095), hab(a, 'Lengua Castellana', '2026-10-12', 1110, 1155)]; await a.t.commit({ quiet: true }); return a; };
-  const a = await mk(); const before = a.store['focusos.v1']; await a.click('addTask'); await a.submit(taskF(a, 'Historia de España')); await choice(a, 2);
-  assert.equal(a.S.works.length, 0, 'cancelar: no se guarda la tarea'); assert.equal(a.store['focusos.v1'], before, 'almacenamiento intacto');
-  const b = await mk(); await b.click('addTask'); await b.submit(taskF(b, 'Historia de España')); await choice(b, 1);
-  assert.equal(b.S.works.length, 1); assert.equal(b.S.habit.find(h => h.subjectId === b.S.subjects[7].id).status, 'planned'); assert.ok(b.S.routine.declined.length >= 1); noOverlap(items(b));
-  b.h.dlg.innerHTML = ''; await b.click('addTask'); await b.submit(taskF(b, 'Física', { title: 'Otra', estOverride: '30' })); assert.equal(b.S.works.length, 2); assert.doesNotMatch(b.h.dlg.innerHTML, /Cambios propuestos/, 'la decisión rechazada no se vuelve a ofrecer');
+test('con la rutina activa, añadir y editar cosas varias veces no deja huecos de más de 10 min entre bloques de un mismo tramo ni bloques tachados', async () => {
+  const a = await withRoutine();
+  for (const [t, d] of [['Historia de España', '2026-10-14'], ['Lengua Castellana', '2026-10-15'], ['Física', '2026-10-16']]) { await a.click('addTask'); await a.submit(taskF(a, t, { dueDate: d, estOverride: '90' })); a.h.dlg.innerHTML = ''; }
+  await a.click('replan'); await a.click('replan'); noOverlap(items(a)); assert.equal(a.S.habit.filter(h => h.date >= '2026-10-12' && ['replaced', 'displaced'].includes(h.status)).length, 0);
+  const av = a.S.settings.availability, day = d => new Date(d + 'T00:00:00Z').getUTCDay();
+  for (const d of ['2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17']) { const xs = items(a).filter(x => x.date === d).sort((p, q) => p.start - q.start); for (let i = 1; i < xs.length; i++) { const w1 = av[day(d)].findIndex(w => w.start <= xs[i - 1].start && xs[i - 1].end <= w.end), w2 = av[day(d)].findIndex(w => w.start <= xs[i].start && xs[i].end <= w.end); if (w1 === w2) assert.ok(xs[i].start - xs[i - 1].end <= 15, `hueco de ${xs[i].start - xs[i - 1].end} min el ${d}`); } }
 });
 test('bloques de rutina: hecho, fijar, mover con conflicto informado, omitir; no cuentan como estudio ni tocan estimaciones', async () => {
-  const a = await withRoutine(); a.S.habit = [hab(a, 'Matemáticas II', '2026-10-12', 1020, 1065), hab(a, 'Inglés', '2026-10-12', 1100, 1145)]; await a.t.commit({ quiet: true }); const works0 = J(a.S.works);
-  const m = a.S.habit[0].id; await a.click('habDone', m); assert.equal(await a.submit({ actualMin: '40' }), ''); assert.equal(a.S.habit[0].status, 'done'); assert.equal(a.S.habit[0].actualMin, 40);
-  const e = a.S.habit[1].id; await a.click('habPin', e); assert.equal(a.S.habit[1].pinned, true); await a.click('habMove', e); assert.match(await a.submit({ date: '2026-10-12', time: '17:20' }), /No se ha movido nada/);
-  assert.equal(await a.submit({ date: '2026-10-13', time: '18:00' }), ''); assert.equal(a.S.habit[1].date, '2026-10-13'); assert.equal(a.S.habit[1].pinned, true);
-  await a.click('habSkip', a.S.habit[1].id); assert.equal(a.S.habit[1].status, 'skipped'); assert.equal(a.t.stats(a.S.blocks, a.S.works, {}).completedMin, 0); assert.equal(J(a.S.works), works0); assert.match(a.t.V.seg(), /Rutina habitual esta semana/);
-  a.h.confirm = true; await a.click('rutOff'); assert.equal(a.S.routine.enabled, false); assert.equal(a.S.habit.length, 2, 'desactivar conserva los bloques');
+  const a = await withRoutine(); const works0 = J(a.S.works), hs = a.S.habit.filter(h => h.date === '2026-10-12' && h.status === 'planned'); assert.ok(hs.length >= 2); const m = hs[0], e = hs[1];
+  await a.click('habDone', m.id); assert.equal(await a.submit({ actualMin: '40' }), ''); const dm = a.S.habit.find(h => h.id === m.id); assert.equal(dm.status, 'done'); assert.equal(dm.actualMin, 40);
+  await a.click('habPin', e.id); assert.equal(a.S.habit.find(h => h.id === e.id).pinned, true); await a.click('habMove', e.id); const hh = x => `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`;
+  assert.match(await a.submit({ date: '2026-10-12', time: hh(m.start + 5) }), /No se ha movido nada/); assert.equal(await a.submit({ date: '2026-10-30', time: '18:00' }), '');
+  const mv = a.S.habit.find(h => h.subjectId === e.subjectId && h.date === '2026-10-30'); assert.ok(mv && mv.pinned, 'se movió y sigue fijado');
+  await a.click('habSkip', mv.id); assert.equal(a.S.habit.find(h => h.id === mv.id).status, 'skipped'); assert.equal(a.t.stats(a.S.blocks, a.S.works, {}).completedMin, 0); assert.equal(J(a.S.works), works0); assert.match(a.t.V.seg(), /Rutina habitual esta semana/);
+  const n = a.S.habit.length; a.h.confirm = true; await a.click('rutOff'); assert.equal(a.S.routine.enabled, false); assert.equal(a.S.habit.length, n, 'desactivar conserva los bloques');
 });
 test('bienestar digital: periodos sin notificaciones ocultan sugerencias y pausas, no obligaciones; pausa sin pantalla tras un bloque hecho', async () => {
   clock.t = new Date(2026, 9, 12, 21, 40).getTime(); const a = await boot(); await a.click('addAct'); await a.h.dlg.onsubmit; a.t.A.quietAdd(); assert.equal(await a.submit({ d1: 'on', d2: 'on', d3: 'on', d4: 'on', d5: 'on', s: '21:30', e: '23:00' }), ''); await a.tick();

@@ -24,7 +24,7 @@ export const REVIEW_SHARE = 0.25;   // parte del trabajo de un examen reservada 
 export const REVIEW_DAYS = 2;       // el repaso ocupa los últimos N días antes del examen
 /** Desde esta hora una ventana se considera «después de cenar»: solo se usa si no cabe antes. */
 export const LATE_FROM = 20 * 60 + 30;
-export const MIN_HOLE = 15;       // hueco mínimo que se compacta
+export const MIN_HOLE = 5;        // hueco mínimo que se compacta
 export const MIN_FRAG = 20;       // si ya se colocó parte, un resto menor no se planifica
 export const MIN_WORTH = 10;      // restos por debajo de esto no se planifican
 export const EXAM_BUFFER_MIN = 60;  // margen antes de la hora del examen el mismo día
@@ -186,7 +186,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   }
 
   // 3b) Compactar: en los días futuros, un hueco de ≥15 min DENTRO de una ventana se cierra adelantando las sesiones automáticas
-  //     (nunca manuales, hechas, de hoy ni fuera de la ventana). Es estable: sobre un plan ya compacto no cambia nada.
+  //     (nunca manuales, hechas, ni fuera de la ventana; hoy solo las que empiezan dentro de más de 30 min). Es estable: sobre un plan ya compacto no cambia nada.
   {
     const fx = new Map<string, Win[]>(), add = (m: Map<string, Win[]>, d: string, w: Win) => m.set(d, [...(m.get(d) ?? []), w]);
     for (const b of history) if (b.status === 'done' || (b.status === 'skipped' && b.reason && b.date >= now.date)) add(fx, b.date, { start: b.start, end: b.end });
@@ -195,8 +195,8 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const placed = new Map<string, Win[]>(), autos = [...kept, ...created].sort(cmp), swap = new Map<Block, Block>();
     for (const b of autos) {
       let nb = b;
-      if (b.date > now.date) {
-        const cuts: Win[] = [...s.blockedDates.filter(x => x.date === b.date), ...[...(fx.get(b.date) ?? []), ...(placed.get(b.date) ?? [])].map(o => ({ start: o.start - s.minGapMin, end: o.end + s.minGapMin }))];
+      if (b.date > now.date || (b.date === now.date && b.start >= up5(now.minute) + 30)) {
+        const cuts: Win[] = [...(b.date === now.date ? [{ start: 0, end: up5(now.minute) }] : []), ...s.blockedDates.filter(x => x.date === b.date), ...[...(fx.get(b.date) ?? []), ...(placed.get(b.date) ?? [])].map(o => ({ start: o.start - s.minGapMin, end: o.end + s.minGapMin }))];
         const win = subtract(s.availability[weekday(b.date)] ?? [], cuts).find(w => w.start <= b.start && b.end <= w.end), st = win ? up5(win.start) : b.start;
         const badSlot = (m: number) => (input.avoid?.hours ?? []).includes(hourBucket(m));
         if (win && b.start - st >= MIN_HOLE && !(badSlot(st) && !badSlot(b.start))) {

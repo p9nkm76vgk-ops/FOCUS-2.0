@@ -98,17 +98,18 @@ try:
     p.click('#main button[data-a=rutOn]'); p.click('#dlg button.pri'); p.wait_for_timeout(400); st = ls(p); ck('Rutina activada: bloques sugeridos persistidos, sin crear obligaciones', st['routine']['enabled'] and len(st['habit']) >= 10 and not st['works'] and not st['blocks'])
     ok = all(a['date'] != bb['date'] or a['end'] <= bb['start'] or bb['end'] <= a['start'] for a in st['habit'] for bb in st['habit'] if a is not bb); ck('Sin solapamientos entre bloques de rutina', ok)
     go(p, 'cal'); ck('Calendario distingue Obligatorio y Sugerido (solo dos tipos, el sugerido solo con contorno)', p.locator('#main .ev.hab').count() > 0 and p.evaluate("parseFloat(getComputedStyle(document.querySelector('#main .ev.hab')).borderTopWidth)>=1"))
-    sid = {s['name']: s['id'] for s in st['subjects']}; seed = dict(st); seed['habit'] = [{'id': f"hab:2026-10-12:1050:{sid['Historia de España']}", 'date': '2026-10-12', 'start': 1050, 'end': 1095, 'subjectId': sid['Historia de España'], 'kind': 'estudio', 'title': 'Historia de España: Repasar el último tema', 'detail': 'Reconstruye de memoria las ideas principales y comprueba después con los apuntes.', 'status': 'planned', 'pinned': False},
-        {'id': f"hab:2026-10-12:1110:{sid['Lengua Castellana']}", 'date': '2026-10-12', 'start': 1110, 'end': 1155, 'subjectId': sid['Lengua Castellana'], 'kind': 'estudio', 'title': 'Lengua Castellana: Comentario de texto', 'detail': 'Estructura el comentario y revisa con una rúbrica orientativa.', 'status': 'planned', 'pinned': False}]; c.close()
-    def adapt(choice_i):
-        cc = newctx(b, json.dumps(seed)); pp = newpage(cc, MON); go(pp, 'tar'); pp.click('#main button[data-a=addTask]'); fill_form(pp, title='Deberes de Historia', subjectId='Historia de España' if False else sid['Historia de España'], dueDate='2026-10-13', estOverride='45'); pp.wait_for_selector('#dlg button[data-a=choice]')
-        return cc, pp
-    cc, pp = adapt(0); t = pp.inner_text('#dlg'); ck('Deberes de Historia → propuesta con comparación y reglas explicadas', 'Cambios propuestos' in t and 'Sustituido' in t and 'Antes' in t and 'Propuesto' in t, t[:120]); pp.screenshot(path='/tmp/shots/propuesta-rutina.png')
-    pp.click('#dlg button.pri'); pp.wait_for_timeout(400); s2 = ls(pp); hh = [h for h in s2['habit'] if h['subjectId'] == sid['Historia de España']][0]; ll = [h for h in s2['habit'] if h['subjectId'] == sid['Lengua Castellana']][0]
-    ck('Aceptar: Historia sustituida y Lengua se mantiene intacta', hh['status'] == 'replaced' and (ll['status'], ll['start'], ll['end']) == ('planned', 1110, 1155))
-    wb = [x for x in s2['blocks'] if x['status'] == 'planned']; ck('Los deberes ocupan el hueco de Historia, sin duplicar ni solapar', len(wb) == 1 and (wb[0]['date'], wb[0]['start']) == ('2026-10-12', 1050) and all(not (x['date'] == y['date'] and x['start'] < y['end'] and y['start'] < x['end']) for x in [wb[0]] for y in s2['habit'] if y['status'] == 'planned'))
-    cc.close(); cc, pp = adapt(2); pp.click('#dlg button[data-i="2"]'); pp.wait_for_timeout(300); ck('Cancelar: la tarea no se guarda y los datos quedan como estaban', ls(pp)['works'] == [] and len(ls(pp)['habit']) == 2); cc.close()
-    cc, pp = adapt(1); pp.click('#dlg button[data-i="1"]'); pp.wait_for_timeout(400); s3 = ls(pp); ck('Mantener mi rutina: tarea guardada, rutina intacta', len(s3['works']) == 1 and all(h['status'] == 'planned' for h in s3['habit']) and s3['routine'].get('declined')); cc.close()
+    sid = {s['name']: s['id'] for s in st['subjects']}
+    def snap(pp): s_ = ls(pp); return json.dumps([s_['habit'], s_['blocks']], sort_keys=True)
+    def clash(s_): xs = [x for x in s_['habit'] + s_['blocks'] if x['status'] in ('planned', 'done') and x['date'] >= '2026-10-12']; return any(x is not y and x['date'] == y['date'] and x['start'] < y['end'] and y['start'] < x['end'] for x in xs for y in xs)
+    cc = newctx(b, json.dumps(st)); pp = newpage(cc, MON); go(pp, 'tar')
+    for title, subj, due in (('Deberes de Historia', 'Historia de España', '2026-10-13'), ('Comentario de Lengua', 'Lengua Castellana', '2026-10-15'), ('Problemas de Física', 'Física', '2026-10-16')):
+        pp.click('#main button[data-a=addTask]'); fill_form(pp, title=title, subjectId=sid[subj], dueDate=due, estOverride='60'); pp.wait_for_timeout(500)
+        ck(f'«{title}»: se guarda sin diálogos de «cambios propuestos»', 'Cambios propuestos' not in (pp.inner_text('#dlg') if pp.locator('#dlg[open]').count() else ''))
+    s2 = ls(pp); ck('Tres tareas guardadas, ningún bloque tachado/«sin hueco» ni solapes entre obligaciones y rutina', len(s2['works']) == 3 and not [h for h in s2['habit'] if h['date'] >= '2026-10-12' and h['status'] in ('replaced', 'displaced')] and not clash(s2))
+    go(pp, 'cal'); ck('El calendario no muestra nada «sustituida»', 'sustituida' not in pp.inner_text('#main').lower())
+    s_a = snap(pp)
+    for _ in range(2): pp.click('#main button[data-a=replan]'); pp.wait_for_timeout(300)
+    ck('Regenerar futuro dos veces seguidas no cambia nada (estable)', snap(pp) == s_a); cc.close()
     # Explorar eliminado y bienestar digital (ahora en Ajustes)
     c = newctx(b); p = newpage(c, MON); ck('Explorar ya no existe en el menú ni en Hoy', 'Explorar' not in p.inner_text('#nav') and 'Explorar' not in p.inner_text('#main'))
     go(p, 'aj'); p.click('#main button[data-a=quietAdd]'); p.fill('#f [name=s]', '07:00'); p.fill('#f [name=e]', '12:00'); p.click('#f button.pri'); p.wait_for_timeout(300); go(p, 'hoy'); ck('Periodo sin notificaciones (Ajustes) oculta sugerencias y recordatorios', 'Periodo sin notificaciones' in p.inner_text('#main') and p.locator('button[data-a=suggStart]').count() == 0)

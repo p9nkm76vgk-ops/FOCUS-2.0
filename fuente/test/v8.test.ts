@@ -83,6 +83,7 @@ test('compactación: si desaparece una sesión (p. ej. la tarea se completa), la
   const p2 = plan({ settings: s, works: works2, blocks: sinPrimera }, now3).blocks.filter(x => x.status === 'planned').sort((x, y) => x.start - y.start);
   assert.equal(p2[0].start, 900, 'la primera sesión que queda se adelanta al inicio de la ventana'); assert.ok(p2[1].start - p2[0].end <= 15, 'sin hueco: ' + (p2[1].start - p2[0].end));
   assert.deepEqual(plan({ settings: s, works: works2, blocks: p2 }, now3).created, [], 'estable: el plan compacto no cambia al recalcular');
-  const hoy = plan({ settings: settings({ 1: [{ start: 1000, end: 1300 }] }), works: [A], blocks: [{ id: 'm', workId: 'A', date: '2026-10-12', start: 1100, end: 1150, status: 'planned', manual: false }] }, { date: '2026-10-12', minute: 600 });
-  assert.equal(hoy.blocks.find(x => x.id === 'm')?.start, 1100, 'las sesiones de hoy no se mueven (no se cambia el plan bajo los pies del usuario)');
+  const blk = [{ id: 'm', workId: 'A', date: '2026-10-12', start: 1100, end: 1150, status: 'planned' as const, manual: false }], S1 = settings({ 1: [{ start: 1000, end: 1300 }] });
+  assert.equal(plan({ settings: S1, works: [A], blocks: blk }, { date: '2026-10-12', minute: 600 }).blocks.find(x => x.workId === 'A' && x.status === 'planned')?.start, 1000, 'hoy, una sesión lejana (>30 min) se adelanta y cierra el hueco');
+  assert.equal(plan({ settings: S1, works: [A], blocks: blk }, { date: '2026-10-12', minute: 1090 }).blocks.find(x => x.id === 'm')?.start, 1100, 'una sesión que empieza dentro de 30 min no se mueve bajo los pies del usuario');
 });
