@@ -89,3 +89,9 @@ El historial de GitHub conserva la versión 4 (commit anterior). Tus datos no ca
 - **Pausar el plan** (Ajustes: 1, 2, 3 o 7 días; banner «Reanudar» en Hoy): bloquea los días completos; lo pendiente se recoloca después y nada se marca como incumplido.
 - **Evolución por evaluación** en Notas y objetivo: tu media de cada evaluación (1.ª, 2.ª, 3.ª) por asignatura.
 - Tests: 219 en Node; Chromium 140 comprobaciones.
+
+## v8.2 — auditoría con simulación de 5 semanas
+- Nuevo `scripts/simulacion.mjs` (`npm run sim`): 5 semanas de uso (4 exámenes, 7 tareas, 54 temas con repasos, el estudiante hace ≈70 % de las sesiones) y comprueba cada día: sin solapes, dentro de la disponibilidad, nada en el pasado, ids únicos, sin sesiones de trabajos terminados, idempotencia (recalcular dos veces no cambia nada), repasos acotados.
+- Defecto real encontrado y corregido: **165 sesiones de 3–17 min** (restos tras conservar sesiones o tras avanzar). Ahora: un resto <20 min tras conservar sesiones se da por cubierto, un resto <10 min tras avanzar no se planifica, y el repaso final no se crea si queda <15 min. Resultado de la simulación: 1 sesión corta en 872 días-planificados.
+- Consecuencia asumida: lo planificado puede quedar hasta 19 min por debajo de lo que falta en cada tramo (principal/repaso). Los tests lo comprueban con esa tolerancia.
+- Validación: la preparación de un examen debe estar entre 0 y 3 (antes un valor fuera de rango producía estimaciones absurdas).

@@ -50,3 +50,14 @@ test('«No la haré»: el hueco liberado no se vuelve a rellenar con estudio (ce
   assert.ok(sinMotivo.blocks.some(x => x.status === 'planned'), 'una omitida sin motivo (hueco incumplido) sí se puede reprogramar');
   assert.deepEqual(plan({ settings: s, works: [work], blocks: again.blocks }, now).created, [], 'idempotente');
 });
+test('sin sesiones diminutas: tras varios días de estudio real (≈70 % hecho) ninguna sesión planificada baja de 20 min si el trabajo necesita ≥ 60', () => {
+  const works: Work[] = [w('e', { kind: 'exam', dueDate: '2026-10-24', estMin: 285 }), w('f', { kind: 'exam', subjectId: 's2', dueDate: '2026-10-26', estMin: 285 })];
+  let blocks: Block[] = []; let seed = 3; const rnd = () => (seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296; const tiny: string[] = [];
+  for (let d = 0; d < 9; d++) {
+    const date = new Date(Date.UTC(2026, 9, 13 + d)).toISOString().slice(0, 10), now = { date, minute: 420 };
+    blocks = plan({ settings: DEFAULT_SETTINGS, works, blocks }, now).blocks;
+    for (const x of blocks.filter(y => y.status === 'planned')) if (x.end - x.start < 20) tiny.push(`${x.date} ${x.end - x.start}`);
+    blocks = blocks.map(x => x.date === date && x.status === 'planned' && rnd() < 0.7 ? { ...x, status: 'done' as const, actualMin: x.end - x.start } : x);
+  }
+  assert.deepEqual(tiny, []);
+});

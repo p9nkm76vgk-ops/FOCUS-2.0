@@ -115,6 +115,7 @@ function workForm(kind,id,pre){const w=id?wk(id):{},E=kind==='exam',subs=S.subje
   if(over!=null&&!(over>=5&&over<=6000))return'Los minutos deben estar entre 5 y 6000, o vacío para estimar automáticamente.';if(!(df>=1&&df<=5&&im>=1&&im<=5))return'Dificultad e importancia: de 1 a 5.';if(!(pace>=0.5&&pace<=2))return'Ritmo no válido.';
   if(!E&&v.unitsTotal&&+(v.unitsDone||0)>+v.unitsTotal)return'Las unidades hechas no pueden superar el total.';
   const sid=v.subjectId||sid0,fam=famOf(sid),learn=!v.learn||v.learn==='auto'?(E?AUTO_E:AUTO_T)[fam]||(E?'mixto':'ejercicios'):v.learn,subName=(S.subjects.find(x=>x.id===sid)||{}).name||'',title=(v.title||'').trim()||(E?'Examen de '+subName:(TITLE_T[learn]||(x=>'Tarea de '+x))(subName));
+  if(E&&!(+(v.prep??0)>=0&&+(v.prep??0)<=3))return'La preparación va de 0 a 3.';
   let topics,amount=v.amount||w.amount||'normal';if(E){const prep=+(v.prep??prep0),typedTxt=(v.topics||'').trim();
    if(typedTxt){const r=parseTopics(typedTxt,w.topics||[],prep,UNIT[fam]);if(r.err)return r.err;topics=r.topics}
    else if(over!=null&&!(w.topics||[]).length)topics=undefined;

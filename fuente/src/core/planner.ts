@@ -19,6 +19,8 @@ export const isUndated = (w: { noDate?: boolean; dueDate: string }) => !!w.noDat
 const ageDays = (w: Work, now: Now) => w.createdAt ? Math.max(0, Math.floor((Date.parse(now.date + 'T00:00:00Z') - w.createdAt) / 864e5)) : 0;
 export const REVIEW_SHARE = 0.25;   // parte del trabajo de un examen reservada a repaso final
 export const REVIEW_DAYS = 2;       // el repaso ocupa los últimos N días antes del examen
+export const MIN_FRAG = 20;       // si ya se colocó parte, un resto menor no se planifica
+export const MIN_WORTH = 10;      // restos por debajo de esto no se planifican
 export const EXAM_BUFFER_MIN = 60;  // margen antes de la hora del examen el mismo día
 
 export const addDays = (d: string, n: number) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
@@ -89,7 +91,8 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const done = w.estimate ? 0 /* el estimador ya descuenta el progreso */ : history.filter(b => b.workId === w.id && b.status === 'done').reduce((a, b) => a + (b.actualMin ?? dur(b)), 0);
     const manual = manualF.filter(b => b.workId === w.id).reduce((a, b) => a + dur(b), 0);
     const f = w.kind === 'exam' ? (input.boost?.[w.subjectId] ?? 1) : 1; // más horas de examen donde la brecha con el objetivo es mayor
-    const need = Math.max(0, (f === 1 ? totalNeed(w) : Math.round(totalNeed(w) * f / 5) * 5) - done - manual);
+    let need = Math.max(0, (f === 1 ? totalNeed(w) : Math.round(totalNeed(w) * f / 5) * 5) - done - manual);
+    if (need > 0 && need < MIN_WORTH && (done > 0 || (w.estimate?.investedMin ?? 0) > 0)) need = 0; // tras avanzar, un resto de pocos minutos no merece una sesión: se da por cubierto
     const und = isUndated(w);
     const overdue = !und && (w.dueDate < now.date || (w.dueDate === now.date && w.dueMinute !== undefined && w.dueMinute <= now.minute));
     if (overdue) warnings.push({ workId: w.id, type: 'overdue', message: `"${w.title}" está atrasada (${w.dueDate}).` });
@@ -98,8 +101,8 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const cutoff = overdue || clipped || und ? 1440 : w.kind === 'exam' ? (w.dueMinute ?? hm(9)) - EXAM_BUFFER_MIN : (w.dueMinute ?? 1440);
     const base = { key, w, from: now.date, last, cutoff, prio: priority(w, now), clipped };
     const mainTo = addDays(w.dueDate, -(REVIEW_DAYS + 1));
-    if (w.kind === 'exam' && !overdue && !clipped && need > 0 && mainTo >= now.date) {
-      const review = Math.min(need, Math.round(need * REVIEW_SHARE / 5) * 5);
+    if (w.kind === 'exam' && !overdue && !clipped && need > 0 && mainTo >= now.date && Math.min(need, Math.round(need * REVIEW_SHARE / 5) * 5) >= 15 && need - Math.round(need * REVIEW_SHARE / 5) * 5 >= 15) {
+      let review = Math.min(need, Math.round(need * REVIEW_SHARE / 5) * 5); if (review < 15 || need - review < 15) review = 0; // sin repaso ni sesiones principales diminutas
       demands.push({ ...base, part: 'main', need: need - review, to: mainTo, ext: last });
       demands.push({ ...base, part: 'review', need: review, from: addDays(w.dueDate, -REVIEW_DAYS) > now.date ? addDays(w.dueDate, -REVIEW_DAYS) : now.date, to: last });
     } else demands.push({ ...base, part: 'main', need, to: last });
@@ -116,12 +119,14 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       if (!free(b.date, false).some(f => f.start <= b.start && b.end <= f.end) || day(b.date).total + dur(b) > s.maxDayMin) continue;
       occupy(b); kept.push(b); have += dur(b);
     }
-    rem.set(d, d.need - have);
+    const r = d.need - have; rem.set(d, have > 0 && r < MIN_FRAG ? 0 : r); // resto diminuto tras conservar sesiones: se da por cubierto
   }
 
   // 3) Cubrir lo que falta: sesiones repartidas por los días menos cargados
   const fill = (d: Demand, to: string, left: number): number => {
+    const left0 = left;
     while (left > 0) {
+      if (left < MIN_FRAG && left < left0) { left = 0; break; } // el resto de una demanda ya cubierta (<20 min) no merece otra sesión
       let len = Math.min(s.preferredMin, left);
       if (left - len > 0 && left - len < s.minSessionMin) len = Math.min(left, s.maxSessionMin);
       const cands: { dt: string; start: number; L: number; key: [number, number, number, number, string] }[] = [];

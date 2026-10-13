@@ -80,7 +80,7 @@ test('al completar y registrar avance se replanifica solo lo restante y se conse
   const done = a.r.blocks.map(b => b.id === first.id ? { ...b, status: 'done' as const, actualMin: 50, log: log({ topicId: 'a', progress: 60 }) } : b);
   const w2 = a.w.map(w => ({ ...w, topics: w.topics!.map(t => t.id === 'a' ? { ...t, mastery: 1.8 } : t) }));
   const b = run(w2, done); assert.ok(b.w[0].estimate!.remainingMin < a.w[0].estimate!.remainingMin);
-  assert.equal(live(b.r.blocks), b.w[0].estimate!.remainingMin); assert.deepEqual(b.r.blocks.find(x => x.id === first.id), done[0]);
+  assert.ok(b.w[0].estimate!.remainingMin - live(b.r.blocks) >= 0 && b.w[0].estimate!.remainingMin - live(b.r.blocks) < 40, 'cubre lo que falta salvo restos <20 min por tramo'); assert.deepEqual(b.r.blocks.find(x => x.id === first.id), done[0]);
   const c = run(b.w, b.r.blocks); assert.deepEqual(c.r.blocks, b.r.blocks);
 });
 test('déficit real cuando el calendario no basta', () => {

@@ -68,7 +68,7 @@ test('conflicto entre pestañas: la escritura obsoleta se rechaza sin pisar dato
 const topicsExam = (o = {}) => ({ title: 'Parcial mates', subjectId: '', dueDate: '2026-10-21', time: '', learn: 'problemas', goal: 'notable', topics: 'Límites; 4; 3; 0\nDerivadas; 5; 4; 1\nIntegrales', prep: '0', importance: '4', estOverride: '', status: 'pending', notes: '', ...o });
 test('examen con temas y sin horas: estimación automática, desglose, planificación y UI', async () => {
   const a = await boot(); await a.click('addExam'); assert.equal(await a.submit(topicsExam({ subjectId: a.S.subjects[0].id })), '');
-  const w = a.S.works[0]; assert.equal(w.topics.length, 3); assert.ok(w.estimate.remainingMin > 0 && w.estimate.confidence === 'inicial'); assert.equal(sum(auto(a)), w.estimate.remainingMin);
+  const w = a.S.works[0]; assert.equal(w.topics.length, 3); assert.ok(w.estimate.remainingMin > 0 && w.estimate.confidence === 'inicial'); assert.ok(w.estimate.remainingMin - sum(auto(a)) >= 0 && w.estimate.remainingMin - sum(auto(a)) < 40, 'lo planificado cubre lo que falta salvo restos <20 min por tramo');
   assert.ok(auto(a).every(b => b.topicId)); assert.match(a.t.V.exa(), /Quedan .*inicial/);
   assert.equal(await (async () => { await a.click('addExam'); return a.submit(topicsExam({ subjectId: a.S.subjects[0].id, topics: 'X; 9; 3; 0' })) })(), 'Tema «X»: dificultad 1-5, cantidad 1-5, preparación 0-3.');
 });
@@ -78,7 +78,7 @@ test('registrar sesión actualiza dominio y trabajo restante, sin tocar el histo
   const before = a.S.works[0].estimate.remainingMin, first = auto(a)[0]; await a.click('doneBlk', first.id);
   assert.equal(await a.submit({ actualMin: '45', topicId: first.topicId, goalMet: '1', progress: '70', difficulty: '4', interrupted: '0' }), '');
   const w = a.S.works[0], done = a.S.blocks.find(b => b.id === first.id); assert.equal(done.status, 'done'); assert.equal(done.log.topicId, first.topicId); assert.equal(done.actualMin, 45);
-  assert.ok(w.topics.find(t => t.id === first.topicId).mastery > 0); assert.ok(w.estimate.remainingMin < before); assert.equal(w.estimate.investedMin, 45); assert.equal(sum(auto(a)), w.estimate.remainingMin);
+  assert.ok(w.topics.find(t => t.id === first.topicId).mastery > 0); assert.ok(w.estimate.remainingMin < before); assert.equal(w.estimate.investedMin, 45); assert.ok(w.estimate.remainingMin - sum(auto(a)) >= 0 && w.estimate.remainingMin - sum(auto(a)) < 40, 'cubre lo que falta salvo restos <20 min por tramo');
   assert.equal(a.t.stats(a.S.blocks, a.S.works, {}).completedMin, 45);
   const snap = JSON.stringify(a.S.blocks.find(b => b.id === first.id)); await a.click('editExam', w.id); await a.submit(topicsExam({ subjectId: a.S.subjects[0].id, topics: 'Límites; 4; 3; 0\nDerivadas; 5; 4; 1\nIntegrales\nSeries; 3; 2; 0' }));
   assert.equal(JSON.stringify(a.S.blocks.find(b => b.id === first.id)), snap, 'historial intacto'); assert.equal(a.S.works[0].topics.length, 4);
