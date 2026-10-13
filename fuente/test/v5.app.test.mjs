@@ -54,8 +54,8 @@ test('minutos exactos y ritmo personal siguen disponibles como corrección opcio
   await a.click('addTask'); await a.submit(opts(a, { pace: '0.8' })); assert.ok(a.S.works[2].estimate.totalMin < slow);
 });
 test('calendario sencillo: solo «Obligatorio» y «Sugerido», sin etiquetas antiguas; tocar un bloque abre sus acciones', async () => {
-  const a = await boot(); a.t.A.rutOn(); a.t.A.choice({ dataset: { i: '0' } }); await a.tick(); await a.click('addTask'); await a.submit(opts(a, { when: '3' }));
-  a.t.A.nav({ dataset: { r: 'cal' } }); const cal = a.t.V.cal(); assert.match(cal, /Obligatorio/); assert.match(cal, /Sugerido/); assert.match(cal, /class=lg>/); assert.match(cal, /class="ev ob planned"/); assert.match(cal, /class="ev hab planned"/);
+  const a = await boot(); a.t.A.rutOn(); a.t.A.choice({ dataset: { i: '0' } }); await a.tick(); await a.click('addTask'); await a.submit(opts(a, { when: '3' })); await a.tick(); if (/Cambios propuestos/.test(a.h.dlg.innerHTML)) { a.t.A.choice({ dataset: { i: '0' } }); await a.tick(); }
+  a.t.A.nav({ dataset: { r: 'cal' } }); const cal = a.t.V.cal(); assert.match(cal, /Obligatorio/); assert.match(cal, /Sugerido/); assert.match(cal, /class=lg>/); assert.match(cal, /class="ev ob planned( sm)?"/); assert.match(cal, /class="ev hab planned( sm)?"/);
   for (const old of ['Obligación', 'Rutina · sugerido', 'class="tag ob"', 'class="tag rt"', 'borde discontinuo']) assert.ok(!cal.includes(old), old);
   assert.doesNotMatch(cal, /data-a=doneBlk|data-a=habDone/, 'el calendario no se llena de botones'); assert.match(cal, /data-a=blkMenu data-t=ob/); assert.match(cal, /data-a=blkMenu data-t=hab/);
   const id = a.S.blocks.find(b => b.status === 'planned').id; a.t.A.blkMenu({ dataset: { id, t: 'ob' } }); assert.match(a.h.dlg.innerHTML, />Hecha tal cual</); assert.match(a.h.dlg.innerHTML, />Mover</);

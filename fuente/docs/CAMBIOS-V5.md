@@ -120,3 +120,10 @@ Además: lo difícil a primera hora de la ventana y lo fácil más tarde; sin re
 ## v9.2 — «Regenerar futuro» borra la versión anterior por completo
 - Antes quedaban en el calendario los bloques de rutina «sustituidos»/«sin hueco»/omitidos del plan anterior. Ahora el botón elimina todo lo futuro no hecho ni fijado (sesiones y rutina) y genera una versión limpia, sin solapes. Se conservan historial, hechas, fijadas y manuales.
 - Test nuevo en `v8.app.test.mjs` (225 tests Node).
+
+## v10 — Método por asignatura, repaso de Historia y ejercicio fijo
+- Cada bloque de rutina y cada bloque de obligación muestra «qué hacer» y, en la rutina, «por qué» (evidencia). Nueve asignaturas con tareas concretas (`method.ts`); pantalla nueva «Método de estudio» (Objetivos).
+- Repasos cortos con propósito por asignatura: Historia de España («Repaso de Historia»), Filosofía («Repaso de autores»), Química (test de formulación), Inglés (vocabulario), etc. Ya no hay repasos genéricos.
+- Ejercicio fijo 17:00–17:30 cada día: se corta de la disponibilidad (migración única `ejV`), se ve en el calendario y nunca recibe estudio. Se retira la sección «Ejercicio físico» y su sugerencia (los datos antiguos se conservan).
+- Migración `metV`: se regenera una vez la planificación futura para adoptar los textos nuevos.
+- Tests: 227 Node; Chromium 131 (v5 35, v6 35, final 50, pages 11; menos que antes porque se eliminaron las comprobaciones de la sección de ejercicio).

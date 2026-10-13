@@ -2,6 +2,7 @@
  *  Tres tipos separados: obligaciones (works+blocks, prioridad), bloques de rutina (esto: sugeridos) y actividades opcionales. Determinista. */
 import type { Activity, Block, HabitBlock, Now, Routine, Settings, Win, Work } from './types.ts';
 import { addDays, weekday, subtract, plan } from './planner.ts';
+import { METHOD, methodOf } from './method.ts';
 
 export const DEFAULT_ROUTINE: Routine = { enabled: false, intensity: 'equilibrado', blockMin: 45, perWeek: {}, activeDays: [1, 2, 3, 4, 5, 6, 0], fixed: [], lastTopic: {}, quiet: [], generatedThrough: null };
 export const INTENSITY = { ligero: { daily: 1, perWeek: 1, review: false }, equilibrado: { daily: 2, perWeek: 2, review: true }, exigente: { daily: 3, perWeek: 3, review: true } } as const;
@@ -13,17 +14,7 @@ const fm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${Stri
 export const mondayOf = (d: string) => addDays(d, -((weekday(d) + 6) % 7));
 const byDT = (a: { date: string; start: number }, b: { date: string; start: number }) => a.date.localeCompare(b.date) || a.start - b.start;
 
-const T: Record<string, [string, string][]> = {
-  'Matemáticas II': [['Ejercicios de dificultad progresiva', 'Empieza con un ejercicio sencillo del material que tengas y sube de dificultad; anota dónde te atascas.'], ['Repaso de errores', 'Rehaz sin mirar la solución un ejercicio que fallaste y comprueba el método.']],
-  'Física': [['Problemas con datos, fórmula y unidades', 'Resuelve problemas del material disponible; escribe datos, fórmula y unidades antes de calcular.'], ['Explicar un concepto con un ejemplo', 'Explica con tus palabras un concepto reciente y aplícalo a un caso cotidiano.']],
-  'Química': [['Ejercicios y formulación', 'Practica ejercicios del material disponible y repasa la formulación que menos domines.'], ['Explicar un proceso paso a paso', 'Describe de memoria un proceso o reacción y comprueba después con los apuntes.']],
-  'Business': [['Repasar conceptos con un ejemplo real', 'Recupera de memoria los conceptos clave y ponles un ejemplo de una empresa conocida.'], ['Resolver un ejercicio o caso', 'Resuelve un ejercicio del material disponible y explica cada decisión.']],
-  'Lengua Castellana': [['Comentario de texto', 'Lee un texto breve y estructura el comentario (tema, resumen, organización, valoración); revisa después con una rúbrica orientativa.'], ['Repaso de lengua o literatura', 'Recupera de memoria lo esencial del último contenido y comprueba con tus apuntes.']],
-  'Catalán': [['Redacción o comprensión', 'Escribe un párrafo o resume un texto breve y revisa errores frecuentes.'], ['Vocabulario y gramática activos', 'Repasa vocabulario y gramática construyendo frases propias.']],
-  'Inglés': [['Vocabulario, lectura y práctica activa', 'Repasa vocabulario nuevo, lee un texto corto y escribe 5 frases propias usándolo.'], ['Práctica oral o escrita', 'Resume en inglés, en voz alta o por escrito, lo último que hayas leído o escuchado.']],
-  'Historia de España': [['Repasar el último tema', 'Reconstruye de memoria las ideas principales, causas y consecuencias; comprueba después con los apuntes.'], ['Línea temporal con tus palabras', 'Ordena los hechos clave y explica cada relación causa-efecto.']],
-  'Historia de la Filosofía': [['Explicar una idea con un ejemplo', 'Explica con tus palabras una idea de un autor y ponle un ejemplo.'], ['Comparar dos autores', 'Haz un esquema breve con coincidencias y diferencias entre dos autores recientes.']],
-};
+const T: Record<string, [string, string][]> = Object.fromEntries(Object.entries(METHOD).map(([k, m]) => [k, m.tasks.map(t => [t.title, t.detail + ' Por qué: ' + m.why] as [string, string])]));
 const G: [string, string][] = [['Repasar el último tema', 'Recupera de memoria lo esencial sin mirar los apuntes y comprueba después.'], ['Ejercicios del material disponible', 'Resuelve ejercicios del material que tengas y anota las dudas.'], ['Identificar lagunas', 'Escribe tres cosas que no tengas claras y busca cómo resolverlas.']];
 /** Actividad genérica y adaptable. NO inventa temario: solo cita el tema si el usuario lo indicó. */
 export function activityFor(s: Subj, n: number, topic?: string) {
@@ -70,7 +61,7 @@ export function generate(i: { settings: Settings; routine: Routine; subjects: Su
     const place = (s: Subj, min: number, kind: 'estudio' | 'repaso') => {
       const w = windows(c, d).find(x => x.end - up5(x.start) >= min); if (!w) return false;
       const st = up5(w.start), n = all.filter(h => h.subjectId === s.id && h.kind === 'estudio').length;
-      const a = kind === 'estudio' ? activityFor(s, n, R.lastTopic[s.id]) : { title: `Repaso breve de ${s.name}`, detail: 'Recupera de memoria lo esencial sin mirar los apuntes y comprueba después qué se te escapó.' };
+      const a = kind === 'estudio' ? activityFor(s, n, R.lastTopic[s.id]) : (() => { const m = methodOf(s.name, s.colorKey); return { title: `${s.name}: ${m.repaso.title}`, detail: `${m.repaso.detail} Por qué: recuperar de memoria y espaciar es la técnica mejor respaldada.` }; })();
       const h: HabitBlock = { id: `hab:${d}:${st}:${s.id}`, date: d, start: st, end: st + min, subjectId: s.id, kind, title: a.title, detail: a.detail, status: 'planned', pinned: false };
       all.push(h); out.push(h); used.add(s.id); return true;
     };

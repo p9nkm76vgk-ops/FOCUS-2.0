@@ -105,6 +105,8 @@ details.more{margin:6px 0 4px;border-top:1px solid var(--line);padding-top:6px}d
 .tg .ev.sm{flex-direction:row;align-items:center;gap:6px;padding:1px 5px}.tg .ev.sm b{flex:0 1 auto}.tg .ev.sm span{flex:0 0 auto}.tg .ev.skipped,.tg .ev.rescheduled{filter:grayscale(.7)}
 
 .timer{border-color:var(--accent)}.timer .tm{font-size:2rem;font-weight:700;font-variant-numeric:tabular-nums;margin:4px 0}
+.blk .how{display:block;margin-top:6px;color:var(--muted);line-height:1.4}
+.ev.fixed{background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(255,255,255,.04) 6px 12px);border-style:dashed;pointer-events:none}
 </style></head><body>
 <div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b></div>
 <aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
@@ -115,11 +117,13 @@ const P=(()=>{
 const hm = (h        , m = 0) => h * 60 + m;
 /** Cena y ducha (20:30–22:00): sin estudio por defecto. Editable en Ajustes añadiendo una franja si algún día quieres estudiar más tarde. */
 const CENA      = { start: hm(20, 30), end: hm(22) };
-const wk        = [{ start: hm(15, 30), end: hm(20, 30) }];
-const we        = [{ start: hm(10), end: hm(13, 30) }, { start: hm(16), end: hm(20, 30) }];
+/** Ejercicio diario fijo (17:00–17:30): nunca se planifica estudio encima. */
+const EJERCICIO      = { start: hm(17), end: hm(17, 30) };
+const wk        = [{ start: hm(15, 30), end: EJERCICIO.start }, { start: EJERCICIO.end, end: hm(20, 30) }];
+const we        = [{ start: hm(10), end: hm(13, 30) }, { start: hm(16), end: EJERCICIO.start }, { start: EJERCICIO.end, end: hm(20, 30) }];
 /** Valores iniciales editables. Lun/Mar descuentan llegada a casa (16:30 / 17:10). */
 const DEFAULT_SETTINGS           = {
-  availability: { 0: we, 1: [{ start: hm(17), end: hm(20, 30) }], 2: [{ start: hm(17, 40), end: hm(20, 30) }], 3: wk, 4: wk, 5: wk, 6: we },
+  availability: { 0: we, 1: [{ start: EJERCICIO.end, end: hm(20, 30) }], 2: [{ start: hm(17, 40), end: hm(20, 30) }], 3: wk, 4: wk, 5: wk, 6: we },
   blockedDates: [], maxDayMin: 240, preferredMin: 50, maxSessionMin: 90, minSessionMin: 25, minGapMin: 10, horizonDays: 28,
 };
 /** Función de prioridad: desempate entre demandas con el mismo plazo. Ajustable. */
@@ -347,7 +351,7 @@ function capacityFor(s          , blocks         , now     , w      , acts      
   }
   return { freeMin, freeDays };
 }
-;return{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,subtract,isUndated,NO_DATE,daysBetween,hourBucket,CENA}})();
+;return{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,subtract,isUndated,NO_DATE,daysBetween,hourBucket,CENA,EJERCICIO}})();
 const EST2=(()=>{/** Registro de parámetros del estimador 2.0. FASE 1: solo declaración; el estimador v1 no los usa.
  *  Etiquetas: EVIDENCIA-ESTRUCTURA (la estructura está respaldada, el valor no) · HEURÍSTICO-PREVIO (valor inicial sin respaldo,
  *  se sustituye por tus datos) · APRENDIDO (se estima de tus datos) · UMBRAL-CONFIGURABLE (decisión de producto, editable). */
@@ -486,6 +490,90 @@ function recordPrediction(log                    , rec                  )       
 function closePrediction(log                    , id        , observedMin        )                     { return log.map(x => x.id === id && x.observedMin == null ? { ...x, observedMin } : x); }
 const unitsFor = (family         ) => (UNIT_PROFILES[family ?? 'generico'] ?? UNIT_PROFILES.generico).units;
 ;return{estimateV2,recordPrediction,closePrediction}})();
+const MET=(()=>{/** Método de estudio por asignatura, basado en la literatura (ver docs/METODO-ESTUDIO.md). Texto puro y determinista: no calcula nada, solo dice QUÉ hacer y POR QUÉ.
+ *  Evidencia: Dunlosky et al. 2013; Adesope et al. 2017; Roediger & Karpicke 2006; Cepeda et al. 2008; Rohrer et al. 2020; Barbieri et al. 2023; Bisra et al. 2018; Graham & Perin 2007; Schroeder et al. 2018. */
+                                                             
+                                                                                                                                  
+
+const METHOD                                = {
+  'Matemáticas II': {
+    tasks: [
+      { title: 'Problemas mezclados sin mirar la solución', detail: 'Resuelve 4–6 problemas mezclados de Análisis, Álgebra/Geometría y Probabilidad. Antes de cada uno escribe qué método usarás y por qué. Comprueba al final y apunta los fallos en el cuaderno de errores.' },
+      { title: 'Ejemplo resuelto y problema parecido', detail: 'Tema nuevo o flojo: estudia 1–2 ejemplos resueltos explicándote cada paso, tápalos y resuelve uno parecido y otro algo distinto sin ayuda.' },
+      { title: 'Cuaderno de errores en frío', detail: 'Rehaz sin mirar la solución los fallos de hace 2–7 días. Si fallas, anota la causa (concepto, procedimiento, cálculo o lectura del enunciado).' }],
+    repaso: { title: 'Fallos de la semana', detail: 'Rehaz en frío 2 problemas que fallaste y comprueba el método paso a paso.' },
+    why: 'Mezclar tipos de problema (61 % vs 38 %, Rohrer 2020), ejemplos resueltos al empezar (g=0,48, Barbieri 2023) y recuperar en frío.', evidence: 'alta', ideal: '45–50 min' },
+  'Física': {
+    tasks: [
+      { title: 'Problemas de los 4 bloques, principio primero', detail: 'Para cada problema escribe en 2 líneas qué ley o principio aplica y por qué; resuelve sin mirar la solución; comprueba unidades y orden de magnitud. Mezcla los cuatro bloques: en la PAU 2026 hay que hacerlos todos.' },
+      { title: 'Ejemplo resuelto y autoexplicación', detail: 'Tema nuevo: estudia 2 ejemplos resueltos explicando cada paso, tápalos y resuelve uno parecido.' },
+      { title: 'Leyes, unidades y relaciones de memoria', detail: 'Escribe sin mirar las leyes, fórmulas y unidades del bloque y compara con los apuntes; repite solo las falladas.' }],
+    repaso: { title: 'Leyes y fórmulas de memoria', detail: 'Escribe sin mirar las leyes y relaciones del último bloque y comprueba cuáles se te escaparon.' },
+    why: 'Autoexplicar cada paso (g=0,55, Bisra 2018) más recuperación e intercalado.', evidence: 'alta', ideal: '45–50 min' },
+  'Química': {
+    tasks: [
+      { title: 'Test de formulación + problemas mezclados', detail: 'Test de 20 compuestos (10 nombre→fórmula, 10 fórmula→nombre, inorgánica y orgánica); repite los fallados hasta acertarlos. Después 2–3 problemas mezclados (estequiometría, equilibrio, ácido-base, redox).' },
+      { title: 'Problemas intercalados sin mirar la solución', detail: 'Resuelve problemas de temas distintos mezclados; apunta los fallos en el cuaderno de errores.' },
+      { title: 'Teoría explicada por escrito', detail: 'Explica por escrito, sin mirar, un apartado de teoría (enlace, Lewis, isomería…) y compara con los apuntes o los criterios PAU.' }],
+    repaso: { title: 'Test de formulación', detail: '20 compuestos en ambos sentidos, sin mirar. Cada fórmula mal escrita en la PAU cuesta 0,5 puntos: repite las falladas hasta acertarlas.' },
+    why: 'La formulación es memoria pura: recuperar y espaciar es lo que mejor funciona; los problemas, intercalados.', evidence: 'alta', ideal: '25 min formulación · 45–50 min problemas' },
+  'Business': {
+    tasks: [
+      { title: 'Problemas numéricos + test de conceptos', detail: 'Resuelve 2 problemas mezclados (umbral de rentabilidad, VAN, ratios…) sin mirar la solución y contesta 10 preguntas tipo test de conceptos; revisa por qué falló cada error.' },
+      { title: 'Conceptos de memoria con un ejemplo real', detail: 'Recupera sin apuntes los conceptos clave y ponles el ejemplo de una empresa conocida; pregúntate «¿por qué elegiría X en vez de Y?».' }],
+    repaso: { title: 'Conceptos y fórmulas', detail: 'Tarjetas de definiciones y fórmulas del último tema, sin mirar; las falladas vuelven mañana.' },
+    why: 'Conceptos por recuperación y procedimientos por ejemplos resueltos + intercalado.', evidence: 'media', ideal: '45 min' },
+  'Lengua Castellana': {
+    tasks: [
+      { title: 'Redacción o comentario cronometrado', detail: '5 min planificar ideas y estructura, 30 escribir, 10 revisar con lista (adecuación, coherencia, cohesión, corrección). Compara después con los criterios de corrección.' },
+      { title: 'Literatura de memoria', detail: 'Sin mirar: para 3 autores u obras escribe movimiento, época, características y una obra clave; comprueba.' },
+      { title: 'Preguntas de lengua con corrección inmediata', detail: 'Ejercicios cortos de sintaxis, morfología y léxico de exámenes anteriores; corrige y explica cada error por escrito.' }],
+    repaso: { title: 'Literatura de memoria', detail: 'Autor, obra, movimiento y rasgos del último tema, sin mirar; comprueba y repite lo fallado.' },
+    why: 'Enseñar y usar estrategias de planificar y revisar es lo que más mejora la escritura (g=0,82, Graham y Perin 2007).', evidence: 'alta', ideal: '45–90 min' },
+  'Catalán': {
+    tasks: [
+      { title: 'Reflexión lingüística con corrección', detail: '10 ejercicios de gramática y léxico de exámenes anteriores sin consultar; corrige y explica cada error por escrito (la reflexión lingüística vale 3 puntos).' },
+      { title: 'Redacción cronometrada', detail: '5 min planificar, 30 escribir, 10 revisar con la lista de control; compara con los criterios de corrección.' },
+      { title: 'Hecho literario de memoria', detail: 'Sin mirar: autor, obra, movimiento y rasgos de una obra del temario; comprueba.' }],
+    repaso: { title: 'Gramática y léxico', detail: '10 preguntas cortas de gramática o léxico sin consultar; corrige y repite las falladas.' },
+    why: 'Escritura con estrategia y práctica corregida; la gramática aislada no mejora la redacción, pero puntúa aparte.', evidence: 'alta', ideal: '45–90 min' },
+  'Inglés': {
+    tasks: [
+      { title: 'Writing de 125–150 palabras en 25 min', detail: 'Redacción de un tema tipo PAU en tiempo de examen. Revisa gramática y conectores y reescribe las 3 frases peores.' },
+      { title: 'Listening y reading tipo PAU', detail: 'Audio con preguntas de opción múltiple (los errores restan) y un texto con respuestas abiertas; corrige y anota el motivo del fallo.' },
+      { title: 'Vocabulario pendiente', detail: 'Repasa sin mirar las tarjetas de hoy; las falladas vuelven mañana. No mezcles por categorías.' }],
+    repaso: { title: 'Vocabulario pendiente', detail: 'Tarjetas de vocabulario y collocations de hoy, sin mirar; las falladas vuelven mañana.' },
+    why: 'La redacción pesa un 40 % y mejora con práctica corregida; el vocabulario, con recuperación espaciada.', evidence: 'alta', ideal: '30–45 min' },
+  'Historia de España': {
+    tasks: [
+      { title: 'Pregunta de desarrollo breve de memoria', detail: 'Responde de memoria 2 preguntas tipo PAU en 10–12 min cada una; compara con los apuntes y anota lo que te faltaba.' },
+      { title: 'Línea de tiempo en blanco', detail: 'En una hoja en blanco reconstruye la línea de tiempo del periodo con fechas, hechos y causas; compárala con tu línea maestra y corrige en otro color.' },
+      { title: 'Análisis de una fuente', detail: 'Texto, gráfico o mapa de un examen anterior: identifica, contextualiza y explica; corrige con los criterios.' }],
+    repaso: { title: 'Repaso de Historia', detail: 'Línea de tiempo en blanco del último periodo o 5 preguntas de fechas, personajes y conceptos tipo test, sin mirar apuntes.' },
+    why: 'Construir mapas y líneas de tiempo y luego reconstruirlos de memoria combina lo mejor de ambos (Schroeder 2018; Karpicke y Blunt 2011).', evidence: 'media', ideal: '25–45 min' },
+  'Historia de la Filosofía': {
+    tasks: [
+      { title: 'Explicar la tesis de un autor por escrito', detail: 'Sin mirar, explica como a un compañero: problema, tesis, argumentos y conceptos clave del autor; compara con tu ficha y completa lo que faltaba.' },
+      { title: 'Tabla comparativa entre autores', detail: 'Rellena de memoria la tabla de dos autores sobre un mismo problema (conocimiento, realidad, ética…); comprueba y escribe un párrafo de comparación.' },
+      { title: 'Comentario de texto cronometrado', detail: 'Texto de un examen anterior: idea principal, justificación de la tesis y definición de términos; corrige con los criterios.' }],
+    repaso: { title: 'Repaso de autores', detail: 'Tesis y conceptos clave de un autor reciente de memoria, y una línea que lo oponga a otro autor.' },
+    why: 'Autoexplicar (g=0,55) y comparar autores parecidos rinde más que memorizar literalmente.', evidence: 'media', ideal: '30–45 min' },
+};
+const GENERIC                = {
+  tasks: [{ title: 'Recuperar de memoria y comprobar', detail: 'Cierra los apuntes, escribe de memoria las ideas clave del último tema y corrige después en otro color.' },
+    { title: 'Ejercicios sin mirar la solución', detail: 'Resuelve ejercicios del material que tengas y anota los fallos para repetirlos en frío.' }],
+  repaso: { title: 'Repaso breve', detail: 'Recupera de memoria lo esencial sin mirar los apuntes y comprueba qué se te escapó.' },
+  why: 'Recuperar de memoria y espaciar (Dunlosky 2013; Roediger y Karpicke 2006).', evidence: 'alta', ideal: '30–45 min' };
+const methodOf = (name         , key         )                => METHOD[key ?? ''] ?? METHOD[name ?? ''] ?? GENERIC;
+/** Calendario de repasos por recuperación (Cepeda 2008): +1–2 días, +1 semana, +3 semanas y luego cada 3–5 semanas. */
+const SPACING = [2, 7, 21, 35]         ;
+/** Línea corta de «qué hacer» para un bloque de obligación (tarea o examen). */
+const howFor = (name                    , key                    , o                                      )         => {
+  const m = methodOf(name, key);
+  if (o.review) return `${m.repaso.title}: ${m.repaso.detail}`;
+  return `${m.tasks[0].title}: ${m.tasks[0].detail}`;
+};
+;return{METHOD,GENERIC,methodOf,SPACING,howFor}})();
 const EST=(()=>{const {estimateV2}=EST2;                                                                                                                      
 
 
@@ -616,9 +704,10 @@ function assignTopics(w      , blocks         )                         {
   return out;
 }
 ;return{reestimate,assignTopics,PARAMS}})();
-const RTN=(()=>{const {addDays,weekday,subtract,plan}=P;/** Rutina semanal habitual. AMPLÍA el planificador existente (plan/capacityFor); no es otro motor.
+const RTN=(()=>{const {addDays,weekday,subtract,plan}=P,{METHOD,methodOf}=MET;/** Rutina semanal habitual. AMPLÍA el planificador existente (plan/capacityFor); no es otro motor.
  *  Tres tipos separados: obligaciones (works+blocks, prioridad), bloques de rutina (esto: sugeridos) y actividades opcionales. Determinista. */
                                                                                                  
+
 
 
 const DEFAULT_ROUTINE          = { enabled: false, intensity: 'equilibrado', blockMin: 45, perWeek: {}, activeDays: [1, 2, 3, 4, 5, 6, 0], fixed: [], lastTopic: {}, quiet: [], generatedThrough: null };
@@ -631,17 +720,7 @@ const fm = (m        ) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${Stri
 const mondayOf = (d        ) => addDays(d, -((weekday(d) + 6) % 7));
 const byDT = (a                                 , b                                 ) => a.date.localeCompare(b.date) || a.start - b.start;
 
-const T                                     = {
-  'Matemáticas II': [['Ejercicios de dificultad progresiva', 'Empieza con un ejercicio sencillo del material que tengas y sube de dificultad; anota dónde te atascas.'], ['Repaso de errores', 'Rehaz sin mirar la solución un ejercicio que fallaste y comprueba el método.']],
-  'Física': [['Problemas con datos, fórmula y unidades', 'Resuelve problemas del material disponible; escribe datos, fórmula y unidades antes de calcular.'], ['Explicar un concepto con un ejemplo', 'Explica con tus palabras un concepto reciente y aplícalo a un caso cotidiano.']],
-  'Química': [['Ejercicios y formulación', 'Practica ejercicios del material disponible y repasa la formulación que menos domines.'], ['Explicar un proceso paso a paso', 'Describe de memoria un proceso o reacción y comprueba después con los apuntes.']],
-  'Business': [['Repasar conceptos con un ejemplo real', 'Recupera de memoria los conceptos clave y ponles un ejemplo de una empresa conocida.'], ['Resolver un ejercicio o caso', 'Resuelve un ejercicio del material disponible y explica cada decisión.']],
-  'Lengua Castellana': [['Comentario de texto', 'Lee un texto breve y estructura el comentario (tema, resumen, organización, valoración); revisa después con una rúbrica orientativa.'], ['Repaso de lengua o literatura', 'Recupera de memoria lo esencial del último contenido y comprueba con tus apuntes.']],
-  'Catalán': [['Redacción o comprensión', 'Escribe un párrafo o resume un texto breve y revisa errores frecuentes.'], ['Vocabulario y gramática activos', 'Repasa vocabulario y gramática construyendo frases propias.']],
-  'Inglés': [['Vocabulario, lectura y práctica activa', 'Repasa vocabulario nuevo, lee un texto corto y escribe 5 frases propias usándolo.'], ['Práctica oral o escrita', 'Resume en inglés, en voz alta o por escrito, lo último que hayas leído o escuchado.']],
-  'Historia de España': [['Repasar el último tema', 'Reconstruye de memoria las ideas principales, causas y consecuencias; comprueba después con los apuntes.'], ['Línea temporal con tus palabras', 'Ordena los hechos clave y explica cada relación causa-efecto.']],
-  'Historia de la Filosofía': [['Explicar una idea con un ejemplo', 'Explica con tus palabras una idea de un autor y ponle un ejemplo.'], ['Comparar dos autores', 'Haz un esquema breve con coincidencias y diferencias entre dos autores recientes.']],
-};
+const T                                     = Object.fromEntries(Object.entries(METHOD).map(([k, m]) => [k, m.tasks.map(t => [t.title, t.detail + ' Por qué: ' + m.why]                    )]));
 const G                     = [['Repasar el último tema', 'Recupera de memoria lo esencial sin mirar los apuntes y comprueba después.'], ['Ejercicios del material disponible', 'Resuelve ejercicios del material que tengas y anota las dudas.'], ['Identificar lagunas', 'Escribe tres cosas que no tengas claras y busca cómo resolverlas.']];
 /** Actividad genérica y adaptable. NO inventa temario: solo cita el tema si el usuario lo indicó. */
 function activityFor(s      , n        , topic         ) {
@@ -688,7 +767,7 @@ function generate(i                                                             
     const place = (s      , min        , kind                      ) => {
       const w = windows(c, d).find(x => x.end - up5(x.start) >= min); if (!w) return false;
       const st = up5(w.start), n = all.filter(h => h.subjectId === s.id && h.kind === 'estudio').length;
-      const a = kind === 'estudio' ? activityFor(s, n, R.lastTopic[s.id]) : { title: `Repaso breve de ${s.name}`, detail: 'Recupera de memoria lo esencial sin mirar los apuntes y comprueba después qué se te escapó.' };
+      const a = kind === 'estudio' ? activityFor(s, n, R.lastTopic[s.id]) : (() => { const m = methodOf(s.name, s.colorKey); return { title: `${s.name}: ${m.repaso.title}`, detail: `${m.repaso.detail} Por qué: recuperar de memoria y espaciar es la técnica mejor respaldada.` }; })();
       const h             = { id: `hab:${d}:${st}:${s.id}`, date: d, start: st, end: st + min, subjectId: s.id, kind, title: a.title, detail: a.detail, status: 'planned', pinned: false };
       all.push(h); out.push(h); used.add(s.id); return true;
     };
@@ -806,7 +885,7 @@ function weekMinutes(acts            , monday        ) {
 const CAT                                                                                                      = [
   { kind: 'repaso', min: 10, ideal: 15, energy: 'media', subj: true }, { kind: 'tarjetas', min: 10, ideal: 15, energy: 'media', subj: true }, { kind: 'practica', min: 20, ideal: 25, energy: 'alta', subj: true },
   { kind: 'apuntes', min: 15, ideal: 20, energy: 'baja', subj: true }, { kind: 'preparar', min: 10, ideal: 15, energy: 'baja' }, { kind: 'lectura', min: 15, ideal: 25, energy: 'baja' },
-  { kind: 'ejercicio', min: 30, ideal: 30, energy: 'media' }, { kind: 'descanso', min: 10, ideal: 10, energy: 'baja' }];
+  { kind: 'descanso', min: 10, ideal: 10, energy: 'baja' }];
 const EN = { baja: 0, media: 1, alta: 2 }         ;
 const remaining = (w      , blocks         ) => w.estimate?.remainingMin ?? Math.max(0, w.estMin - blocks.filter(b => b.workId === w.id && b.status === 'done').reduce((a, b) => a + (b.actualMin ?? b.end - b.start), 0));
 function suggest(i                                                                                                                                                                                                ) {
@@ -1200,8 +1279,8 @@ function stats(blocks         , works        , _now     ) {
   return { plannedMin, completedMin, counts, byDay, bySubject, compliance: base ? Math.round(100 * doneSched / base) : null };
 }
 ;return{stats}})();
-const {plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='715eae0743',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
+const BUILD='2a4e9d0d03',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -1350,7 +1429,7 @@ function blkForm(id,pre){const b=id?S.blocks.find(x=>x.id===id):pre||{},ws_=S.wo
   const nb={...b,id:id||'man:'+uid(),workId:v.workId,date:v.date,start:s,end:e,status:'planned',manual:true};S.blocks=id?S.blocks.map(x=>x.id===id?nb:x):[...S.blocks,nb];commit()})}
 const wTopic=b=>((wk(b.workId)||{}).topics||[]).find(x=>x.id===b.topicId)?.name||'';
 const mnu=(c,t,id)=>c?` data-a=blkMenu data-t=${t} data-id="${esc(id)}" role=button tabindex=0`:'';
-const blk=(b,c)=>{const w=wk(b.workId)||{},s=sub(w.subjectId),st={done:'Completada',skipped:'Omitida',rescheduled:'Reprogramada'}[b.status];return`<div class="blk ob ${b.status} ${b.manual?'manual':''}" style="--c:${s.color}"${mnu(c&&b.status==='planned','ob',b.id)}><div class=bh><b>${fm(b.start)}–${fm(b.end)}</b><span class=who>${esc(s.name)}</span><span class=kind>Obligatorio</span></div><small>${esc(w.title||'')}${b.part==='review'?' · repaso':''}${b.topicId?' · '+esc(wTopic(b)):''}${isUndated(w)?' · sin fecha':''}${b.manual?' · manual':''}</small>${b.status==='planned'?c?'':`<div class=acts>${b.date===now().date&&!UI.timer?`<button data-a=timerStart data-id="${b.id}">▶ Empezar</button>`:''}<button class=pri data-a=quickDone data-id="${b.id}">✓ Hecha tal cual</button><button data-a=doneBlk data-id="${b.id}">Con detalle</button><button data-a=skipBlk data-id="${b.id}">No la haré</button><button data-a=editBlk data-id="${b.id}">Mover</button>${b.manual?`<button class=danger data-a=delBlk data-id="${b.id}">Quitar</button>`:''}</div>`:`<em>${st}</em>`}</div>`};
+const blk=(b,c)=>{const w=wk(b.workId)||{},s=sub(w.subjectId),st={done:'Completada',skipped:'Omitida',rescheduled:'Reprogramada'}[b.status];return`<div class="blk ob ${b.status} ${b.manual?'manual':''}" style="--c:${s.color}"${mnu(c&&b.status==='planned','ob',b.id)}><div class=bh><b>${fm(b.start)}–${fm(b.end)}</b><span class=who>${esc(s.name)}</span><span class=kind>Obligatorio</span></div><small>${esc(w.title||'')}${b.part==='review'?' · repaso':''}${b.topicId?' · '+esc(wTopic(b)):''}${isUndated(w)?' · sin fecha':''}${b.manual?' · manual':''}</small>${b.status==='planned'&&!c?`<small class=how>${esc(MET.howFor(s.name,s.colorKey,{review:b.part==='review'}))}</small>`:''}${b.status==='planned'?c?'':`<div class=acts>${b.date===now().date&&!UI.timer?`<button data-a=timerStart data-id="${b.id}">▶ Empezar</button>`:''}<button class=pri data-a=quickDone data-id="${b.id}">✓ Hecha tal cual</button><button data-a=doneBlk data-id="${b.id}">Con detalle</button><button data-a=skipBlk data-id="${b.id}">No la haré</button><button data-a=editBlk data-id="${b.id}">Mover</button>${b.manual?`<button class=danger data-a=delBlk data-id="${b.id}">Quitar</button>`:''}</div>`:`<em>${st}</em>`}</div>`};
 const act=()=>S.works.filter(w=>w.status==='pending'||w.status==='in_progress');
 const prio=w=>{const p=priority(w,now());return p>=17?['Alta','hi']:p>=12?['Media','']:['Baja','']};
 const estLine=w=>{const e=w.estimate;if(!e||w.status==='done'||w.status==='archived')return'';const d=W.find(x=>x.workId===w.id&&x.type==='deficit');return`<small>Quedan ~${hr(e.remainingMin)} (entre ${hr(e.lowMin)} y ${hr(e.highMin)})${e.investedMin?' · '+hr(e.investedMin)+' hechas':''} · ${e.confidence==='inicial'?'estimación inicial'+(e.provisional?' aproximada':''):'ajustada a tu historial'} · ${d?'<span style="color:var(--warn)">déficit '+hr(d.deficitMin)+'</span>':'cabe en el calendario'}</small>`};
@@ -1359,7 +1438,7 @@ const shownWarnings=()=>W.filter(w=>{if(w.type!=='deficit')return true;const x=w
 const dueTxt=w=>isUndated(w)?'Sin fecha':fd(w.dueDate)+(w.dueMinute!=null?' '+fm(w.dueMinute):'');
 const wrow=w=>{const s=sub(w.subjectId),[p,c]=prio(w);return`<div class="card item" style="--c:${s.color}" data-a=${w.kind==='exam'?'editExam':'editTask'} data-id="${w.id}">${w.kind==='task'?`<button class=chk2 data-a=toggle data-id="${w.id}" aria-label="${w.status==='done'?'Reabrir':'Completar'}">${w.status==='done'?'↺':'✓'}</button>`:''}<span class=dot></span><div><b${w.status==='done'?' style="text-decoration:line-through"':''}>${esc(w.title)}</b><small>${esc(s.name)} · ${dueTxt(w)} · ${hr(w.estMin)}${w.kind==='exam'?' · prep. '+w.readiness+'%':''}</small>${estLine(w)}</div>${w.status==='pending'||w.status==='in_progress'?`<span class="tag ${c}">${p}</span>`:`<em>${STS.find(x=>x[0]===w.status)[1]}</em>`}</div>`};
 
-const UIK='focusos.ui',NAVT={obj:'Objetivos y notas',tem:'Temario',cur:'Curso hasta la PAU',hoy:'Hoy',tar:'Tareas',exa:'Exámenes',cal:'Calendario',asg:'Asignaturas',eje:'Ejercicio físico',rut:'Rutina semanal',est:'Estimaciones',seg:'Progreso y estadísticas',aj:'Ajustes'};let UI={rail:false,theme:'dark',open:{plan:true,goal:true,subjects:false}},SF=false;
+const UIK='focusos.ui',NAVT={obj:'Objetivos y notas',tem:'Temario',cur:'Curso hasta la PAU',met:'Método de estudio',hoy:'Hoy',tar:'Tareas',exa:'Exámenes',cal:'Calendario',asg:'Asignaturas',eje:'Ejercicio físico',rut:'Rutina semanal',est:'Estimaciones',seg:'Progreso y estadísticas',aj:'Ajustes'};let UI={rail:false,theme:'dark',open:{plan:true,goal:true,subjects:false}},SF=false;
 try{const u=JSON.parse(localStorage.getItem(UIK)||'{}');UI={rail:!!u.rail,theme:['dark','light','auto'].includes(u.theme)?u.theme:'dark',open:{...UI.open,...(u.open||{})},lastExport:+u.lastExport||0,backupSnooze:+u.backupSnooze||0,capNo:+u.capNo||0,timer:u.timer&&typeof u.timer.id==='string'&&+u.timer.at>0?{id:u.timer.id,at:+u.timer.at}:null}}catch{}
 const saveUI=()=>{try{localStorage.setItem(UIK,JSON.stringify(UI))}catch{}};
 function applyTheme(){try{const t=UI.theme==='auto'?(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):UI.theme;document.documentElement.dataset.theme=t;const m=document.querySelector('meta[name=theme-color]');m&&m.setAttribute('content',t==='light'?'#F6F4EF':'#121214')}catch{}}
@@ -1372,8 +1451,8 @@ function renderNav(){const [r,arg]=route.split(':'),cur=k=>r===k||(k==='aj'&&r==
  document.body.classList.toggle('rail',UI.rail);
  $('#nav').innerHTML=`<div class=brand><span>Focus OS</span><button data-a=rail aria-label="${UI.rail?'Expandir':'Contraer'} menú">${ic(UI.rail?'gt':'lt')}</button></div>`+item('hoy','hoy','Hoy')
  +grp('plan','plan','Planificar',sb('cal','Calendario')+sb('rut','Rutina semanal')+sb('tar','Tareas')+sb('exa','Exámenes')+sb('est','Estimaciones'),['cal','rut','tar','exa','est'].includes(r))
- +grp('goal','seg','Objetivos',sb('obj','Notas y objetivo')+sb('tem','Temario')+sb('cur','Curso hasta la PAU'),['obj','tem','cur'].includes(r))
- +item('eje','eje','Ejercicio físico')+item('seg','seg','Progreso y estadísticas')+item('aj','aj','Ajustes')}
+ +grp('goal','seg','Objetivos',sb('obj','Notas y objetivo')+sb('tem','Temario')+sb('cur','Curso hasta la PAU')+sb('met','Método de estudio'),['obj','tem','cur','met'].includes(r))
+ +item('seg','seg','Progreso y estadísticas')+item('aj','aj','Ajustes')}
 function setSubjectColor(id,color){const s=S.subjects.find(x=>x.id===id);if(!s||!/^#[0-9a-fA-F]{6}$/.test(color))return'Color no válido.';if(colorConflict(S.subjects,id,color)){render();return'Ese color ya lo usa otra asignatura.'}
  const ck=s.colorKey;S.subjects=S.subjects.map(x=>x.id!==id?x:{...x,userColor:ck&&color.toLowerCase()===DEFAULT_SUBJECT_COLORS[ck].toLowerCase()?undefined:color});commit();return null}
 const TL=k=>(EXERCISE_TYPES.find(x=>x[0]===k)||[0,k])[1],byDT=(a,b)=>a.date.localeCompare(b.date)||(a.start??9999)-(b.start??9999);
@@ -1418,8 +1497,9 @@ function calEvents(d){const ev=[],nos=[];
  for(const b of S.blocks.filter(x=>x.date===d)){const w=wk(b.workId)||{},c=sub(w.subjectId);ev.push({s:b.start,e:b.end,c:c.color,cls:'ob '+b.status+(b.manual?' manual':''),t:'ob',id:b.id,name:c.name,sub:(w.title||'')+(b.part==='review'?' · repaso':'')+(b.topicId?' · '+wTopic(b):'')+(isUndated(w)?' · sin fecha':'')+(b.status==='done'?' · hecha':b.status==='skipped'?' · omitida':b.status==='rescheduled'?' · reprogramada':''),act:b.status==='planned'})}
  for(const h of (S.habit||[]).filter(x=>x.date===d&&x.status!=='skipped')){const c=sub(h.subjectId),nm=h.title.replace(c.name+': ','');if(h.status==='displaced')nos.push({c:c.color,t:'hab',id:h.id,name:c.name,sub:'sugerido · sin hueco'});else ev.push({s:h.start,e:h.end,c:c.color,cls:'hab '+h.status,t:'hab',id:h.id,name:c.name,sub:nm+(h.status==='done'?' · hecha':h.status==='replaced'?' · sustituida':''),act:h.status==='planned'})}
  for(const a of S.activities.filter(x=>x.date===d)){const nm=a.category==='exercise'?'Ejercicio · '+TL(a.type):a.title||'Actividad opcional',o={c:'var(--muted)',cls:'act '+a.status,t:'act',id:a.id,name:nm,sub:a.status==='done'?'completada':a.status==='skipped'?'omitida':'',act:true};if(a.start==null)nos.push(o);else ev.push({...o,s:a.start,e:a.end})}
+ ev.push({s:EJ.start,e:EJ.end,c:'var(--muted)',cls:'act fixed',t:'fix',id:'fix:'+d,name:'Ejercicio',sub:'fijo cada día',act:false});
  return{ev:lanesOf(ev),nos}}
-const evHtml=(x,g0)=>{const top=(x.s-g0)*PXM,h=Math.max(26,(x.e-x.s)*PXM-2),tall=h>=44,L=x.lanes||1,lane=x.lane||0;return`<div class="ev ${x.cls}${tall?'':' sm'}" style="--c:${x.c};top:${top}px;height:${h}px;left:calc(${lane*100/L}% + 2px);right:auto;width:calc(${100/L}% - 4px)" data-a=blkMenu data-t=${x.t} data-id="${esc(x.id)}" role=button tabindex=0 aria-label="${esc(x.name)} ${fm(x.s)}–${fm(x.e)}"><b>${esc(x.name)}</b><span>${tall?fm(x.s)+' · '+(x.e-x.s)+' min':(x.e-x.s)+'m'}</span>${tall&&x.sub?`<small>${esc(x.sub)}</small>`:''}</div>`};
+const evHtml=(x,g0)=>{const top=(x.s-g0)*PXM,h=Math.max(26,(x.e-x.s)*PXM-2),tall=h>=44,L=x.lanes||1,lane=x.lane||0;return`<div class="ev ${x.cls}${tall?'':' sm'}" style="--c:${x.c};top:${top}px;height:${h}px;left:calc(${lane*100/L}% + 2px);right:auto;width:calc(${100/L}% - 4px)" ${x.t==='fix'?'':`data-a=blkMenu data-t=${x.t} data-id="${esc(x.id)}" role=button tabindex=0 `}aria-label="${esc(x.name)} ${fm(x.s)}–${fm(x.e)}"><b>${esc(x.name)}</b><span>${tall?fm(x.s)+' · '+(x.e-x.s)+' min':(x.e-x.s)+'m'}</span>${tall&&x.sub?`<small>${esc(x.sub)}</small>`:''}</div>`};
 V.cal=()=>{const n=now();ws=ws||addDays(n.date,-((weekday(n.date)+6)%7));if(!CALDAY||CALDAY<ws||CALDAY>addDays(ws,6))CALDAY=n.date>=ws&&n.date<=addDays(ws,6)?n.date:ws;const ds=[...Array(7)].map((_,i)=>addDays(ws,i)),per=ds.map(calEvents);
  let lo=420,hi=1350;ds.forEach((d,i)=>{for(const w of S.settings.availability[weekday(d)]||[]){lo=Math.min(lo,w.start);hi=Math.max(hi,w.end)}for(const x of per[i].ev){lo=Math.min(lo,x.s);hi=Math.max(hi,x.e)}});
  const g0=Math.floor(lo/60)*60,g1=Math.ceil(hi/60)*60,H=(g1-g0)*PXM;CALG={g0,g1,ws};
@@ -1437,7 +1517,6 @@ V.seg=()=>{const n=now(),st=stats(S.blocks,S.works,n),ds=[...Array(7)].map((_,i)
  <p class=m>Cumplimiento = minutos de sesiones completadas ÷ minutos de sesiones completadas + omitidas. Las sesiones reprogramadas no se cuentan dos veces. Sesiones: ${st.counts.planned} previstas · ${st.counts.done} hechas · ${st.counts.skipped} omitidas · ${st.counts.rescheduled} reprogramadas.</p>
  <div class=card><h3>Últimos 7 días (hueco = planificado, dorado = completado)</h3><div class=cols>${ds.map(d=>{const x=st.byDay[d]||{plannedMin:0,completedMin:0};return`<div title="${d}"><i class=p style="height:${100*x.plannedMin/mx}%"></i><i style="height:${100*x.completedMin/mx}%"></i></div>`}).join('')}</div><div class=cols style="height:auto;margin-top:4px">${ds.map(d=>`<small style="flex:1;text-align:center">${DOW[weekday(d)]}</small>`).join('')}</div></div>
  <div class=card><h3>Rutina habitual esta semana</h3>${(()=>{const mon=mondayOf(n.date),hs=(S.habit||[]).filter(h=>h.date>=mon&&h.date<=addDays(mon,6));const dn=hs.filter(h=>h.status==='done');return `<b>${hr(dn.reduce((a,h)=>a+(h.actualMin??h.end-h.start),0))}</b> completados en ${dn.length} bloque(s) · ${hs.filter(h=>h.status==='planned').length} sugeridos pendientes. <span class=m>No cuenta como estudio de obligaciones ni cambia tus estimaciones.</span>`})()}</div>
- <div class=card><h3>Ejercicio físico esta semana</h3>${(()=>{const w=weekMinutes(S.activities,mondayOf(n.date));return `<b>${hr(w.doneMin)}</b> completados en ${w.sessions} sesión(es) · ${hr(w.plannedMin)} aún reservados`})()}</div>
  <div class=card><h3>Por asignatura (tiempo completado)</h3><div class=legend>${S.subjects.filter(s=>!s.archived).map(s=>`<span><i class=dot style="--c:${sub(s.id).color}"></i>${esc(s.name)}</span>`).join('')}</div>${Object.entries(st.bySubject).map(([id,m])=>`<div>${esc(sub(id).name)} · ${hr(m)}<div class=bar><i style="width:${100*m/sm}%;background:${sub(id).color}"></i></div></div>`).join('')||'<p class=m>Aún no has completado sesiones.</p>'}</div>`};
 V.aj=()=>{const s=S.settings,N=[['maxDayMin','Máx. estudio al día (min)'],['preferredMin','Duración preferida de sesión (min)'],['maxSessionMin','Duración máxima de sesión (min)'],['minSessionMin','Duración mínima de sesión (min)'],['minGapMin','Descanso mínimo entre sesiones (min)']];
  return`<h1>Ajustes</h1><form id=sf class=card><h3>Disponibilidad semanal</h3><p class=m>Ventanas donde se permite estudiar: HH:MM-HH:MM separadas por comas. Deja fuera clases, trayecto, comidas, descansos y sueño (inicial: levantarse 07:00, acostarse 22:30). Vacío = sin estudio ese día.</p>${[1,2,3,4,5,6,0].map(d=>`<label>${DOW[d]}<input name=d${d} value="${(s.availability[d]||[]).map(w=>fm(w.start)+'-'+fm(w.end)).join(', ')}"></label>`).join('')}<h3>Límites</h3>${N.map(([k,l])=>`<label>${l}<input name=${k} type=number min=0 value=${s[k]}></label>`).join('')}<p class=err id=serr></p><button class=pri>Guardar y replanificar</button></form><div class=card><h3>Apariencia</h3><div class=chips2>${[['dark','Oscuro'],['light','Claro'],['auto','Como el iPad']].map(([k,l])=>`<label class=ch><input type=radio name=theme value=${k}${UI.theme===k?' checked':''} data-a=theme data-id=${k}><span>${l}</span></label>`).join('')}</div></div><div class=card><h3>Bienestar digital</h3><p class=m>Define periodos personales sin sugerencias ni recordatorios. Es un ajuste dentro de Focus OS: no bloquea el iPad ni usa notificaciones del sistema.</p>${((S.routine&&S.routine.quiet)||[]).map((x,i)=>`<div class=ro><span>${x.days.map(d=>DOW[d]).join(' ')} · ${fm(x.start)}–${fm(x.end)}</span><button data-a=quietDel data-id=${i} aria-label="Quitar periodo ${i+1}">Quitar</button></div>`).join('')||'<p class=m>Aún no has definido periodos.</p>'}<button data-a=quietAdd>Añadir periodo sin notificaciones</button></div><div class=card><h3>Colores de asignaturas</h3><p class=m>Cada asignatura tiene un color único. El nombre siempre se muestra junto al color.</p>${S.subjects.map(s=>`<label class=item><span class=dot style="--c:${sub(s.id).color}"></span><span style="flex:1">${esc(s.name)}</span><input type=color class=subc data-id="${esc(s.id)}" value="${sub(s.id).color}" aria-label="Color de ${esc(s.name)}"></label>`).join('')}<button data-a=resetColors>Restablecer paleta predeterminada</button></div><div class=card><h3>Datos</h3><p class=m>Versión de la app cargada: <b>${BUILD}</b> (debe coincidir con la que figura en el README de publicación).</p><p class=m>Almacenamiento provisional: <b>localStorage de este navegador</b> (no es nube ni multiusuario). Safari puede borrar los datos de webs que no abres en 7 días: instala la app en la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y exporta una copia cada semana.</p><div class=row style="justify-content:flex-start"><button data-a=export>Exportar copia JSON</button>${localStorage.getItem(BAK)?'<button data-a=undoImport>Deshacer última importación</button>':''}</div><label>Importar copia JSON (pide confirmación y guarda antes una copia automática)<input type=file id=imp accept=".json,application/json"></label></div>`};
@@ -1489,7 +1568,7 @@ document.addEventListener('submit',e=>{if(e.target.id!=='rf')return;e.preventDef
  if(!(bm>=15&&bm<=120))return er.textContent='La duración del bloque va de 15 a 120 minutos.';const days=[1,2,3,4,5,6,0].filter(d=>v['d'+d]);if(!days.length)return er.textContent='Elige al menos un día.';
  const perWeek={},lastTopic={};for(const s of S.subjects){const f=v['f_'+s.id];if(f!==undefined&&f!==''){const k=+f;if(!(k>=0&&k<=7))return er.textContent='La frecuencia va de 0 a 7 veces por semana (como mucho una vez al día).';perWeek[s.id]=k}if(v['t_'+s.id])lastTopic[s.id]=v['t_'+s.id].trim()}
  S.routine={...R,intensity:v.intensity,blockMin:bm,activeDays:days,perWeek,lastTopic};commit({quiet:true});toast('Configuración guardada. Usa «Regenerar rutina semanal» para aplicarla a los próximos días.')});
-function blkMenu(t){const id=t.dataset.id,k=t.dataset.t;let title,btns;
+function blkMenu(t){const id=t.dataset.id,k=t.dataset.t;let title,btns;if(k==='fix')return;
  if(k==='ob'){const b=S.blocks.find(x=>x.id===id);if(!b)return;const w=wk(b.workId)||{};title=sub(w.subjectId).name+' · '+fm(b.start)+'–'+fm(b.end);btns=[{l:'Hecha tal cual',c:'pri',fn:()=>logForm(id,true)},{l:'Hecha, con detalle',fn:()=>logForm(id)},...(b.date===now().date&&!UI.timer?[{l:'▶ Empezar a estudiar',fn:()=>A.timerStart({dataset:{id}})}]:[]),{l:'Mover',fn:()=>blkForm(id)},{l:'No la haré',fn:()=>skipBlk(id)},...(b.manual?[{l:'Quitar',c:'danger',fn:()=>A.delBlk({dataset:{id}})}]:[])]}
  else if(k==='hab'){const h=S.habit.find(x=>x.id===id);if(!h)return;title=sub(h.subjectId).name+' · sugerido';btns=h.status==='displaced'?[{l:'Buscar hueco',c:'pri',fn:()=>habMove(id)},{l:'Omitir',fn:()=>A.habSkip({dataset:{id}})}]:[{l:'Hecho',c:'pri',fn:()=>habDone(id)},{l:'Mover',fn:()=>habMove(id)},{l:h.pinned?'Soltar':'Fijar',fn:()=>A.habPin({dataset:{id}})},{l:'Omitir',fn:()=>A.habSkip({dataset:{id}})}]}
  else{const a=S.activities.find(x=>x.id===id);if(!a)return;title=(a.category==='exercise'?'Ejercicio · '+TL(a.type):a.title||'Actividad')+(a.start!=null?' · '+fm(a.start)+'–'+fm(a.end):'');btns=a.status==='planned'?[{l:'Hecho',c:'pri',fn:()=>actDone(id)},{l:'Mover o editar',fn:()=>actForm(id)},{l:'Omitir',fn:()=>A.skipAct({dataset:{id}})}]:[{l:'Editar',fn:()=>actForm(id)}]}
@@ -1509,7 +1588,7 @@ document.addEventListener('submit',e=>{if(e.target.id!=='sf')return;e.preventDef
 function render(){const [r,arg]=route.split(':');renderNav();$('#main').innerHTML=(V[r]||V.hoy)(arg);$('#topTitle').textContent=r==='asg'&&arg?sub(arg).name:NAVT[r]||'Focus OS'}
 const tick=()=>{if(S&&!$('#dlg').open&&route!=='aj'&&route!=='rut'){extendRoutine();commit({quiet:true})}};
 const dl=(txt,name,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:type||'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)};
-const fresh=()=>({patternV:2,cenaV:1,goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
+const fresh=()=>({patternV:2,cenaV:1,ejV:1,metV:1,goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
 function recovery(err){S=null;$('#main').innerHTML=`<h1>Datos no válidos</h1><div class="card warn">${esc(err)}</div><p class=m>No se ha sobrescrito nada: la copia dañada sigue guardada en este navegador. Puedes descargarla, importar una copia JSON válida o empezar de cero (la dañada se conserva aparte).</p><div class=row style="justify-content:flex-start"><button data-a=dlBad>Descargar copia dañada</button><button class=danger data-a=fresh>Empezar de cero</button></div><label>Importar copia JSON<input type=file id=imp accept=".json,application/json"></label>`}
 function importText(text){let o;try{o=JSON.parse(text)}catch{toast('El archivo no es un JSON válido.');return'json'}
  const e=validate(o);if(e){toast('Copia no válida: '+e);return e}
@@ -1524,7 +1603,7 @@ const v2Block=w=>{const e=w.estimateV2;if(w.estimatorVersion!==2||!e)return`<br>
  return`<hr><b>Estimador 2.0</b> · ${e.interval.kind==='calibrado'?'intervalo calibrado':'rango orientativo y heurístico'} ${hr(e.interval.p10)}–${hr(e.interval.p90)} (central ${hr(e.interval.p50)}) · confianza ${esc(e.confidence)} · evidencia de dominio: ${e.evidenceLevel}${e.provisional?' · provisional':''}<br>${e.phases.filter(p=>p.minutes).map(p=>p.phase+' '+hr(p.minutes)).join(' · ')}${(e.perTopic||[]).length?'<br>'+e.perTopic.map(x=>esc(x.name)+': dominio ~'+Math.round(x.mastery*100)+'% ('+x.evidenceLevel+(x.unknownExtent?', extensión desconocida':'')+')').join('<br>'):''}<br>${e.factors.map(esc).join('<br>')}${v?'<br><b>'+VIAB[v.status]+'</b>'+(v.deficitP50?' · déficit estimado '+hr(v.deficitP50)+' (escenario alto: '+hr(v.deficitP90)+'). Prioriza los temas de menor dominio, amplía disponibilidad o baja el objetivo.':v.deficitP90?' · en el escenario alto faltarían '+hr(v.deficitP90):''):''}<br><button type=button data-a=revertV1 data-id="${w.id}">Volver a estimador v1</button>`};
 const estNote=w=>(w.estimate?estNote1(w):'<b>Estimador v1:</b> se usan tus minutos manuales.')+v2Block(w);
 async function boot(){applyTheme();let r;try{r=await repo.load()}catch(e){r={error:e.message}}if(r.error)return recovery(r.error);
- S=r.state||fresh();if(!Array.isArray(S.activities))S.activities=[];if(!Array.isArray(S.suggestionLog))S.suggestionLog=[];if(!S.routine)S.routine={...DEFAULT_ROUTINE};if(!Array.isArray(S.habit))S.habit=[];if(!S.explore||!Array.isArray(S.explore.log))S.explore={log:[]};if(r.warn)toast(r.warn);try{navigator.storage.persist()}catch{}extendRoutine();if(S.patternV!==2){regenFuture();S.patternV=2}if(S.cenaV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.CENA])]));S.cenaV=1;if(!r.warn)toast('Cena y ducha: ya no se planifica estudio de 20:30 a 22:00')}await commit({quiet:true});try{const dl=$('#dlg');dl.addEventListener&&dl.addEventListener('close',()=>{CHOOSING=false;if(PENDING){PENDING=false;S=JSON.parse(LAST);render()}})}catch{}try{if('serviceWorker' in navigator&&isSecureContext)navigator.serviceWorker.register('sw.js').catch(()=>{})}catch{}
+ S=r.state||fresh();if(!Array.isArray(S.activities))S.activities=[];if(!Array.isArray(S.suggestionLog))S.suggestionLog=[];if(!S.routine)S.routine={...DEFAULT_ROUTINE};if(!Array.isArray(S.habit))S.habit=[];if(!S.explore||!Array.isArray(S.explore.log))S.explore={log:[]};if(r.warn)toast(r.warn);try{navigator.storage.persist()}catch{}extendRoutine();if(S.patternV!==2){regenFuture();S.patternV=2}if(S.cenaV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.CENA])]));S.cenaV=1;if(!r.warn)toast('Cena y ducha: ya no se planifica estudio de 20:30 a 22:00')}if(S.ejV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.EJERCICIO])]));S.ejV=1;if(!r.warn)toast('Ejercicio fijo de 17:00 a 17:30 cada día: no se planifica estudio encima')}if(S.metV!==1){regenAll();S.metV=1}await commit({quiet:true});try{const dl=$('#dlg');dl.addEventListener&&dl.addEventListener('close',()=>{CHOOSING=false;if(PENDING){PENDING=false;S=JSON.parse(LAST);render()}})}catch{}try{if('serviceWorker' in navigator&&isSecureContext)navigator.serviceWorker.register('sw.js').catch(()=>{})}catch{}
  setInterval(tick,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick()})}
 
 /* ===== Objetivos, notas, temario, curso hasta la PAU y revisión semanal (v6). Todo se calcula en src/core/goals.ts; aquí solo hay pantallas. ===== */
@@ -1639,6 +1718,11 @@ const pausa=()=>{const d=(S.settings.blockedDates||[]).filter(b=>b.pausa&&b.date
  return ob1(a)+(rows?`<h2>Evolución por evaluación</h2><div class=tblw><table class=tbl><thead><tr><th>Asignatura</th><th>1.ª</th><th>2.ª</th><th>3.ª</th></tr></thead><tbody>${rows}</tbody></table></div><p class=m>Tu media de lo ya evaluado en cada evaluación.</p>`:'')}}
 Object.assign(A,{pause:t=>{const k=+t.dataset.k,n=now().date,keep=(S.settings.blockedDates||[]).filter(b=>!b.pausa);S.settings={...S.settings,blockedDates:[...keep,...Array.from({length:k},(_,i)=>({date:addDays(n,i),start:0,end:1440,pausa:true}))]};commit();toast('Plan en pausa '+k+(k===1?' día':' días'))},
  resume:()=>{S.settings={...S.settings,blockedDates:(S.settings.blockedDates||[]).filter(b=>!b.pausa)};commit();toast('Plan reanudado')}});
+
+/* Método de estudio por asignatura (docs/METODO-ESTUDIO.md): texto de referencia, no calcula nada. */
+V.met=()=>{const subs=S.subjects.filter(s=>!s.archived),rows=subs.map(s=>{const m=MET.methodOf(s.name,s.colorKey);return`<div class=card style="border-left:4px solid ${s.color||'var(--gold)'}"><h3>${esc(s.name)}</h3><p class=m>Bloque ideal: ${esc(m.ideal)} · Evidencia: ${m.evidence}</p><ul>${m.tasks.map(t=>`<li><b>${esc(t.title)}.</b> ${esc(t.detail)}</li>`).join('')}<li><b>${esc(m.repaso.title)} (repaso corto).</b> ${esc(m.repaso.detail)}</li></ul><p class=m>Por qué: ${esc(m.why)}</p></div>`}).join('');
+ return`<h1>Método de estudio</h1><p class=m>Qué hacer en cada sesión, según la literatura (Dunlosky 2013, Roediger y Karpicke 2006, Cepeda 2008, Rohrer 2020, Graham y Perin 2007). Los bloques del calendario usan estos textos.</p>
+ <div class=card><h3>Reglas que valen para todas</h3><ul><li>Cada sesión debe producir algo: recordar sin mirar, resolver sin ver la solución o escribir. Releer y subrayar rinden poco.</li><li>Repasa lo aprendido a +1–2 días, a la semana, a las 3 semanas y después cada 3–5 semanas.</li><li>Desde marzo, un simulacro de PAU (90 min, sin apuntes, corregido con los criterios) por semana en cada materia de peso; en las últimas semanas, 2–3.</li><li>No recortes sueño para estudiar más; los descansos programados ayudan a mantener la concentración.</li><li>El examen de la PAU 2026 dura 90 min en todas las materias: entrena con ese formato.</li></ul></div>${rows}`};
 
 boot();
 </script></body></html>

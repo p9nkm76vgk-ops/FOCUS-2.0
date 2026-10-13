@@ -73,7 +73,7 @@ try:
     # sin desbordamiento horizontal en todas las vistas, dos temas
     for th in ('dark', 'light'):
         p.evaluate(f"localStorage.setItem('focusos.ui', JSON.stringify({{theme:'{th}'}}))"); p.reload(); p.wait_for_selector('#main h1')
-        for r in ['hoy', 'tar', 'exa', 'cal', 'rut', 'est', 'eje', 'seg', 'aj']:
+        for r in ['hoy', 'tar', 'exa', 'cal', 'rut', 'est', 'seg', 'aj']:
             go(p, r); ok = p.evaluate("document.documentElement.scrollWidth<=innerWidth+1"); ck(f'sin desbordamiento horizontal: {r} ({th})', ok)
     b.close()
     # móvil/vertical

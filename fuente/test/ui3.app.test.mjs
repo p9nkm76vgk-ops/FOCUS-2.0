@@ -18,16 +18,16 @@ test('activar la rutina: comparación previa, bloques sugeridos persistentes, ca
   const n = a.S.habit.length; await a.t.commit({ quiet: true }); await a.t.commit(); assert.equal(a.S.habit.length, n, 'sin duplicados al repetir');
 });
 test('EJEMPLO en la app: deberes de Historia → propuesta con comparación; aceptar sustituye Historia y mantiene Lengua', async () => {
-  const a = await withRoutine(); a.S.habit = [hab(a, 'Historia de España', '2026-10-12', 1020, 1065), hab(a, 'Lengua Castellana', '2026-10-12', 1080, 1125)]; await a.t.commit({ quiet: true });
+  const a = await withRoutine(); a.S.habit = [hab(a, 'Historia de España', '2026-10-12', 1050, 1095), hab(a, 'Lengua Castellana', '2026-10-12', 1110, 1155)]; await a.t.commit({ quiet: true });
   await a.click('addTask'); a.h.dlg.innerHTML = ''; assert.equal(await a.submit(taskF(a, 'Historia de España')), ''); await a.tick();
   assert.ok(a.h.dlg.open, 'la ventana de propuesta sigue abierta tras guardar el formulario'); assert.match(a.h.dlg.innerHTML, /Cambios propuestos en tu rutina/); assert.match(a.h.dlg.innerHTML, /Antes · 10-12/); assert.match(a.h.dlg.innerHTML, /Propuesto · 10-12/); assert.match(a.h.dlg.innerHTML, /Sustituido por/); assert.match(a.h.dlg.innerHTML, /Aceptar cambios/); assert.match(a.h.dlg.innerHTML, /Cancelar/);
   await choice(a, 0); const h = a.S.habit.find(x => x.subjectId === a.S.subjects[7].id), l = a.S.habit.find(x => x.subjectId === a.S.subjects[4].id);
-  assert.equal(h.status, 'replaced'); assert.equal(l.status, 'planned'); assert.deepEqual([l.date, l.start, l.end], ['2026-10-12', 1080, 1125]); const wb = a.S.blocks.filter(b => b.status === 'planned'); assert.equal(wb.length, 1); assert.deepEqual([wb[0].date, wb[0].start], ['2026-10-12', 1020]);
+  assert.equal(h.status, 'replaced'); assert.equal(l.status, 'planned'); assert.deepEqual([l.date, l.start, l.end], ['2026-10-12', 1110, 1155]); const wb = a.S.blocks.filter(b => b.status === 'planned'); assert.equal(wb.length, 1); assert.deepEqual([wb[0].date, wb[0].start], ['2026-10-12', 1050]);
   noOverlap(items(a)); const snap = J([a.S.habit, a.S.blocks]); a.h.dlg.innerHTML = ''; await a.t.commit(); await a.t.commit(); assert.equal(J([a.S.habit, a.S.blocks]), snap, 'estable: no oscila'); assert.equal(a.h.dlg.innerHTML, '', 'no vuelve a preguntar');
   const st = a.t.stats(a.S.blocks, a.S.works, {}); assert.equal(st.completedMin, 0);
 });
 test('cancelar descarta el cambio; «mantener mi rutina» conserva la rutina y recuerda la decisión', async () => {
-  const mk = async () => { const a = await withRoutine(); a.S.habit = [hab(a, 'Historia de España', '2026-10-12', 1020, 1065), hab(a, 'Lengua Castellana', '2026-10-12', 1080, 1125)]; await a.t.commit({ quiet: true }); return a; };
+  const mk = async () => { const a = await withRoutine(); a.S.habit = [hab(a, 'Historia de España', '2026-10-12', 1050, 1095), hab(a, 'Lengua Castellana', '2026-10-12', 1110, 1155)]; await a.t.commit({ quiet: true }); return a; };
   const a = await mk(); const before = a.store['focusos.v1']; await a.click('addTask'); await a.submit(taskF(a, 'Historia de España')); await choice(a, 2);
   assert.equal(a.S.works.length, 0, 'cancelar: no se guarda la tarea'); assert.equal(a.store['focusos.v1'], before, 'almacenamiento intacto');
   const b = await mk(); await b.click('addTask'); await b.submit(taskF(b, 'Historia de España')); await choice(b, 1);

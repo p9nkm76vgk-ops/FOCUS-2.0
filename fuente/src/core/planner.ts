@@ -3,11 +3,13 @@ import type { Block, Now, PlanResult, Settings, Warning, Win, Work } from './typ
 const hm = (h: number, m = 0) => h * 60 + m;
 /** Cena y ducha (20:30–22:00): sin estudio por defecto. Editable en Ajustes añadiendo una franja si algún día quieres estudiar más tarde. */
 export const CENA: Win = { start: hm(20, 30), end: hm(22) };
-const wk: Win[] = [{ start: hm(15, 30), end: hm(20, 30) }];
-const we: Win[] = [{ start: hm(10), end: hm(13, 30) }, { start: hm(16), end: hm(20, 30) }];
+/** Ejercicio diario fijo (17:00–17:30): nunca se planifica estudio encima. */
+export const EJERCICIO: Win = { start: hm(17), end: hm(17, 30) };
+const wk: Win[] = [{ start: hm(15, 30), end: EJERCICIO.start }, { start: EJERCICIO.end, end: hm(20, 30) }];
+const we: Win[] = [{ start: hm(10), end: hm(13, 30) }, { start: hm(16), end: EJERCICIO.start }, { start: EJERCICIO.end, end: hm(20, 30) }];
 /** Valores iniciales editables. Lun/Mar descuentan llegada a casa (16:30 / 17:10). */
 export const DEFAULT_SETTINGS: Settings = {
-  availability: { 0: we, 1: [{ start: hm(17), end: hm(20, 30) }], 2: [{ start: hm(17, 40), end: hm(20, 30) }], 3: wk, 4: wk, 5: wk, 6: we },
+  availability: { 0: we, 1: [{ start: EJERCICIO.end, end: hm(20, 30) }], 2: [{ start: hm(17, 40), end: hm(20, 30) }], 3: wk, 4: wk, 5: wk, 6: we },
   blockedDates: [], maxDayMin: 240, preferredMin: 50, maxSessionMin: 90, minSessionMin: 25, minGapMin: 10, horizonDays: 28,
 };
 /** Función de prioridad: desempate entre demandas con el mismo plazo. Ajustable. */

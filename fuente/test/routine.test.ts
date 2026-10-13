@@ -35,15 +35,15 @@ test('reparto equilibrado: cuota semanal por asignatura, alternancia entre días
 test('sin información del último tema no se inventa temario; con tema indicado se usa; textos genéricos adaptables', () => {
   const g = gen({ from: NOW.date, to: NOW.date }); assert.ok(g.every(h => !h.detail.includes('Tema indicado por ti') && h.detail.length > 20 && h.title.length > 5));
   const t = gen({ routine: R({ lastTopic: Object.fromEntries(subjects.map(s => [s.id, 'La Restauración'])) }), from: NOW.date, to: NOW.date }); assert.ok(t.some(h => h.detail.includes('Tema indicado por ti: La Restauración.')));
-  assert.ok(g.some(h => /comentario|ejercicios|vocabulario|Repasar|Repaso/i.test(h.title)));
+  assert.ok(g.some(h => /: \S/.test(h.title) && /Por qué/.test(h.detail)));
 });
 test('generación idempotente: repetirla no añade nada', () => { const a = gen(), b = gen({ habit: a }); assert.equal(b.length, 0); });
-const mon = [hab('Historia de España', '2026-10-12', 1020, 1065), hab('Lengua Castellana', '2026-10-12', 1080, 1125)];
+const mon = [hab('Historia de España', '2026-10-12', 1050, 1095), hab('Lengua Castellana', '2026-10-12', 1110, 1155)];
 const sched = (o: any = {}) => proposeSchedule({ settings: DEFAULT_SETTINGS, works: [], blocks: [], activities: [], routine: R(), habit: mon, now: NOW, ...o });
 test('EJEMPLO: deberes de Historia sustituyen el bloque de Historia; Lengua se mantiene; sin duplicar ni solapar', () => {
   const r = sched({ works: [task('Historia de España')] }); const h = r.habit.find(x => x.subjectId === sid('Historia de España'))!, l = r.habit.find(x => x.subjectId === sid('Lengua Castellana'))!;
-  assert.equal(h.status, 'replaced'); assert.match(h.note!, /Deberes de Historia/); assert.deepEqual([l.date, l.start, l.end, l.status], ['2026-10-12', 1080, 1125, 'planned']);
-  const wb = r.blocks.filter(b => b.workId === 'wHistoria de España' && b.status === 'planned'); assert.equal(wb.length, 1, 'sin duplicar'); assert.deepEqual([wb[0].date, wb[0].start], ['2026-10-12', 1020]); assert.equal(wb[0].end - wb[0].start, 45);
+  assert.equal(h.status, 'replaced'); assert.match(h.note!, /Deberes de Historia/); assert.deepEqual([l.date, l.start, l.end, l.status], ['2026-10-12', 1110, 1155, 'planned']);
+  const wb = r.blocks.filter(b => b.workId === 'wHistoria de España' && b.status === 'planned'); assert.equal(wb.length, 1, 'sin duplicar'); assert.deepEqual([wb[0].date, wb[0].start], ['2026-10-12', 1050]); assert.equal(wb[0].end - wb[0].start, 45);
   assert.equal(r.changes.length, 1); assert.equal(r.changes[0].kind, 'sustituido'); noOverlap(items(r)); assert.equal(r.mode, 'keep');
   const again = sched({ works: [task('Historia de España')], blocks: r.blocks, habit: r.habit }); assert.equal(again.changes.length, 0, 'estable: no oscila'); assert.equal(JSON.stringify(again.habit), JSON.stringify(r.habit)); assert.equal(JSON.stringify(again.blocks), JSON.stringify(r.blocks));
 });

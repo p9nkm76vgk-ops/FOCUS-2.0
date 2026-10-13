@@ -61,7 +61,7 @@ test('sin sesiones diminutas: tras varios días de estudio real (≈70 % hecho) 
   }
   assert.deepEqual(tiny, []);
 });
-import { LATE_FROM } from '../src/core/planner.ts';
+import { LATE_FROM, EJERCICIO } from '../src/core/planner.ts';
 test('patrón de planificación: sesiones seguidas sin huecos, nada después de cenar si cabe antes y repasos pegados a días con estudio', () => {
   const now2 = { date: '2026-10-12', minute: 600 };
   const works: Work[] = [w('e1', { kind: 'exam', dueDate: '2026-10-22', estMin: 285 }), w('e2', { kind: 'exam', subjectId: 's2', dueDate: '2026-10-24', estMin: 285 }),
@@ -70,7 +70,7 @@ test('patrón de planificación: sesiones seguidas sin huecos, nada después de 
   const r = plan({ settings: DEFAULT_SETTINGS, works, blocks: [] }, now2).blocks.filter(b => b.status === 'planned');
   assert.ok(r.length > 10); assert.ok(r.every(b => b.start < LATE_FROM), 'ninguna sesión después de cenar mientras cabe en la franja principal');
   const byDay = new Map<string, Block[]>(); for (const b of r) byDay.set(b.date, [...(byDay.get(b.date) ?? []), b]);
-  for (const [d, bs] of byDay) { bs.sort((x, y) => x.start - y.start); for (let i = 1; i < bs.length; i++) { const gap = bs[i].start - bs[i - 1].end; assert.ok(gap <= 15 || bs[i].start >= 1020 && bs[i - 1].end <= 780, `hueco de ${gap} min el ${d}`); } }
+  for (const [d, bs] of byDay) { bs.sort((x, y) => x.start - y.start); for (let i = 1; i < bs.length; i++) { const gap = bs[i].start - bs[i - 1].end; assert.ok(gap <= 15 || bs[i].start >= 1020 && bs[i - 1].end <= 780 || bs[i - 1].end <= EJERCICIO.start && bs[i].start >= EJERCICIO.end, `hueco de ${gap} min el ${d}`); } }
   const revWorks = new Set(works.filter(x => x.auto === 'review').map(x => x.id));
   for (const [d, bs] of byDay) if (bs.every(b => revWorks.has(b.workId))) assert.fail('un día solo con repasos sueltos: ' + d);
 });

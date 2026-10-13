@@ -105,3 +105,5 @@ details.more{margin:6px 0 4px;border-top:1px solid var(--line);padding-top:6px}d
 .tg .ev.sm{flex-direction:row;align-items:center;gap:6px;padding:1px 5px}.tg .ev.sm b{flex:0 1 auto}.tg .ev.sm span{flex:0 0 auto}.tg .ev.skipped,.tg .ev.rescheduled{filter:grayscale(.7)}
 
 .timer{border-color:var(--accent)}.timer .tm{font-size:2rem;font-weight:700;font-variant-numeric:tabular-nums;margin:4px 0}
+.blk .how{display:block;margin-top:6px;color:var(--muted);line-height:1.4}
+.ev.fixed{background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(255,255,255,.04) 6px 12px);border-style:dashed;pointer-events:none}

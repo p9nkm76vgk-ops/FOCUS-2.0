@@ -47,7 +47,7 @@ export interface Suggestion { id: string; kind: SuggKind; title: string; minutes
 const CAT: { kind: SuggKind; min: number; ideal: number; energy: 'baja' | 'media' | 'alta'; subj?: boolean }[] = [
   { kind: 'repaso', min: 10, ideal: 15, energy: 'media', subj: true }, { kind: 'tarjetas', min: 10, ideal: 15, energy: 'media', subj: true }, { kind: 'practica', min: 20, ideal: 25, energy: 'alta', subj: true },
   { kind: 'apuntes', min: 15, ideal: 20, energy: 'baja', subj: true }, { kind: 'preparar', min: 10, ideal: 15, energy: 'baja' }, { kind: 'lectura', min: 15, ideal: 25, energy: 'baja' },
-  { kind: 'ejercicio', min: 30, ideal: 30, energy: 'media' }, { kind: 'descanso', min: 10, ideal: 10, energy: 'baja' }];
+  { kind: 'descanso', min: 10, ideal: 10, energy: 'baja' }];
 const EN = { baja: 0, media: 1, alta: 2 } as const;
 const remaining = (w: Work, blocks: Block[]) => w.estimate?.remainingMin ?? Math.max(0, w.estMin - blocks.filter(b => b.workId === w.id && b.status === 'done').reduce((a, b) => a + (b.actualMin ?? b.end - b.start), 0));
 export function suggest(i: { settings: Settings; works: Work[]; blocks: Block[]; activities: Activity[]; log: SuggLog[]; now: Now; forced?: boolean; max?: number; warnings?: Warning[]; names?: Record<string, string> }) {
