@@ -10,6 +10,7 @@ await a.click('addTask'); await a.submit({ subjectId: subj(5), when: 'none', lea
 for (let i = 0; i < 9; i++) for (let k = 0; k < 6; k++) { a.S.syllabus.push({ id: `t${i}_${k}`, subjectId: subj(i), name: `Tema ${k + 1} m${i}`, course: k < 3 ? 1 : 2, mastery: k % 4, reviews: 0, last: '2026-10-01', next: iso(D0 + (k % 5) * DAY), createdAt: i * 10 + k }); }
 await a.t.commit({ quiet: true });
 const issues = new Map(); const bad = (k, m) => { if (!issues.has(k)) issues.set(k, []); const l = issues.get(k); if (l.length < 3) l.push(m); };
+const Q = { late: 0, holes: 0, loneShort: 0, studyDays: 0, blocks: 0 };
 const stats = { days: 0, done: 0, skipped: 0, maxRev: 0, frag: 0, over: 0, total: 0 };
 for (let day = 0; day < 35; day++) {
   clock.t = D0 + day * DAY; await a.t.commit({ quiet: true }); const today = iso(clock.t), Sx = a.S;
@@ -21,6 +22,9 @@ for (let day = 0; day < 35; day++) {
     for (const b of bs.filter(x => x.status === 'planned' && !x.manual)) if (!av.some(w => w.start <= b.start && b.end <= w.end)) bad('fuera de disponibilidad', `${d} ${b.start}-${b.end}`);
     const tot = bs.filter(x => x.status === 'planned').reduce((s, x) => s + x.end - x.start, 0); stats.total++; if (tot > Sx.settings.maxDayMin) { stats.over++; bad('sobre el tope', `${d} ${tot}`) } }
   for (const b of pl) { if (b.date < today) bad('sesión planificada en el pasado', b.id); if (b.end - b.start < 20) { stats.frag++; const w = Sx.works.find(x => x.id === b.workId); bad('fragmento <20', `${b.date} ${b.end - b.start}min ${w.title.slice(0,25)} est=${w.estMin} auto=${w.auto||''} kind=${w.kind}`) } }
+  { const t = Sx.blocks.filter(b => b.date === today && b.status === 'planned').sort((x, y) => x.start - y.start), wd = new Date(today + 'T00:00:00Z').getUTCDay(), av = Sx.settings.availability[wd] || [];
+    if (t.length) { Q.studyDays++; Q.blocks += t.length; if (t.length === 1 && t[0].end - t[0].start <= 30) Q.loneShort++; Q.late += t.filter(b => b.start >= 1230).length;
+      for (let i = 1; i < t.length; i++) { const w1 = av.findIndex(w => w.start <= t[i - 1].start && t[i - 1].end <= w.end), w2 = av.findIndex(w => w.start <= t[i].start && t[i].end <= w.end); if (w1 === w2 && t[i].start - t[i - 1].end > 15) Q.holes++; } } }
   const ids = Sx.blocks.map(b => b.id); if (new Set(ids).size !== ids.length) bad('ids duplicados', today);
   for (const w of Sx.works.filter(w => w.status === 'done' || w.status === 'archived')) if (pl.some(b => b.workId === w.id)) bad('sesiones de trabajo terminado', w.title);
   stats.maxRev = Math.max(stats.maxRev, Sx.works.filter(w => w.auto === 'review' && w.status === 'pending').length);
@@ -31,7 +35,7 @@ for (let day = 0; day < 35; day++) {
   const snap2 = JSON.stringify(a.S.blocks.map(b => [b.id, b.status, b.date, b.start])); if (snap !== snap2) bad('no idempotente', today);
 }
 const Sx = a.S; const exams = Sx.works.filter(w => w.kind === 'exam');
-console.log('STATS', JSON.stringify(stats)); for (const [k, v] of issues) console.log('ISSUE', k, v.length, v.join(' | '));
+console.log('STATS', JSON.stringify(stats)); console.log('CALIDAD', JSON.stringify(Q), '· bloques/día', (Q.blocks / Q.studyDays).toFixed(1)); for (const [k, v] of issues) console.log('ISSUE', k, v.length, v.join(' | '));
 console.log('revisiones activas máx', stats.maxRev, '· repasos hechos', Sx.works.filter(w => w.auto === 'review' && w.status === 'done').length, '· temas con repaso vencido', Sx.syllabus.filter(t => t.mastery >= 1 && t.next && t.next < iso(clock.t)).length);
 const done = Sx.blocks.filter(b => b.status === 'done'), sk = Sx.blocks.filter(b => b.status === 'skipped'), rs = Sx.blocks.filter(b => b.status === 'rescheduled');
 console.log('bloques hechos', done.length, 'omitidos', sk.length, 'reprogramados', rs.length);

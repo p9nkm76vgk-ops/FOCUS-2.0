@@ -95,3 +95,18 @@ El historial de GitHub conserva la versión 4 (commit anterior). Tus datos no ca
 - Defecto real encontrado y corregido: **165 sesiones de 3–17 min** (restos tras conservar sesiones o tras avanzar). Ahora: un resto <20 min tras conservar sesiones se da por cubierto, un resto <10 min tras avanzar no se planifica, y el repaso final no se crea si queda <15 min. Resultado de la simulación: 1 sesión corta en 872 días-planificados.
 - Consecuencia asumida: lo planificado puede quedar hasta 19 min por debajo de lo que falta en cada tramo (principal/repaso). Los tests lo comprueban con esa tolerancia.
 - Validación: la preparación de un examen debe estar entre 0 y 3 (antes un valor fuera de rango producía estimaciones absurdas).
+
+## v9 — patrón de planificación (organización del día)
+**Reglas que sigue ahora el planificador al colocar cada sesión nueva** (orden de prioridad; implementadas en `plan()` / `fill()`):
+1. No repetir el mismo trabajo el mismo día.
+2. Evitar las franjas/días donde sueles fallar (si hay datos suficientes y otra opción).
+3. La franja de después de cenar (desde las 20:30, `LATE_FROM`) solo como último recurso.
+4. Los repasos del temario (cortos) se colocan después de lo grande y se **pegan a días que ya tienen estudio**; no abren un día por su cuenta.
+5. Repartir por carga relativa (minutos del día / capacidad del día), no por minutos absolutos.
+6. Sesiones **seguidas, sin huecos**: se prefiere la ventana adyacente a otra sesión del día.
+7. Alternar asignaturas (penaliza dos sesiones de la misma asignatura juntas).
+Además: lo difícil a primera hora de la ventana y lo fácil más tarde; sin restos <20 min; una sesión rechazada («No la haré») no se vuelve a rellenar.
+- **Compactación** (días futuros, nunca hoy): si queda un hueco ≥15 min dentro de una ventana (porque una sesión se completó, se movió o dejó de hacer falta), las sesiones automáticas siguientes se adelantan para cerrarlo. Nunca toca manuales, hechas ni sesiones de hoy; es estable (recalcular no cambia nada).
+- **«Regenerar futuro»** ahora de verdad regenera las sesiones automáticas que no han empezado (conserva historial, manuales, hechas y lo ya empezado). Al abrir esta versión por primera vez se regenera una sola vez (`patternV`).
+- Medido con `npm run sim` (5 semanas, 70 % de cumplimiento): sesiones después de cenar 35 → 5, fragmentos <20 min 165 → 0, huecos >15 min dentro de una ventana 8 → 3 (los restantes son de hoy, que no se compacta a propósito), 4,3 → 5,5 bloques por día de estudio.
+- Si tu «tiempo mínimo entre sesiones» en Ajustes es mayor de 10 min, los huecos serán de ese tamaño: el valor inicial es 10.

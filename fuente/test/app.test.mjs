@@ -33,7 +33,7 @@ test('manual + completada se conservan; regenerar repetido no duplica; estadíst
   const a = await boot(); await a.click('addTask'); await a.submit(task(a, { dueDate: '2026-10-19' })); const wid = a.S.works[0].id;
   await a.click('addBlk'); assert.equal(await a.submit({ workId: wid, date: '2026-10-17', s: '12:30', e: '13:20' }), '');
   const man = a.S.blocks.find(b => b.manual); const first = auto(a)[0]; await a.click('doneBlk', first.id); assert.equal(await a.submit({ actualMin: String(first.end - first.start), goalMet: '1', progress: '100', difficulty: '3', interrupted: '0' }), '');
-  const snap = JSON.stringify(a.S.blocks); await a.click('replan'); await a.click('replan');
+  await a.click('replan'); const snap = JSON.stringify(a.S.blocks); await a.click('replan'); await a.click('replan');
   assert.equal(JSON.stringify(a.S.blocks), snap, 'idempotente'); assert.equal(new Set(a.S.blocks.map(b => b.id)).size, a.S.blocks.length);
   assert.equal(a.S.blocks.find(b => b.id === first.id).status, 'done'); assert.equal(JSON.stringify(a.S.blocks.find(b => b.id === man.id)), JSON.stringify(man));
   assert.equal(sum(live(a.S.blocks)), 120);

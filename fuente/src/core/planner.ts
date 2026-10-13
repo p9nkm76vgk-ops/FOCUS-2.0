@@ -19,6 +19,9 @@ export const isUndated = (w: { noDate?: boolean; dueDate: string }) => !!w.noDat
 const ageDays = (w: Work, now: Now) => w.createdAt ? Math.max(0, Math.floor((Date.parse(now.date + 'T00:00:00Z') - w.createdAt) / 864e5)) : 0;
 export const REVIEW_SHARE = 0.25;   // parte del trabajo de un examen reservada a repaso final
 export const REVIEW_DAYS = 2;       // el repaso ocupa los últimos N días antes del examen
+/** Desde esta hora una ventana se considera «después de cenar»: solo se usa si no cabe antes. */
+export const LATE_FROM = 20 * 60 + 30;
+export const MIN_HOLE = 15;       // hueco mínimo que se compacta
 export const MIN_FRAG = 20;       // si ya se colocó parte, un resto menor no se planifica
 export const MIN_WORTH = 10;      // restos por debajo de esto no se planifican
 export const EXAM_BUFFER_MIN = 60;  // margen antes de la hora del examen el mismo día
@@ -71,6 +74,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   }
   const days = new Map<string, Day>();
   const day = (d: string) => { let x = days.get(d); if (!x) { x = { occ: [], total: 0, perWork: new Map() }; days.set(d, x); } return x; };
+  const dayCap = (d: string) => Math.max(60, Math.min(s.maxDayMin, (s.availability[weekday(d)] ?? []).reduce((a, w) => a + dur(w), 0)));
   const occupy = (b: Block) => { const x = day(b.date); x.occ.push({ start: b.start, end: b.end, sub: byId.get(b.workId)?.subjectId }); x.total += dur(b); x.perWork.set(b.workId, (x.perWork.get(b.workId) ?? 0) + dur(b)); };
   history.filter(b => b.status === 'done').forEach(occupy);
   manualF.forEach(occupy);
@@ -92,7 +96,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const manual = manualF.filter(b => b.workId === w.id).reduce((a, b) => a + dur(b), 0);
     const f = w.kind === 'exam' ? (input.boost?.[w.subjectId] ?? 1) : 1; // más horas de examen donde la brecha con el objetivo es mayor
     let need = Math.max(0, (f === 1 ? totalNeed(w) : Math.round(totalNeed(w) * f / 5) * 5) - done - manual);
-    if (need > 0 && need < MIN_WORTH && (done > 0 || (w.estimate?.investedMin ?? 0) > 0)) need = 0; // tras avanzar, un resto de pocos minutos no merece una sesión: se da por cubierto
+    if (need > 0 && need < MIN_FRAG && (done > 0 || (w.estimate?.investedMin ?? 0) > 0)) need = 0; // tras avanzar, un resto menor de 20 min no merece una sesión: se da por cubierto
     const und = isUndated(w);
     const overdue = !und && (w.dueDate < now.date || (w.dueDate === now.date && w.dueMinute !== undefined && w.dueMinute <= now.minute));
     if (overdue) warnings.push({ workId: w.id, type: 'overdue', message: `"${w.title}" está atrasada (${w.dueDate}).` });
@@ -107,7 +111,8 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       demands.push({ ...base, part: 'review', need: review, from: addDays(w.dueDate, -REVIEW_DAYS) > now.date ? addDays(w.dueDate, -REVIEW_DAYS) : now.date, to: last });
     } else demands.push({ ...base, part: 'main', need, to: last });
   }
-  demands.sort((a, b) => a.key.localeCompare(b.key) || b.prio - a.prio || a.w.id.localeCompare(b.w.id) || a.part.localeCompare(b.part));
+  // Los repasos del temario (cortos) se colocan DESPUÉS de lo grande, para pegarse a los días que ya tienen estudio en vez de abrir días por su cuenta.
+  demands.sort((a, b) => +(a.w.auto === 'review') - +(b.w.auto === 'review') || a.key.localeCompare(b.key) || b.prio - a.prio || a.w.id.localeCompare(b.w.id) || a.part.localeCompare(b.part));
 
   // 2) Conservar sesiones automáticas aún válidas (evita cambios innecesarios)
   const used = new Set(input.blocks.map(b => b.id));
@@ -129,29 +134,35 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       if (left < MIN_FRAG && left < left0) { left = 0; break; } // el resto de una demanda ya cubierta (<20 min) no merece otra sesión
       let len = Math.min(s.preferredMin, left);
       if (left - len > 0 && left - len < s.minSessionMin) len = Math.min(left, s.maxSessionMin);
-      const cands: { dt: string; start: number; L: number; key: [number, number, number, number, string] }[] = [];
-      const avH = new Set(input.avoid?.hours ?? []), avD = new Set(input.avoid?.days ?? []);
+      const cands: { dt: string; start: number; L: number; key: (number | string)[] }[] = [];
+      const avH = new Set(input.avoid?.hours ?? []), avD = new Set(input.avoid?.days ?? []), rev = d.w.auto === 'review';
       for (const strict of [true, false]) {
         for (let dt = d.from; dt <= to; dt = addDays(dt, 1)) {
           const x = day(dt), capLeft = s.maxDayMin - x.total; if (capLeft <= 0) continue;
-          const fr = free(dt, true), easy = d.w.difficulty <= 2 && d.w.kind === 'task' && !isUndated(d.w) ? [...fr].reverse() : fr; // lo fácil, más tarde; lo difícil, a primera hora
-          let pick: { start: number; L: number; bad: number } | null = null;
-          for (const f of easy) {
+          const fr = free(dt, true), ord = d.w.difficulty <= 2 && d.w.kind === 'task' && !isUndated(d.w) ? [...fr].reverse() : fr; // lo fácil, más tarde; lo difícil, a primera hora
+          const opts: { start: number; L: number; bad: number; sec: number; packed: number }[] = [];
+          for (const f of ord) {
             const st = up5(f.start), end = Math.min(f.end, dt === d.last ? d.cutoff : 1440);
             let L = Math.min(len, end - st, capLeft, s.maxSessionMin);
             // no dejar un resto por debajo de la sesión mínima: se acorta ésta (o se descarta en el primer intento)
             if (L < left && left - L < s.minSessionMin) { const L2 = left - s.minSessionMin; if (L2 >= s.minSessionMin) L = L2; else if (strict) continue; }
             if (L < Math.min(s.minSessionMin, left)) continue;
-            const bad = avH.has(hourBucket(st)) || avD.has(weekday(dt)) ? 1 : 0;
-            if (!pick || bad < pick.bad) pick = { start: st, L, bad };
-            if (!bad) break;
+            const near = (g: number) => g >= 0 && g <= s.minGapMin + 5;
+            opts.push({ start: st, L, bad: avH.has(hourBucket(st)) || avD.has(weekday(dt)) ? 1 : 0, sec: st >= LATE_FROM ? 1 : 0, packed: x.occ.some(o => near(st - o.end) || near(o.start - (st + L))) ? 1 : 0 });
           }
-          if (pick) { const adj = x.occ.some(o => o.sub === d.w.subjectId && (Math.abs(pick!.start - o.end) <= s.minGapMin + 5 || Math.abs(pick!.start + pick!.L - o.start) <= s.minGapMin + 5)) ? 1 : 0; cands.push({ dt, start: pick.start, L: pick.L, key: [x.perWork.get(d.w.id) ? 1 : 0, pick.bad, adj, x.total, dt] }); }
+          if (!opts.length) continue;
+          const hasStudy = x.total > 0, score = (o: typeof opts[0]) => o.bad * 4 + o.sec * 2 + (hasStudy && !o.packed ? 1 : 0);
+          let pick = opts[0]; for (const o of opts) if (score(o) < score(pick)) pick = o; // la mejor ventana del día (a igualdad, la primera en el orden)
+          const adj = x.occ.some(o => o.sub === d.w.subjectId && (Math.abs(pick.start - o.end) <= s.minGapMin + 5 || Math.abs(pick.start + pick.L - o.start) <= s.minGapMin + 5)) ? 1 : 0;
+          const load = Math.round(10 * x.total / dayCap(dt)), noPack = hasStudy && !pick.packed ? 1 : 0, sameWork = x.perWork.get(d.w.id) ? 1 : 0;
+          // Patrón: 1) no repetir el mismo trabajo el mismo día · 2) evitar franjas que fallas · 3) la franja de después de cenar solo como último recurso ·
+          // 4) los repasos cortos se pegan a días que ya tienen estudio (no abren un día por sí solos) · 5) repartir por carga relativa · 6) sesiones seguidas, sin huecos · 7) alternar asignaturas
+          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, noPack, load, adj, dt] : [sameWork, pick.bad, pick.sec, load, noPack, adj, dt] });
         }
         if (cands.length) break;
       }
       if (!cands.length) break;
-      cands.sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.key[2] - b.key[2] || a.key[3] - b.key[3] || a.key[4].localeCompare(b.key[4]));
+      cands.sort((a, b) => { for (let i = 0; i < a.key.length; i++) { const u = a.key[i], v = b.key[i]; if (u !== v) return typeof u === 'number' ? u - (v as number) : String(u).localeCompare(String(v)); } return 0; });
       const c = cands[0];
       let id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}`, k = 1; while (used.has(id)) id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}:r${k++}`; used.add(id);
       const b: Block = { id, workId: d.w.id, date: c.dt, start: c.start, end: c.start + c.L, status: 'planned', manual: false, part: d.part };
@@ -170,6 +181,33 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const w = byId.get(id)!, und = isUndated(w), lastD = und ? addDays(now.date, UNDATED_SPAN - 1) : w.dueDate > horizonEnd ? horizonEnd : w.dueDate < now.date ? now.date : w.dueDate;
     const nd = Math.max(1, daysBetween(now.date, lastD) + 1), extra = Math.ceil(min / nd / 5) * 5;
     warnings.push({ workId: id, type: 'deficit', deficitMin: min, message: (und ? `No caben ${min} min de "${w.title}" (sin fecha) en los próximos ${UNDATED_SPAN} días.` : `No caben ${min} min de "${w.title}" antes del ${w.dueDate}.`) + ` Cabría con unos ${extra} min más de estudio al día${und ? '' : ' hasta esa fecha'}, reduciendo la estimación${und ? '' : ' o moviendo la fecha'}.` });
+  }
+
+  // 3b) Compactar: en los días futuros, un hueco de ≥15 min DENTRO de una ventana se cierra adelantando las sesiones automáticas
+  //     (nunca manuales, hechas, de hoy ni fuera de la ventana). Es estable: sobre un plan ya compacto no cambia nada.
+  {
+    const fx = new Map<string, Win[]>(), add = (m: Map<string, Win[]>, d: string, w: Win) => m.set(d, [...(m.get(d) ?? []), w]);
+    for (const b of history) if (b.status === 'done' || (b.status === 'skipped' && b.reason && b.date >= now.date)) add(fx, b.date, { start: b.start, end: b.end });
+    for (const b of manualF) add(fx, b.date, { start: b.start, end: b.end });
+    for (const a of input.activities ?? []) if (a.status !== 'skipped' && a.start != null && a.end != null) add(fx, a.date, { start: a.start, end: a.end });
+    const placed = new Map<string, Win[]>(), autos = [...kept, ...created].sort(cmp), swap = new Map<Block, Block>();
+    for (const b of autos) {
+      let nb = b;
+      if (b.date > now.date) {
+        const cuts: Win[] = [...s.blockedDates.filter(x => x.date === b.date), ...[...(fx.get(b.date) ?? []), ...(placed.get(b.date) ?? [])].map(o => ({ start: o.start - s.minGapMin, end: o.end + s.minGapMin }))];
+        const win = subtract(s.availability[weekday(b.date)] ?? [], cuts).find(w => w.start <= b.start && b.end <= w.end), st = win ? up5(win.start) : b.start;
+        const badSlot = (m: number) => (input.avoid?.hours ?? []).includes(hourBucket(m));
+        if (win && b.start - st >= MIN_HOLE && !(badSlot(st) && !badSlot(b.start))) {
+          let id = `auto:${b.workId}:${b.part ?? 'main'}:${b.date}:${st}`, k = 1; while (used.has(id)) id = `auto:${b.workId}:${b.part ?? 'main'}:${b.date}:${st}:r${k++}`; used.add(id);
+          nb = { ...b, id, start: st, end: st + dur(b) }; swap.set(b, nb);
+        }
+      }
+      add(placed, nb.date, { start: nb.start, end: nb.end });
+    }
+    if (swap.size) {
+      for (let i = kept.length - 1; i >= 0; i--) if (swap.has(kept[i])) { created.push(swap.get(kept[i])!); kept.splice(i, 1); }
+      for (let i = 0; i < created.length; i++) if (swap.has(created[i])) created[i] = swap.get(created[i])!;
+    }
   }
 
   // 4) Cerrar sesiones incumplidas y ensamblar

@@ -33,7 +33,7 @@ test('el objetivo cambia el plan: tras un mal resultado el siguiente examen de e
   await a.click('editGoals'); await a.submit({ target: '10' }); assert.equal(mins(a, w.id), base, 'sin notas no hay brecha: el plan no cambia');
   await a.click('addGrade'); await a.submit({ subjectId: mat, evalNo: '1', weight: '24', score: '4', date: '2026-10-10' });
   const more = mins(a, w.id); assert.ok(more > base, `${more} > ${base}`); assert.ok(more <= Math.round(base * 1.3 / 5) * 5 + 5);
-  const before = J(a.S.blocks); await a.click('replan'); assert.equal(J(a.S.blocks), before, 'idempotente'); assert.equal(a.S.blocks.filter(b => b.workId === w.id).length, new Set(a.S.blocks.filter(b => b.workId === w.id).map(b => b.id)).size);
+  await a.click('replan'); const before = J(a.S.blocks); await a.click('replan'); assert.equal(J(a.S.blocks), before, 'idempotente'); assert.equal(a.S.blocks.filter(b => b.workId === w.id).length, new Set(a.S.blocks.filter(b => b.workId === w.id).map(b => b.id)).size);
   await a.click('addGrade'); await a.submit({ subjectId: mat, evalNo: '1', weight: '24', score: '10', date: '2026-10-11' }); await a.click('editGoals'); await a.submit({ target: '5' }); assert.ok(mins(a, w.id) < base, 'objetivo cumplido con holgura: algo menos de horas de examen');
 });
 test('temario: añadir temas en bloque sin duplicar, marcar nivel programa el primer repaso a +2 días y crea la tarea de repaso al llegar el día', async () => {

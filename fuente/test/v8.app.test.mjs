@@ -64,3 +64,11 @@ test('pausa del plan: no se programa estudio en esos días, lo pendiente se reco
   await a.click('resume'); assert.ok(!/Plan en pausa/.test(a.t.V.hoy()));
   const sid = a.S.subjects[0].id; await a.click('addGrade'); await a.submit({ subjectId: sid, evalNo: '1', weight: '20', score: '7', date: '2026-10-10' }); assert.match(a.t.V.obj(), /Evolución por evaluación/);
 });
+test('patrón nuevo: una instalación anterior se regenera una sola vez al abrir; «Regenerar futuro» respeta historial y sesiones manuales', async () => {
+  const a = await boot(); await mk(a, { when: '14', size: '5' }); const done = a.S.blocks.find(x => x.status === 'planned'); await a.click('quickDone', done.id);
+  await a.click('addBlk'); await a.submit({ workId: a.S.works[0].id, date: '2026-10-20', s: '16:00', e: '16:50' }); const man = a.S.blocks.find(x => x.manual);
+  const old = JSON.parse(JSON.stringify(a.store)); const st = JSON.parse(old['focusos.v1']); delete (st.state ?? st).patternV; old['focusos.v1'] = JSON.stringify(st);
+  const r = await boot(old); assert.equal(r.S.patternV, 2); assert.ok(r.S.blocks.find(x => x.id === done.id && x.status === 'done'), 'historial intacto'); assert.ok(r.S.blocks.find(x => x.id === man.id), 'manual intacta');
+  const ids = r.S.blocks.map(x => x.id).sort().join(); const r2 = await boot(r.store); assert.equal(r2.S.blocks.map(x => x.id).sort().join(), ids, 'abrir otra vez no cambia nada');
+  await r2.click('replan'); assert.equal(r2.S.blocks.map(x => x.id).sort().join(), ids, 'regenerar con los mismos datos da lo mismo (idempotente)'); assert.ok(r2.S.blocks.find(x => x.id === man.id));
+});

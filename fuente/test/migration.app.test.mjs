@@ -9,7 +9,7 @@ test.beforeEach(() => { clock.t = T0 });
 test('arranque con datos v2: copia previa idéntica, migra y no cambia ninguna sesión', async () => {
   const raw = stored('export-v2'), a = await boot({ 'focusos.v1': raw }); const o = JSON.parse(raw);
   assert.equal(a.store['focusos.v1.premigration'], raw, 'copia previa byte a byte');
-  assert.equal(a.S.schemaVersion, 3); assert.ok(a.S.works.every(w => w.estimatorVersion === 1)); assert.equal(JSON.stringify(a.S.blocks), JSON.stringify(o.blocks));
+  assert.equal(a.S.schemaVersion, 3); assert.ok(a.S.works.every(w => w.estimatorVersion === 1)); { const keep = b => b.status !== 'planned' || b.manual || b.date < '2026-10-12'; assert.equal(JSON.stringify(a.S.blocks.filter(keep)), JSON.stringify(o.blocks.filter(keep)), 'historial y sesiones manuales intactos; las automáticas futuras se recolocan una vez con el patrón nuevo'); }
   assert.equal(JSON.parse(a.store['focusos.v1']).schemaVersion, 3);
   assert.doesNotMatch(a.h.main.innerHTML, /Datos no válidos/);
   const b = await boot(a.store); assert.equal(b.store['focusos.v1.premigration'], raw, 'no se vuelve a migrar ni a pisar la copia');
