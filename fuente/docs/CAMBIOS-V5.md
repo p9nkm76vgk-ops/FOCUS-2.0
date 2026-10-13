@@ -110,3 +110,9 @@ Además: lo difícil a primera hora de la ventana y lo fácil más tarde; sin re
 - **«Regenerar futuro»** ahora de verdad regenera las sesiones automáticas que no han empezado (conserva historial, manuales, hechas y lo ya empezado). Al abrir esta versión por primera vez se regenera una sola vez (`patternV`).
 - Medido con `npm run sim` (5 semanas, 70 % de cumplimiento): sesiones después de cenar 35 → 5, fragmentos <20 min 165 → 0, huecos >15 min dentro de una ventana 8 → 3 (los restantes son de hoy, que no se compacta a propósito), 4,3 → 5,5 bloques por día de estudio.
 - Si tu «tiempo mínimo entre sesiones» en Ajustes es mayor de 10 min, los huecos serán de ese tamaño: el valor inicial es 10.
+
+## v9.1 — Cena y ducha (20:30–22:00)
+- Por defecto no se planifica estudio de 20:30 a 22:00 (`CENA` en el planificador; ventanas por defecto acaban a las 20:30).
+- Instalaciones existentes: una sola vez (`cenaV`) se recorta esa franja de la disponibilidad. Lo que añadas después en Ajustes se respeta.
+- Ajustes muestra una nota sobre la franja. Test nuevo en `v8.app.test.mjs`.
+- Verificado: 224 tests Node, 140/140 comprobaciones Chromium, simulación sin sesiones tardías. Safari/iPad sin probar.

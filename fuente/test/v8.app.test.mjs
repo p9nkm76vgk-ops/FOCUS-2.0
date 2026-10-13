@@ -72,3 +72,12 @@ test('patrón nuevo: una instalación anterior se regenera una sola vez al abrir
   const ids = r.S.blocks.map(x => x.id).sort().join(); const r2 = await boot(r.store); assert.equal(r2.S.blocks.map(x => x.id).sort().join(), ids, 'abrir otra vez no cambia nada');
   await r2.click('replan'); assert.equal(r2.S.blocks.map(x => x.id).sort().join(), ids, 'regenerar con los mismos datos da lo mismo (idempotente)'); assert.ok(r2.S.blocks.find(x => x.id === man.id));
 });
+test('cena y ducha: sin estudio de 20:30 a 22:00 por defecto; una instalación anterior se recorta una vez y lo que añadas después se respeta', async () => {
+  const overlaps = av => Object.values(av).flat().some(w => w.start < 1320 && w.end > 1230);
+  const a = await boot(); assert.ok(!overlaps(a.S.settings.availability), 'valores iniciales sin esa franja'); await mk(a, { when: '14', size: '5' }); assert.ok(a.S.blocks.filter(b => b.status === 'planned').every(b => b.end <= 1230), 'ninguna sesión pasa de las 20:30');
+  const old = JSON.parse(JSON.stringify(a.store)); const st = JSON.parse(old['focusos.v1']), S0 = st.state ?? st; delete S0.cenaV; S0.settings.availability[3] = [{ start: 930, end: 1230 }, { start: 1275, end: 1320 }]; old['focusos.v1'] = JSON.stringify(st);
+  const r = await boot(old); assert.equal(r.S.cenaV, 1); assert.ok(!overlaps(r.S.settings.availability), 'recortada la franja de 21:15–22:00'); assert.equal(JSON.stringify(r.S.settings.availability[3]), JSON.stringify([{ start: 930, end: 1230 }]));
+  r.S.settings.availability[3] = [{ start: 930, end: 1230 }, { start: 1290, end: 1350 }]; await r.t.commit({ quiet: true }); const r2 = await boot(r.store);
+  assert.equal(JSON.stringify(r2.S.settings.availability[3]), JSON.stringify([{ start: 930, end: 1230 }, { start: 1290, end: 1350 }]), 'lo que añades a mano se respeta en el siguiente arranque');
+  assert.match(a.t.V.aj(), /Cena y ducha/);
+});

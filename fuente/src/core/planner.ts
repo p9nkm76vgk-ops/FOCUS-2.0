@@ -1,12 +1,13 @@
 import type { Block, Now, PlanResult, Settings, Warning, Win, Work } from './types.ts';
 
 const hm = (h: number, m = 0) => h * 60 + m;
-const wk: Win[] = [{ start: hm(15, 30), end: hm(20, 30) }, { start: hm(21, 15), end: hm(22) }];
-const we: Win[] = [{ start: hm(10), end: hm(13, 30) }, { start: hm(16), end: hm(20, 30) }, { start: hm(21, 15), end: hm(22) }];
-/** Valores iniciales editables. Lun/Mar descuentan llegada a casa (16:30 / 17:10) y cena. */
+/** Cena y ducha (20:30–22:00): sin estudio por defecto. Editable en Ajustes añadiendo una franja si algún día quieres estudiar más tarde. */
+export const CENA: Win = { start: hm(20, 30), end: hm(22) };
+const wk: Win[] = [{ start: hm(15, 30), end: hm(20, 30) }];
+const we: Win[] = [{ start: hm(10), end: hm(13, 30) }, { start: hm(16), end: hm(20, 30) }];
+/** Valores iniciales editables. Lun/Mar descuentan llegada a casa (16:30 / 17:10). */
 export const DEFAULT_SETTINGS: Settings = {
-  availability: { 0: we, 1: [{ start: hm(17), end: hm(20, 30) }, { start: hm(21, 15), end: hm(22) }],
-    2: [{ start: hm(17, 40), end: hm(20, 30) }, { start: hm(21, 15), end: hm(22) }], 3: wk, 4: wk, 5: wk, 6: we },
+  availability: { 0: we, 1: [{ start: hm(17), end: hm(20, 30) }], 2: [{ start: hm(17, 40), end: hm(20, 30) }], 3: wk, 4: wk, 5: wk, 6: we },
   blockedDates: [], maxDayMin: 240, preferredMin: 50, maxSessionMin: 90, minSessionMin: 25, minGapMin: 10, horizonDays: 28,
 };
 /** Función de prioridad: desempate entre demandas con el mismo plazo. Ajustable. */
@@ -140,7 +141,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
         for (let dt = d.from; dt <= to; dt = addDays(dt, 1)) {
           const x = day(dt), capLeft = s.maxDayMin - x.total; if (capLeft <= 0) continue;
           const fr = free(dt, true), ord = d.w.difficulty <= 2 && d.w.kind === 'task' && !isUndated(d.w) ? [...fr].reverse() : fr; // lo fácil, más tarde; lo difícil, a primera hora
-          const opts: { start: number; L: number; bad: number; sec: number; packed: number }[] = [];
+          const opts: { start: number; L: number; bad: number; sec: number; packed: number; adj: number }[] = [];
           for (const f of ord) {
             const st = up5(f.start), end = Math.min(f.end, dt === d.last ? d.cutoff : 1440);
             let L = Math.min(len, end - st, capLeft, s.maxSessionMin);
@@ -148,16 +149,15 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
             if (L < left && left - L < s.minSessionMin) { const L2 = left - s.minSessionMin; if (L2 >= s.minSessionMin) L = L2; else if (strict) continue; }
             if (L < Math.min(s.minSessionMin, left)) continue;
             const near = (g: number) => g >= 0 && g <= s.minGapMin + 5;
-            opts.push({ start: st, L, bad: avH.has(hourBucket(st)) || avD.has(weekday(dt)) ? 1 : 0, sec: st >= LATE_FROM ? 1 : 0, packed: x.occ.some(o => near(st - o.end) || near(o.start - (st + L))) ? 1 : 0 });
+            opts.push({ start: st, L, bad: avH.has(hourBucket(st)) || avD.has(weekday(dt)) ? 1 : 0, sec: st >= LATE_FROM ? 1 : 0, packed: x.occ.some(o => near(st - o.end) || near(o.start - (st + L))) ? 1 : 0, adj: x.occ.some(o => o.sub === d.w.subjectId && (near(st - o.end) || near(o.start - (st + L)))) ? 1 : 0 });
           }
           if (!opts.length) continue;
-          const hasStudy = x.total > 0, score = (o: typeof opts[0]) => o.bad * 4 + o.sec * 2 + (hasStudy && !o.packed ? 1 : 0);
+          const hasStudy = x.total > 0, score = (o: typeof opts[0]) => o.bad * 8 + o.sec * 4 + o.adj * 2 + (hasStudy && !o.packed ? 1 : 0);
           let pick = opts[0]; for (const o of opts) if (score(o) < score(pick)) pick = o; // la mejor ventana del día (a igualdad, la primera en el orden)
-          const adj = x.occ.some(o => o.sub === d.w.subjectId && (Math.abs(pick.start - o.end) <= s.minGapMin + 5 || Math.abs(pick.start + pick.L - o.start) <= s.minGapMin + 5)) ? 1 : 0;
           const load = Math.round(10 * x.total / dayCap(dt)), noPack = hasStudy && !pick.packed ? 1 : 0, sameWork = x.perWork.get(d.w.id) ? 1 : 0;
           // Patrón: 1) no repetir el mismo trabajo el mismo día · 2) evitar franjas que fallas · 3) la franja de después de cenar solo como último recurso ·
           // 4) los repasos cortos se pegan a días que ya tienen estudio (no abren un día por sí solos) · 5) repartir por carga relativa · 6) sesiones seguidas, sin huecos · 7) alternar asignaturas
-          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, noPack, load, adj, dt] : [sameWork, pick.bad, pick.sec, load, noPack, adj, dt] });
+          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [sameWork, pick.bad, pick.sec, pick.adj, load, noPack, dt] });
         }
         if (cands.length) break;
       }
