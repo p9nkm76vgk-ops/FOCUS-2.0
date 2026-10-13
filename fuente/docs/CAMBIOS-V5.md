@@ -127,3 +127,11 @@ Además: lo difícil a primera hora de la ventana y lo fácil más tarde; sin re
 - Ejercicio fijo 17:00–17:30 cada día: se corta de la disponibilidad (migración única `ejV`), se ve en el calendario y nunca recibe estudio. Se retira la sección «Ejercicio físico» y su sugerencia (los datos antiguos se conservan).
 - Migración `metV`: se regenera una vez la planificación futura para adoptar los textos nuevos.
 - Tests: 227 Node; Chromium 131 (v5 35, v6 35, final 50, pages 11; menos que antes porque se eliminaron las comprobaciones de la sección de ejercicio).
+
+## v11 — Cuenta y sincronización móvil ↔ iPad
+- Ajustes → «Cuenta y sincronización»: correo + contraseña (Supabase Auth). Una fila por usuario (`focus_state`) con RLS (cada usuario solo accede a la suya; `anon` sin permisos) y escritura con control de versión (`focus_push`), creadas por migración en el proyecto «Etudio».
+- Instantánea completa: se sube tras cada cambio (con 2 s de espera) y se comprueba al abrir/volver a la app. Sin conexión funciona igual y se sube al volver. Si ambos dispositivos cambiaron, se pregunta (nube / este dispositivo / decidir luego) y la versión descartada queda en `focusos.v1.syncbackup`.
+- Los tokens van en `focusos.sync`, aparte de los datos (no salen en exportaciones).
+- Sin cuenta nada cambia: todo sigue local.
+- Verificado: 232 tests Node (servidor falso en memoria), 4 comprobaciones de la tarjeta en Chromium (`browser-sync.py`), RLS/privilegios comprobados por consulta al catálogo. NO verificado: inicio de sesión y subida contra el Supabase real (la red del entorno no llega), aislamiento entre dos usuarios reales, ni Safari/iPad.
+- Límites: ante edición simultánea sin conexión se elige una versión entera (no se fusionan campos). El correo de confirmación depende del proveedor de correo de Supabase (límite bajo de envíos en el plan gratuito).
