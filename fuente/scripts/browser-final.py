@@ -20,7 +20,6 @@ def newpage(c, fixed='2026-10-13T17:00:00'):
     p.clock.set_fixed_time(datetime.fromisoformat(fixed)); p.goto(URL); p.wait_for_selector('#main h1'); return p
 def go(p, r):
     if p.evaluate("innerWidth<1000") and p.evaluate("!document.body.classList.contains('open')"): p.click('#menuBtn')
-    if r == 'asg' and p.get_attribute('#nav [data-g=subjects]', 'aria-expanded') == 'false': p.click('#nav [data-g=subjects]')
     p.click(f'#nav [data-r="{r}"]'); p.wait_for_timeout(150)
 ls = lambda p, k='focusos.v1': json.loads(p.evaluate(f"localStorage.getItem('{k}')") or 'null')
 def fill_form(p, **kw):

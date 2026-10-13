@@ -100,3 +100,4 @@ details.more{margin:6px 0 4px;border-top:1px solid var(--line);padding-top:6px}d
 .tg.one .day:not(.sel){display:none}.tg.one .days{grid-template-columns:minmax(0,1fr)}.tg.one .ev b,.tg.one .ev span,.tg.one .ev small{font-size:.95rem}
 
 .cr{margin:14px 0 2px;color:var(--muted);font-size:.875rem;text-transform:uppercase;letter-spacing:.07em}
+.row button.on{background:color-mix(in srgb,var(--accent) 22%,var(--surface));border-color:var(--accent);color:var(--text)}

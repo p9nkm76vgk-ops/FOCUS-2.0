@@ -14,34 +14,44 @@ const exam = (id: string, sid: string, o: Partial<Work> = {}): Work => ({ id, ki
 const live = (bs: Block[]) => bs.filter(b => b.status === 'planned');
 const sum = (bs: Block[]) => bs.reduce((a, b) => a + b.end - b.start, 0);
 
-test('proyección: sin datos null; solo 1.º = esa nota; solo notas = media ponderada; mixta diluye 1.º y las recientes pesan más', () => {
-  assert.equal(G.projected(goals(), [], 'a').value, null);
-  assert.equal(G.projected(goals({ prev: { a: 7 } }), [], 'a').value, 7);
-  assert.equal(G.projected(goals({ prev: { a: 7 } }), [], 'a').source, '1º');
-  assert.equal(G.projected(goals(), [gr('1', 'a', 6, '2026-10-01'), gr('2', 'a', 8, '2026-10-02')], 'a').source, 'notas');
-  const same = G.projected(goals(), [gr('1', 'a', 6, '2026-10-01'), gr('2', 'a', 8, '2026-10-02')], 'a').value!;
-  assert.ok(same > 7 && same < 8, 'la reciente pesa más que la antigua: ' + same);
-  const mix = G.projected(goals({ prev: { a: 5 } }), [gr('1', 'a', 9, '2026-10-01')], 'a'); assert.equal(mix.source, 'mixta'); assert.ok(mix.value! > 5 && mix.value! < 9);
-  assert.equal(G.projected(goals(), [gr('1', 'a', 6, '2026-10-01', 'evaluacion'), gr('2', 'a', 10, '2026-10-02', 'tarea')], 'a').value! < 8, true, 'la evaluación (3) pesa más que la tarea (1)');
-  assert.equal(G.projected(goals(), [gr('1', 'b', 9, '2026-10-01')], 'a').value, null, 'notas de otra asignatura no cuentan');
+const T = '2026-10-13'; // 1.ª evaluación
+const gw = (id: string, sid: string, score: number, weight: number | undefined, date = '2026-10-10', evalNo?: 1 | 2 | 3): G.Grade => ({ id, subjectId: sid, score, weight, date, evalNo });
+test('evaluación por fecha: sept–dic 1.ª, ene–mar 2.ª, abr–ago 3.ª; evalNo manual manda', () => {
+  assert.deepEqual(['2026-09-01', '2026-12-31', '2027-01-01', '2027-03-31', '2027-04-01', '2027-06-30'].map(G.evalOfDate), [1, 1, 2, 2, 3, 3]);
+  assert.equal(G.gradeEval(gw('a', 's', 5, 10, '2026-10-01')), 1); assert.equal(G.gradeEval(gw('a', 's', 5, 10, '2026-10-01', 3)), 3);
+});
+test('tu ejemplo: Mates, examen del 24 %, un 4 → ganas 0,96; con objetivo 9 necesitas 10,58 en el 76 % restante: imposible, máximo 8,56', () => {
+  const r = G.evalSummary([gw('1', 'mat', 4, 24)], 'mat', 1, 9);
+  assert.equal(r.earned, 0.96); assert.equal(r.doneW, 24); assert.equal(r.remW, 76); assert.equal(r.cur, 4); assert.equal(r.need, 10.58); assert.equal(r.max, 8.56); assert.equal(r.status, 'imposible');
+  const ok = G.evalSummary([gw('1', 'mat', 4, 24)], 'mat', 1, 8); assert.equal(ok.need, 9.26); assert.equal(ok.status, 'posible', '(8−0,96)·100/76');
+  assert.equal(G.evalSummary([gw('1', 'mat', 4, 24)], 'mat', 1, 0.5).status, 'cumplido', 'con lo ganado ya basta');
+});
+test('evaluación: acumula porcentajes, avisa si pasan de 100, queda «completa» al llegar a 100 y separa evaluaciones y asignaturas', () => {
+  const gs = [gw('1', 'a', 8, 30), gw('2', 'a', 6, 20), gw('3', 'a', 10, 50, '2027-02-02'), gw('4', 'b', 3, 100)];
+  const r = G.evalSummary(gs, 'a', 1, 9); assert.equal(r.doneW, 50); assert.equal(r.earned, 3.6); assert.equal(r.cur, 7.2); assert.equal(r.need, 10.8); assert.equal(r.status, 'imposible'); assert.equal(G.evalSummary(gs, 'a', 1, 8).status, 'posible'); assert.equal(G.evalSummary(gs, 'a', 1, 8).need, 8.8);
+  assert.equal(G.evalSummary(gs, 'a', 2, null).earned, 5, 'la 2.ª es independiente'); assert.equal(G.evalSummary(gs, 'b', 1, 9).status, 'completa'); assert.equal(G.evalSummary(gs, 'b', 1, 9).need, null);
+  assert.equal(G.evalSummary([...gs, gw('5', 'a', 5, 60)], 'a', 1, 9).over, true);
+  const none = G.evalSummary([], 'a', 1, 9); assert.equal(none.status, 'sin notas'); assert.equal(none.cur, null); assert.equal(none.remW, 100); assert.equal(none.need, 9);
+  assert.equal(G.evalSummary([gw('x', 'a', 9, undefined)], 'a', 1, 9).n, 0, 'datos antiguos sin porcentaje no entran en el cálculo');
+});
+test('proyección: usa la evaluación en curso; sin notas en ella, la última anterior con datos', () => {
+  const gs = [gw('1', 'a', 6, 50, '2026-10-05'), gw('2', 'b', 7, 100, '2026-11-20', 1), gw('3', 'b', 9, 40, '2027-02-01')];
+  assert.equal(G.projected(goals(), gs, 'a', T).value, 6); assert.equal(G.projected(goals(), gs, 'a', T).evalNo, 1);
+  assert.equal(G.projected(goals(), gs, 'a', '2027-02-10').evalNo, 1, 'en la 2.ª sin notas propias, cae a la 1.ª'); assert.equal(G.projected(goals(), gs, 'b', '2027-02-10').value, 9); assert.equal(G.projected(goals(), gs, 'b', T).value, 7);
+  assert.equal(G.projected(goals(), [], 'a', T).value, null);
 });
 test('brecha, objetivo por asignatura y factor de horas de examen acotado (0,9–1,3)', () => {
-  const g = goals({ target: 9, subjTarget: { b: 7 }, prev: { a: 6, b: 7.5, c: 9.8 } });
-  assert.equal(G.gapOf(g, [], 'a'), 3); assert.equal(G.gapOf(g, [], 'b'), -0.5); assert.equal(G.gapOf(goals({ prev: { a: 6 } }), [], 'a'), null, 'sin objetivo no hay brecha');
+  const g = goals({ target: 9, subjTarget: { b: 7 } }), gs = [gw('1', 'a', 6, 100), gw('2', 'b', 7.5, 100), gw('3', 'c', 9.8, 100)];
+  assert.equal(G.gapOf(g, gs, 'a', T), 3); assert.equal(G.gapOf(g, gs, 'b', T), -0.5); assert.equal(G.gapOf(goals(), gs, 'a', T), null, 'sin objetivo no hay brecha'); assert.equal(G.gapOf(g, [], 'a', T), null, 'sin notas no hay brecha');
   assert.equal(G.boostFactor(3), 1.3); assert.equal(G.boostFactor(1), 1.1); assert.equal(G.boostFactor(-5), 0.9); assert.equal(G.boostFactor(null), 1);
-  const b = G.boosts(g, [], [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'z', archived: true }]); assert.equal(b.a, 1.3); assert.equal(b.b, 0.95); assert.ok(!('z' in b));
+  const b = G.boosts(g, gs, [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'z', archived: true }], T); assert.equal(b.a, 1.3); assert.equal(b.b, 0.95); assert.ok(!('z' in b));
 });
-test('media global, peor brecha, nota de acceso 0,6·media+0,4·PAU y media necesaria', () => {
-  const g = goals({ target: 9, prev: { a: 7, b: 8 }, pauExpected: 8, accessTarget: 9 });
-  const ov = G.overall(g, [], [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }]);
+test('media estimada, peor asignatura y nota de acceso con la media de bachillerato = media de 1.º y 2.º', () => {
+  const g = goals({ target: 9, prevAvg: 7, pauExpected: 8, accessTarget: 9 }), gs = [gw('1', 'a', 7, 100), gw('2', 'b', 8, 100)];
+  const ov = G.overall(g, gs, [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }], T);
   assert.equal(ov.media, 7.5); assert.equal(ov.worst!.id, 'a'); assert.equal(ov.covered, 2); assert.equal(ov.total, 3); assert.equal(ov.gap, 1.5);
-  const ac = G.accessInfo(g, ov.media); assert.equal(ac.access, 7.7); assert.equal(ac.needMedia, 9.67); assert.equal(ac.feasible, true);
-  assert.equal(G.accessInfo(goals({ pauExpected: 5, accessTarget: 10 }), 8).feasible, false);
-});
-test('tendencia: necesita 3 notas; sube/baja respecto a las anteriores', () => {
-  assert.equal(G.trend([gr('1', 'a', 5, '2026-10-01'), gr('2', 'a', 6, '2026-10-02')], 'a'), null);
-  assert.equal(G.trend([gr('1', 'a', 5, '2026-10-01'), gr('2', 'a', 7, '2026-10-02'), gr('3', 'a', 9, '2026-10-03')], 'a'), 3);
-  assert.ok(G.trend([gr('1', 'a', 9, '2026-10-01'), gr('2', 'a', 5, '2026-10-02'), gr('3', 'a', 5, '2026-10-03')], 'a')! < 0);
+  const ac = G.accessInfo(g, ov.media); assert.equal(ac.nmb, 7.25); assert.equal(ac.access, 7.55, '0,6·7,25 + 0,4·8'); assert.equal(ac.needMedia, 12.33); assert.equal(ac.feasible, false, '(9−3,2)/0,6 = 9,67 de bachillerato → 2·9,67−7');
+  assert.equal(G.accessInfo(goals({ pauExpected: 8, accessTarget: 8 }), 8).needMedia, 8, 'sin media de 1.º: la media necesaria es la de bachillerato');
 });
 test('planificador: el examen con más brecha recibe más minutos (hasta +30 %), el que va holgado menos, y es idempotente', () => {
   const works = [exam('e1', 'a', { dueDate: '2026-10-28' }), exam('e2', 'b', { dueDate: '2026-10-28' })];
@@ -128,17 +138,6 @@ test('curso hasta la PAU: sin fecha null; fases, capacidad y estado bien/justo/n
   assert.equal((G.macro({ goals: g, topics: [], settings: S0, today: '2026-10-12' }) as any).status, 'sin temario');
   assert.equal((G.macro({ goals: g, topics: t, settings: S0, today: '2027-05-25' }) as any).phase.id, 'simulacros');
   assert.ok(m.capCoverageMin > 0 && m.capCoverageMin < m.capTotalMin); assert.equal((G.macro({ goals: g, topics: t, settings: S0, today: '2027-05-01' }) as any).phase.id, 'practica');
-});
-test('revisión semanal: cumplimiento por fórmula explícita, brecha vs. tiempo dedicado, notas pendientes y acción de bajar el máximo diario', () => {
-  const works: Work[] = [{ id: 'w1', kind: 'task', subjectId: 'a', title: 'A', dueDate: '2026-10-20', estMin: 60, difficulty: 3, importance: 3, readiness: 0, status: 'pending' }, { id: 'w2', kind: 'task', subjectId: 'b', title: 'B', dueDate: '2026-10-20', estMin: 60, difficulty: 3, importance: 3, readiness: 0, status: 'pending' }, exam('ex', 'b', { dueDate: '2026-10-08' })];
-  const blk = (i: number, w: string, st: 'done' | 'skipped', d = '2026-10-07'): Block => ({ id: 'b' + i, workId: w, date: d, start: 900, end: 960, status: st, manual: false });
-  const bs = [blk(1, 'w1', 'done'), blk(2, 'w2', 'skipped'), blk(3, 'w2', 'skipped'), blk(4, 'w2', 'skipped'), { ...blk(5, 'w2', 'done'), date: '2026-10-20' }, { ...blk(6, 'w2', 'skipped'), status: 'rescheduled' as const }];
-  const r = G.weekReview({ blocks: bs, works, subjects: [{ id: 'a', name: 'Física' }, { id: 'b', name: 'Química' }], grades: [], goals: goals({ target: 9, prev: { a: 6, b: 9 } }), settings: { maxDayMin: 240 }, today: '2026-10-12' });
-  assert.equal(r.plannedMin, 240, 'planificado excluye reprogramadas y fuera de ventana'); assert.equal(r.doneMin, 60); assert.equal(r.compliance, 25, '60 hechos / (60 hechos + 180 omitidos)');
-  assert.ok(r.lines.some(l => l.action?.a === 'maxDay' && l.action.v < 240), 'baja el máximo diario si cumples <60 %');
-  assert.ok(r.lines.some(l => /Falta la nota de/.test(l.text)), 'examen pasado sin nota');
-  const again = G.weekReview({ blocks: bs, works, subjects: [{ id: 'a', name: 'Física' }, { id: 'b', name: 'Química' }], grades: [], goals: goals({ target: 9, prev: { a: 6, b: 9 } }), settings: { maxDayMin: 240 }, today: '2026-10-12' }); assert.equal(J(again), J(r), 'determinista');
-  assert.equal(G.weekReview({ blocks: [], works, subjects: [], grades: [], goals: goals(), settings: { maxDayMin: 240 }, today: '2026-10-12' }).compliance, null);
 });
 test('estado antiguo sin goals/grades/syllabus: la migración los añade y no pierde nada', async () => {
   const { migrateState, lostPaths } = await import('../src/core/migrate.ts');

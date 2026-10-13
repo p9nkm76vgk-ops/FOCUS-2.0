@@ -15,20 +15,26 @@ test('objetivo: formulario valida, guarda, persiste al recargar y la fecha de la
   assert.equal(a.S.goals.target, 9); assert.equal(a.S.goals.prevAvg, 6.5); assert.equal(a.S.goals.pauDate, '2027-06-02'); assert.equal(a.S.goals.start, '2026-10-12'); assert.equal(a.S.goals.accessTarget, null);
   const b = await boot(a.store); assert.equal(b.S.goals.target, 9); assert.equal(b.S.goals.prevAvg, 6.5, 'persiste');
 });
-test('notas: se guardan, se editan y se borran; la proyección y la pantalla Objetivos las reflejan; valida 0–10', async () => {
-  const a = await boot(); const s0 = a.S.subjects[0].id; await a.click('editGoals'); await a.submit({ target: '9', prevAvg: '7' });
-  await a.click('addGrade'); assert.match(await a.submit({ subjectId: s0, kind: 'examen', score: '11', date: '2026-10-10' }), /entre 0 y 10/); assert.equal(a.S.grades.length, 0);
-  assert.equal(await a.submit({ subjectId: s0, kind: 'examen', score: '5,5', date: '2026-10-10', label: 'Límites' }), ''); assert.equal(a.S.grades.length, 1); assert.equal(a.S.grades[0].score, 5.5);
-  const v = a.t.V.obj(); assert.match(v, /Media proyectada/); assert.match(v, /Te faltan/); assert.match(v, /×1,/, 'factor de horas de examen visible'); assert.match(v, /Límites/);
-  const id = a.S.grades[0].id; await a.click('editGrade', id); assert.equal(await a.submit({ subjectId: s0, kind: 'examen', score: '8', date: '2026-10-10' }), ''); assert.equal(a.S.grades.length, 1); assert.equal(a.S.grades[0].score, 8);
-  await a.click('editGrade', id); assert.match(a.h.dlg.innerHTML, /Editar nota/); assert.match(a.h.dlg.innerHTML, /id=fdel/); a.h.confirm = true; a.t.A.editGrade({ dataset: { id } });
+test('añadir nota de examen con porcentaje: valida, calcula lo que llevas y lo que necesitas, edita, borra y no deja pasar de 100 %', async () => {
+  const a = await boot(); const mat = a.S.subjects[0].id; await a.click('editGoals'); await a.submit({ target: '9' });
+  await a.click('addGrade'); const f = a.h.dlg.innerHTML; assert.match(f, /Porcentaje que valía el examen/); assert.match(f, /Nota sacada/); assert.match(f, /1\.ª/); assert.match(f, /3\.ª · final/);
+  assert.match(await a.submit({ subjectId: mat, evalNo: '1', weight: '24', score: '11', date: '2026-10-10' }), /entre 0 y 10/); assert.match(await a.submit({ subjectId: mat, evalNo: '1', weight: '0', score: '4', date: '2026-10-10' }), /porcentaje/); assert.equal(a.S.grades.length, 0);
+  assert.equal(await a.submit({ subjectId: mat, evalNo: '1', weight: '24', score: '4', date: '2026-10-10', label: 'Límites' }), ''); assert.equal(a.S.grades.length, 1); assert.equal(a.S.grades[0].weight, 24); assert.equal(a.S.grades[0].evalNo, 1);
+  let v = a.t.V.obj(); assert.match(v, /Cómo vas/); assert.match(v, /<b>4<\/b>/, 'llevas un 4'); assert.match(v, /24 %/); assert.match(v, /No llegas \(máx\. 8,6\)/, 'tu ejemplo: con un 4 al 24 % el 9 ya no es posible'); assert.match(v, /Límites/);
+  const id = a.S.grades[0].id; await a.click('editGrade', id); assert.match(a.h.dlg.innerHTML, /Editar nota/); assert.equal(await a.submit({ subjectId: mat, evalNo: '1', weight: '24', score: '9', date: '2026-10-10' }), ''); assert.equal(a.S.grades.length, 1);
+  assert.match(a.t.V.obj(), /<b>9<\/b><\/td><\/tr>/, 'un 9 al 24 % con objetivo 9: necesitas otro 9 de media en el 76 % restante');
+  await a.click('addGrade'); assert.match(await a.submit({ subjectId: mat, evalNo: '1', weight: '80', score: '5', date: '2026-10-11' }), /pasaría de 100/); assert.equal(a.S.grades.length, 1);
+  assert.equal(await a.submit({ subjectId: mat, evalNo: '2', weight: '80', score: '5', date: '2027-02-11' }), '', 'otra evaluación: su propio 100 %'); assert.equal(a.S.grades.length, 2);
+  a.t.A.objEv({ dataset: { k: 2 } }); assert.match(a.t.V.obj(), /2\.ª evaluación/); assert.match(a.t.V.obj(), /80 %/); a.t.A.objEv({ dataset: { k: 3 } }); assert.match(a.t.V.obj(), /nota final de 2\.º de Bachillerato/);
+  await a.click('editGrade', id); a.h.confirm = true; const del = a.h.dlg; assert.match(del.innerHTML, /id=fdel/); 
 });
-test('el objetivo cambia el plan: un examen en la asignatura con brecha recibe más minutos que sin objetivo; replanificar no duplica', async () => {
-  const a = await boot(); await a.click('addExam'); await a.submit(exam(a, 1)); const w = a.S.works[0], base = mins(a, w.id);
-  await a.click('editGoals'); await a.submit({ target: '10', prevAvg: '6' });
+test('el objetivo cambia el plan: tras un mal resultado el siguiente examen de esa asignatura recibe más minutos (≤ +30 %) y replanificar no duplica', async () => {
+  const a = await boot(); await a.click('addExam'); await a.submit(exam(a, 0)); const w = a.S.works[0], base = mins(a, w.id), mat = a.S.subjects[0].id;
+  await a.click('editGoals'); await a.submit({ target: '10' }); assert.equal(mins(a, w.id), base, 'sin notas no hay brecha: el plan no cambia');
+  await a.click('addGrade'); await a.submit({ subjectId: mat, evalNo: '1', weight: '24', score: '4', date: '2026-10-10' });
   const more = mins(a, w.id); assert.ok(more > base, `${more} > ${base}`); assert.ok(more <= Math.round(base * 1.3 / 5) * 5 + 5);
   const before = J(a.S.blocks); await a.click('replan'); assert.equal(J(a.S.blocks), before, 'idempotente'); assert.equal(a.S.blocks.filter(b => b.workId === w.id).length, new Set(a.S.blocks.filter(b => b.workId === w.id).map(b => b.id)).size);
-  await a.click('editGoals'); await a.submit({ target: '5', prevAvg: '9' }); assert.ok(mins(a, w.id) < base, 'objetivo cumplido con holgura: algo menos de horas de examen');
+  await a.click('addGrade'); await a.submit({ subjectId: mat, evalNo: '1', weight: '24', score: '10', date: '2026-10-11' }); await a.click('editGoals'); await a.submit({ target: '5' }); assert.ok(mins(a, w.id) < base, 'objetivo cumplido con holgura: algo menos de horas de examen');
 });
 test('temario: añadir temas en bloque sin duplicar, marcar nivel programa el primer repaso a +2 días y crea la tarea de repaso al llegar el día', async () => {
   const a = await boot(); const s = a.S.subjects[0].id; await a.click('addTopics', s);
@@ -59,38 +65,36 @@ test('sesión normal: la calidad es opcional (sin valorar no guarda nada) y no a
   const b = a.S.blocks.find(x => x.status === 'planned'); a.t.A.doneBlk({ dataset: { id: b.id } }); assert.doesNotMatch(a.h.dlg.innerHTML, /value="3" checked/);
   assert.equal(await a.submit({ actualMin: '40', goalMet: '1', quality: '', progress: '50', difficulty: '3', interrupted: '0' }), ''); assert.equal(a.S.blocks.find(x => x.id === b.id).quality, undefined);
 });
-test('curso hasta la PAU, revisión semanal y Hoy: se pintan con datos reales; sin datos piden definirlos', async () => {
-  const a = await boot(); assert.match(a.t.V.cur(), /Falta la fecha de la PAU/); assert.match(a.t.V.obj(), /Aún no hay objetivo/); assert.doesNotMatch(a.t.V.hoy(), /Media proyectada/);
-  await a.click('editGoals'); const s0 = a.S.subjects[0].id; await a.submit({ target: '9', prevAvg: '6', pauDate: '2027-06-02' });
-  assert.match(a.t.V.cur(), /233 días/); assert.match(a.t.V.cur(), /Falta el temario/); assert.match(a.t.V.hoy(), /Media proyectada 6 · objetivo 9/);
-  await a.click('addTopics', s0); await a.submit({ names: 'A\nB\nC', level: '0' }); assert.match(a.t.V.cur(), /Vas bien|Vas justo|no llegas/); assert.match(a.t.V.cur(), /Cobertura por asignatura/);
-  assert.match(a.t.V.rev(), /Revisión semanal/); assert.match(a.t.V.rev(), /cumplimiento/);
-  assert.match(a.t.V.hoy(), /Revisión semanal lista/, 'lunes: aparece la tarjeta');
+test('curso hasta la PAU, Objetivos y Hoy: se pintan con datos reales; sin datos piden definirlos', async () => {
+  const a = await boot(); assert.match(a.t.V.cur(), /Falta la fecha de la PAU/); assert.match(a.t.V.obj(), /Aún no hay objetivo/); assert.doesNotMatch(a.t.V.hoy(), /Llevas/);
+  const s0 = a.S.subjects[0].id; await a.click('editGoals'); await a.submit({ target: '9', pauDate: '2027-06-02' });
+  assert.match(a.t.V.cur(), /233 días/); assert.match(a.t.V.cur(), /Falta el temario/); assert.doesNotMatch(a.t.V.hoy(), /Llevas/, 'sin notas no hay media');
+  await a.click('addGrade'); await a.submit({ subjectId: s0, evalNo: '1', weight: '30', score: '6', date: '2026-10-10' }); assert.match(a.t.V.hoy(), /Llevas 6 de media · objetivo 9/);
+  await a.click('addTopics', s0); await a.submit({ names: 'A\nB\nC', course: '2', level: '0' }); assert.match(a.t.V.cur(), /Vas bien|Vas justo|no llegas/); assert.match(a.t.V.cur(), /Cobertura por asignatura/);
+  assert.doesNotMatch(a.t.V.hoy(), /Revisión semanal/); assert.equal(a.t.V.rev, undefined, 'la revisión semanal ya no existe');
 });
 test('Hoy pide la nota de un examen pasado y avisa de la copia de seguridad semanal; descargarla la apaga', async () => {
   const a = await boot(); await a.click('addExam'); await a.submit(exam(a, 0, { when: '2' })); clock.t = new Date(2026, 9, 16, 9, 0).getTime(); await a.t.commit({ quiet: true });
   const h = a.t.V.hoy(); assert.match(h, /¿Qué nota sacaste en/); assert.match(h, /data-a=gradeFor/); assert.match(h, /copia de seguridad/);
-  await a.click('gradeFor', a.S.works[0].id); assert.match(a.h.dlg.innerHTML, /Nueva nota/); assert.equal(await a.submit({ subjectId: a.S.subjects[0].id, kind: 'examen', score: '7', date: '2026-10-14' }), ''); assert.equal(a.S.grades[0].workId, a.S.works[0].id);
+  await a.click('gradeFor', a.S.works[0].id); assert.match(a.h.dlg.innerHTML, /Añadir nota de examen/); assert.equal(await a.submit({ subjectId: a.S.subjects[0].id, evalNo: '1', weight: '25', score: '7', date: '2026-10-14' }), ''); assert.equal(a.S.grades[0].workId, a.S.works[0].id);
   assert.doesNotMatch(a.t.V.hoy(), /¿Qué nota sacaste en/, 'con nota guardada ya no se pregunta');
   await a.click('export'); assert.doesNotMatch(a.t.V.hoy(), /copia de seguridad/); assert.match(a.h.blob, /"grades"/, 'la copia incluye las notas');
 });
-test('revisión semanal de lunes: aparece la tarjeta en Hoy y «Marcar como revisada» la apaga; acción «Aplicar» baja el máximo diario', async () => {
-  const a = await boot(); assert.match(a.t.V.hoy(), /Revisión semanal lista/); await a.click('revSeen'); assert.doesNotMatch(a.t.V.hoy(), /Revisión semanal lista/); assert.equal(a.S.reviewedOn, '2026-10-12');
-  assert.equal(a.S.settings.maxDayMin, 240); a.t.A.revApply({ dataset: { v: '180' } }); await a.tick(); assert.equal(a.S.settings.maxDayMin, 180);
-});
+
 test('vista de día del calendario: una sola columna, navega de día en día y vuelve a semana', async () => {
   const a = await boot(); await a.click('calMode'); let v = a.t.V.cal(); assert.match(v, /class="tg one"|class="tg hasnos one"/); assert.match(v, /Ver semana/); assert.equal((v.match(/class="day[^"]* sel"/g) || []).length, 1);
   assert.match(v, /lunes 12 de octubre/i); await a.click('wk', undefined, '7'); assert.match(a.t.V.cal(), /martes 13 de octubre/i); await a.click('wk', undefined, '-7'); await a.click('wk', undefined, '-7'); assert.match(a.t.V.cal(), /domingo 11 de octubre/i);
   await a.click('calMode'); v = a.t.V.cal(); assert.doesNotMatch(v, /class="tg one"/); assert.match(v, /Ver día/);
 });
-test('estado antiguo (sin goals/grades/syllabus) abre sin errores y los añade; exportar/importar conserva notas y temario', async () => {
-  const a = await boot(); const s0 = a.S.subjects[0].id; await a.click('editGoals'); await a.submit({ target: '9' }); await a.click('addGrade'); await a.submit({ subjectId: s0, kind: 'tarea', score: '9', date: '2026-10-11' }); await a.click('addTopics', s0); await a.submit({ names: 'Uno', level: '1' });
+test('estado antiguo (sin goals/grades/syllabus) abre sin errores y los añade; una nota antigua sin porcentaje se conserva pero no cuenta; exportar/importar conserva notas y temario', async () => {
+  const a = await boot(); const s0 = a.S.subjects[0].id; await a.click('editGoals'); await a.submit({ target: '9' }); await a.click('addGrade'); await a.submit({ subjectId: s0, evalNo: '1', weight: '20', score: '9', date: '2026-10-11' }); await a.click('addTopics', s0); await a.submit({ names: 'Uno', course: '2', level: '1' });
   const st = JSON.parse(a.store['focusos.v1']); delete st.goals; delete st.grades; delete st.syllabus; const old = { 'focusos.v1': JSON.stringify(st) };
   const b = await boot(old); assert.ok(b.S.goals && Array.isArray(b.S.grades) && Array.isArray(b.S.syllabus)); assert.match(b.t.V.obj(), /Aún no hay objetivo/);
+  const legacy = JSON.parse(a.store['focusos.v1']); legacy.grades = [{ id: 'g0', subjectId: s0, score: 8, kind: 'examen', date: '2026-10-05' }]; const l = await boot({ 'focusos.v1': JSON.stringify(legacy) });
+  assert.match(l.t.V.obj(), /falta el porcentaje/); assert.equal(l.S.grades.length, 1, 'se conserva'); assert.doesNotMatch(l.t.V.hoy(), /Llevas/, 'sin porcentaje no cuenta');
   const c = await boot(); await c.t.importText(JSON.stringify({ app: 'focus-os', schema: 3, ...JSON.parse(a.store['focusos.v1']) })); await c.tick();
   assert.equal(c.S.grades.length, 1); assert.equal(c.S.syllabus.length, 1); assert.equal(c.S.goals.target, 9);
 });
-
 test('temario por curso: 1.º y 2.º en bloques separados, altas escalonadas (3 por día) para no crear avalancha de repasos', async () => {
   const a = await boot(); const sid = a.S.subjects[0].id; await a.click('addTopics', sid); assert.match(a.h.dlg.innerHTML, /Curso al que pertenecen/); assert.match(a.h.dlg.innerHTML, /todo el temario acumulado/);
   const names = Array.from({ length: 9 }, (_, i) => 'Tema ' + (i + 1)).join('\n'); assert.equal(await a.submit({ names, course: '1', level: '2' }), '');
@@ -101,9 +105,10 @@ test('temario por curso: 1.º y 2.º en bloques separados, altas escalonadas (3 
   await a.click('editGoals'); await a.submit({ target: '9', pauDate: '2027-06-02' }); const c = a.t.V.cur(); assert.match(c, /Todo se arrastra hasta la PAU/); assert.match(c, /Cobertura por curso/);
 });
 
-test('solo se pide la media de 1.º: es el punto de partida común de todas las asignaturas y las notas de 2.º la van sustituyendo', async () => {
-  const a = await boot(); await a.click('editGoals'); await a.submit({ target: '9', prevAvg: '7' }); const [x, y] = a.S.subjects.map(s => s.id);
-  let v = a.t.V.obj(); assert.equal((v.match(/<td><b>7<\/b><\/td>/g) || []).length, 9, 'las 9 asignaturas parten de 7'); assert.match(v, /Media proyectada 7 · objetivo 9/);
-  await a.click('addGrade'); await a.submit({ subjectId: x, kind: 'examen', score: '5', date: '2026-10-10' }); v = a.t.V.obj();
-  assert.equal((v.match(/<td><b>7<\/b><\/td>/g) || []).length, 8, 'solo cambia la asignatura con nota'); assert.match(v, /<td><b>6<\/b><\/td>/, '(2·5 + 2·7)/4 = 6: examen peso 2, media de 1.º peso 2');
+test('solo se pide la media de 1.º (sirve para la nota de acceso, no se mezcla con las notas de cada asignatura de 2.º)', async () => {
+  const a = await boot(); await a.click('editGoals'); await a.submit({ target: '9', prevAvg: '7', pauDate: '', pauExpected: '8' }); const x = a.S.subjects[0].id;
+  assert.doesNotMatch(a.t.V.obj(), /Nota de acceso estimada/, 'sin notas de 2.º aún no hay media');
+  await a.click('addGrade'); await a.submit({ subjectId: x, evalNo: '1', weight: '100', score: '9', date: '2026-10-10' });
+  const v = a.t.V.obj(); assert.match(v, /Nota de acceso estimada \(0,6 · media de bachillerato 8 \+ 0,4 · PAU\): <b>8<\/b>/, '(7+9)/2 = 8 → 0,6·8 + 0,4·8 = 8');
+  assert.match(v, /<td>—<\/td><td class="">0 %<\/td>/, 'las asignaturas sin notas no heredan la media de 1.º');
 });

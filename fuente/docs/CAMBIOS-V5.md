@@ -54,3 +54,10 @@ El historial de GitHub conserva la versión 4 (commit anterior). Tus datos no ca
 
 ## v6.2: solo la media de 1.º
 - El formulario de objetivo pide una única nota media de 1.º (las asignaturas de 1.º no coinciden con las de 2.º). Es el punto de partida común de todas; cada asignatura la va sustituyendo con sus notas de 2.º (peso 2 frente a las notas). Los datos con notas de 1.º por asignatura siguen funcionando.
+
+## v6.3: notas por evaluación con porcentaje; menú simplificado
+- **Notas:** asignatura, evaluación (1.ª/2.ª/3.ª; la 3.ª es la nota final de 2.º), % que valía el examen dentro de su evaluación, nota y detalle opcional. No deja superar 100 % por evaluación y asignatura.
+- **Cálculo:** ganado = Σ nota·%/100; «llevas» = ganado/% evaluado; «necesitas en el resto» = (objetivo − ganado)·100/% restante; si pasa de 10 → «No llegas (máx. X)». Ejemplo: 4 al 24 % con objetivo 9 → necesitas 10,58, máximo 8,56.
+- **Media de 1.º:** solo para la nota de acceso (media de bachillerato = media de 1.º y 2.º); ya no se mezcla con las asignaturas. Quitados: brecha, tendencia y multiplicador de la pantalla (el reparto de horas por brecha sigue por dentro).
+- **Quitado:** Revisión semanal y el grupo Asignaturas del menú (se gestionan en Ajustes). Las notas antiguas sin porcentaje se conservan y avisan, pero no cuentan.
+- Pruebas: 189 en Node; Chromium 35 + 37 + 57 + 11.

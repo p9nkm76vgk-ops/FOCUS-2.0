@@ -15,7 +15,7 @@ def newpage(b, w=1180, h=820, fixed='2026-10-13T17:00:00'):
     p.clock.set_fixed_time(datetime.fromisoformat(fixed)); p.goto(URL); p.wait_for_selector('#main h1'); return p
 def go(p, r):
     if p.evaluate("innerWidth<1000") and p.evaluate("!document.body.classList.contains('open')"): p.click('#menuBtn')
-    g = {'cal': 'plan', 'tar': 'plan', 'exa': 'plan', 'rut': 'plan', 'est': 'plan', 'asg': 'subjects'}.get(r)
+    g = {'cal': 'plan', 'tar': 'plan', 'exa': 'plan', 'rut': 'plan', 'est': 'plan', 'obj': 'goal', 'tem': 'goal', 'cur': 'goal'}.get(r)
     if g and p.get_attribute(f'#nav [data-g={g}]', 'aria-expanded') == 'false': p.click(f'#nav [data-g={g}]')
     p.click(f'#nav [data-r="{r}"]'); p.wait_for_timeout(150)
 def chip(p, name, text):  # pulsa un botón de opción por su texto
@@ -73,7 +73,7 @@ try:
     # sin desbordamiento horizontal en todas las vistas, dos temas
     for th in ('dark', 'light'):
         p.evaluate(f"localStorage.setItem('focusos.ui', JSON.stringify({{theme:'{th}'}}))"); p.reload(); p.wait_for_selector('#main h1')
-        for r in ['hoy', 'tar', 'exa', 'cal', 'rut', 'est', 'asg', 'eje', 'seg', 'aj']:
+        for r in ['hoy', 'tar', 'exa', 'cal', 'rut', 'est', 'eje', 'seg', 'aj']:
             go(p, r); ok = p.evaluate("document.documentElement.scrollWidth<=innerWidth+1"); ck(f'sin desbordamiento horizontal: {r} ({th})', ok)
     b.close()
     # móvil/vertical

@@ -1,6 +1,6 @@
-/* Service worker de Focus OS. Solo guarda en caché los archivos de la app (versión e1528a5d89); NO toca los datos (localStorage).
+/* Service worker de Focus OS. Solo guarda en caché los archivos de la app (versión f076cce1d4); NO toca los datos (localStorage).
    Caché primero para que funcione sin conexión; en la instalación se salta la caché HTTP del navegador (cache:'reload') para no guardar copias viejas; cada build cambia la versión y retira cachés antiguas. */
-const V = 'focusos-e1528a5d89', FILES = ["./","icon-180.png","icon-192.png","icon-512.png","icon-maskable-512.png","index.html","manifest.webmanifest"];
+const V = 'focusos-f076cce1d4', FILES = ["./","icon-180.png","icon-192.png","icon-512.png","icon-maskable-512.png","index.html","manifest.webmanifest"];
 self.addEventListener('install', e => e.waitUntil(caches.open(V).then(c => Promise.all(FILES.map(f => c.add(new Request(f, { cache: 'reload' }))))).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('focusos-') && k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', e => {

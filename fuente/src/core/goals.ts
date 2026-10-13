@@ -4,68 +4,70 @@ import type { Block, Work } from './types.ts';
 /** Objetivos, notas, proyección de nota, temario con repaso espaciado, ritmo aprendido, curso hasta la PAU y revisión semanal.
  *  Todo son funciones PURAS y deterministas sobre datos persistidos. Los números marcados «heurístico» son aproximaciones, no mediciones. */
 export type GradeKind = 'examen' | 'tarea' | 'evaluacion';
-export interface Grade { id: string; subjectId: string; score: number; kind: GradeKind; date: string; label?: string; workId?: string }
-export interface Goals { target: number | null; prevAvg?: number | null; prev: Record<string, number>; subjTarget: Record<string, number>; pauDate: string | null; start: string | null; pauExpected: number | null; accessTarget: number | null }
+/** Nota de un examen o trabajo: `weight` = % que vale dentro de SU evaluación (1.ª, 2.ª o 3.ª; la 3.ª es la nota final de 2.º). Sin `weight` (datos antiguos) no entra en el cálculo. */
+export interface Grade { id: string; subjectId: string; score: number; weight?: number; evalNo?: 1 | 2 | 3; kind?: GradeKind; date: string; label?: string; workId?: string }
+export interface Goals { target: number | null; prevAvg?: number | null; prev?: Record<string, number>; subjTarget: Record<string, number>; pauDate: string | null; start: string | null; pauExpected: number | null; accessTarget: number | null }
 export interface Topic2 { id: string; subjectId: string; name: string; course?: 1 | 2; mastery: 0 | 1 | 2 | 3; reviews: number; last: string | null; next: string | null; createdAt: number }
-export const DEFAULT_GOALS: Goals = { target: null, prevAvg: null, prev: {}, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
+export const DEFAULT_GOALS: Goals = { target: null, prevAvg: null, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
 
 const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 const r2 = (x: number) => Math.round(x * 100) / 100;
 const dur = (b: { start: number; end: number }) => b.end - b.start;
 const mins = (b: Block) => b.actualMin ?? dur(b);
 
-// ---------- Notas y proyección ----------
-/** Peso de cada tipo de nota en la media proyectada (heurístico, ajustable). Las más recientes pesan algo más (+15 % por posición). */
-export const KIND_W: Record<GradeKind, number> = { examen: 2, tarea: 1, evaluacion: 3 };
-/** La nota de 1º cuenta como si fueran PSEUDO_PREV puntos de peso: se diluye al entrar notas de 2º. */
-export const PSEUDO_PREV = 2;
-export type ProjSource = 'notas' | '1º' | 'mixta' | null;
-export function projected(g: Goals | undefined, grades: Grade[], sid: string): { value: number | null; n: number; source: ProjSource } {
-  const gs = grades.filter(x => x.subjectId === sid && Number.isFinite(x.score)).sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
-  const prev = g?.prev?.[sid] ?? g?.prevAvg ?? undefined; // las asignaturas de 1.º no coinciden: basta la media de 1.º como punto de partida común
-  const hasPrev = typeof prev === 'number' && Number.isFinite(prev);
-  let W = 0, S = 0;
-  gs.forEach((x, i) => { const w = KIND_W[x.kind] * (1 + 0.15 * i); W += w; S += w * x.score; });
-  if (gs.length && hasPrev) return { value: r2((S + PSEUDO_PREV * prev!) / (W + PSEUDO_PREV)), n: gs.length, source: 'mixta' };
-  if (gs.length) return { value: r2(S / W), n: gs.length, source: 'notas' };
-  if (hasPrev) return { value: r2(prev!), n: 0, source: '1º' };
-  return { value: null, n: 0, source: null };
-}
+// ---------- Notas por evaluación y porcentaje ----------
+/** Evaluación por fecha (aproximada, editable al guardar la nota): sept–dic 1.ª, ene–mar 2.ª, abr–ago 3.ª. */
+export const evalOfDate = (d: string): 1 | 2 | 3 => { const m = +d.slice(5, 7); return m >= 9 ? 1 : m <= 3 ? 2 : 3; };
+export const gradeEval = (g: Grade): 1 | 2 | 3 => g.evalNo ?? evalOfDate(g.date);
+const usable = (g: Grade) => Number.isFinite(g.score) && typeof g.weight === 'number' && g.weight > 0;
 export const subjectTarget = (g: Goals | undefined, sid: string): number | null => g?.subjTarget?.[sid] ?? g?.target ?? null;
-/** Puntos que faltan para el objetivo (positivo = por debajo). null si no hay objetivo o no hay datos. */
-export function gapOf(g: Goals | undefined, grades: Grade[], sid: string): number | null {
-  const t = subjectTarget(g, sid), p = projected(g, grades, sid).value;
+export type EvalStatus = 'sin notas' | 'cumplido' | 'posible' | 'imposible' | 'completa';
+/** Resumen de UNA evaluación de UNA asignatura. Ganado = Σ nota·% / 100 (puntos sobre 10). Lleva = ganado / % evaluado. Necesitas en lo que queda = (objetivo − ganado)·100 / % restante. */
+export function evalSummary(grades: Grade[], sid: string, evalNo: 1 | 2 | 3, target: number | null) {
+  const gs = grades.filter(x => x.subjectId === sid && gradeEval(x) === evalNo && usable(x));
+  const doneW = r2(gs.reduce((a, x) => a + x.weight!, 0)), earned = r2(gs.reduce((a, x) => a + x.score * x.weight!, 0) / 100);
+  const remW = r2(Math.max(0, 100 - doneW)), cur = doneW > 0 ? r2(earned * 100 / doneW) : null;
+  const need = target != null && remW > 0 && earned < target ? r2((target - earned) * 100 / remW) : null;
+  const max = r2(earned + 10 * remW / 100);
+  const status: EvalStatus = !gs.length ? 'sin notas' : target != null && earned >= target ? 'cumplido' : remW === 0 ? 'completa' : need != null && need > 10 ? 'imposible' : 'posible';
+  return { n: gs.length, doneW, earned, cur, remW, need, max, over: doneW > 100.0001, status };
+}
+/** Nota que se usa para proyectar a una asignatura: la media (lo que «llevas») de la evaluación en curso; si aún no hay notas, la de la última evaluación anterior con datos. */
+export function projected(g: Goals | undefined, grades: Grade[], sid: string, today: string): { value: number | null; n: number; evalNo: 1 | 2 | 3 | null } {
+  const act = evalOfDate(today);
+  for (const e of [act, ...[3, 2, 1].filter(x => x < act), ...[3, 2, 1].filter(x => x > act)] as (1 | 2 | 3)[]) { const r = evalSummary(grades, sid, e, null); if (r.cur != null) return { value: r.cur, n: r.n, evalNo: e }; }
+  return { value: null, n: 0, evalNo: null };
+}
+/** Puntos que faltan para el objetivo (positivo = por debajo). null si no hay objetivo o no hay notas. */
+export function gapOf(g: Goals | undefined, grades: Grade[], sid: string, today: string): number | null {
+  const t = subjectTarget(g, sid), p = projected(g, grades, sid, today).value;
   return t == null || p == null ? null : r2(t - p);
 }
 /** Factor de horas de EXAMEN según la brecha: +10 % por punto por debajo del objetivo (máx. +30 %), −10 % como mucho si vas holgado. Heurístico. */
 export const boostFactor = (gap: number | null) => gap == null ? 1 : r2(clamp(1 + 0.1 * gap, 0.9, 1.3));
-export function boosts(g: Goals | undefined, grades: Grade[], subjects: { id: string; archived?: boolean }[]): Record<string, number> {
+export function boosts(g: Goals | undefined, grades: Grade[], subjects: { id: string; archived?: boolean }[], today: string): Record<string, number> {
   const o: Record<string, number> = {};
-  for (const s of subjects) if (!s.archived) { const f = boostFactor(gapOf(g, grades, s.id)); if (f !== 1) o[s.id] = f; }
+  for (const s of subjects) if (!s.archived) { const f = boostFactor(gapOf(g, grades, s.id, today)); if (f !== 1) o[s.id] = f; }
   return o;
 }
-export function overall(g: Goals | undefined, grades: Grade[], subjects: { id: string; name: string; archived?: boolean }[]) {
-  const rows = subjects.filter(s => !s.archived).map(s => ({ id: s.id, name: s.name, ...projected(g, grades, s.id), target: subjectTarget(g, s.id), gap: gapOf(g, grades, s.id) }));
+/** Media estimada de 2.º = media de lo que «llevas» en cada asignatura con notas. */
+export function overall(g: Goals | undefined, grades: Grade[], subjects: { id: string; name: string; archived?: boolean }[], today: string) {
+  const rows = subjects.filter(s => !s.archived).map(s => ({ id: s.id, name: s.name, ...projected(g, grades, s.id, today), target: subjectTarget(g, s.id), gap: gapOf(g, grades, s.id, today) }));
   const vals = rows.filter(r => r.value != null);
   const media = vals.length ? r2(vals.reduce((a, r) => a + r.value!, 0) / vals.length) : null;
-  const tv = rows.filter(r => r.value != null && r.target != null);
+  const tv = rows.filter(r => r.target != null);
   const target = tv.length ? r2(tv.reduce((a, r) => a + r.target!, 0) / tv.length) : null;
   const worst = rows.filter(r => r.gap != null && r.gap > 0).sort((a, b) => b.gap! - a.gap! || a.name.localeCompare(b.name))[0] ?? null;
   return { rows, media, target, gap: media != null && target != null ? r2(target - media) : null, worst, covered: vals.length, total: rows.length };
 }
-/** Nota de acceso de fase general = 0,6·media de bachillerato + 0,4·PAU (sobre 10). No modela ponderaciones ni fase voluntaria. */
-export function accessInfo(g: Goals | undefined, media: number | null) {
-  const pau = g?.pauExpected ?? null, acc = g?.accessTarget ?? null;
-  const access = media != null && pau != null ? r2(0.6 * media + 0.4 * pau) : null;
-  const needMedia = acc != null && pau != null ? r2((acc - 0.4 * pau) / 0.6) : null;
-  return { access, needMedia, feasible: needMedia == null ? null : needMedia <= 10 };
-}
-/** Tendencia: media de las 2 últimas notas menos la media de las anteriores (necesita ≥3 notas). */
-export function trend(grades: Grade[], sid: string): number | null {
-  const gs = grades.filter(x => x.subjectId === sid).sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
-  if (gs.length < 3) return null;
-  const last = gs.slice(-2), prev = gs.slice(0, -2), m = (a: Grade[]) => a.reduce((s, x) => s + x.score, 0) / a.length;
-  return r2(m(last) - m(prev));
+/** Nota de acceso de fase general = 0,6·nota media de bachillerato + 0,4·PAU (sobre 10). La media de bachillerato = media de 1.º y de 2.º. No modela ponderaciones ni fase voluntaria. */
+export function accessInfo(g: Goals | undefined, media2: number | null) {
+  const pau = g?.pauExpected ?? null, acc = g?.accessTarget ?? null, p1 = g?.prevAvg ?? null;
+  const nmb = media2 != null ? (p1 != null ? r2((p1 + media2) / 2) : media2) : null;
+  const access = nmb != null && pau != null ? r2(0.6 * nmb + 0.4 * pau) : null;
+  const nmbNeed = acc != null && pau != null ? (acc - 0.4 * pau) / 0.6 : null;
+  const needMedia = nmbNeed == null ? null : r2(p1 != null ? 2 * nmbNeed - p1 : nmbNeed);
+  return { nmb, access, needMedia, feasible: needMedia == null ? null : needMedia <= 10 };
 }
 
 // ---------- Temario y repaso espaciado ----------
@@ -182,34 +184,4 @@ export function macro(a: { goals: Goals; topics: Topic2[]; settings: { availabil
   const expected = total > 0 ? clamp(daysBetween(g.start!, a.today) / total, 0, 1) : null;
   const status = a.topics.length === 0 ? 'sin temario' : need === 0 ? 'bien' : left === 0 ? (need > 0 ? 'no llegas' : 'bien') : ratio! >= 1.3 ? 'bien' : ratio! >= 1 ? 'justo' : 'no llegas';
   return { past: false as const, days, weeks: Math.round(days / 7), weekCap, phase, phases, needMin: need, capCoverageMin: capCov, capTotalMin: capAll, maintNowWeekMin: mt.nowWeekMin, maintSteadyWeekMin: mt.steadyWeekMin, backlog, status, seenPct: seen == null ? null : Math.round(100 * seen), expectedPct: expected == null ? null : Math.round(100 * expected) };
-}
-
-// ---------- Revisión semanal ----------
-export interface RevLine { kind: 'ok' | 'warn' | 'tip'; text: string; action?: { a: 'maxDay'; v: number } }
-export function weekReview(a: { blocks: Block[]; works: Work[]; subjects: { id: string; name: string; archived?: boolean }[]; grades: Grade[]; goals: Goals; settings: { maxDayMin: number }; today: string; reviewsDue?: number }) {
-  const from = addDays(a.today, -7), to = addDays(a.today, -1);
-  const bs = a.blocks.filter(b => b.date >= from && b.date <= to && b.status !== 'rescheduled');
-  const sub = new Map(a.works.map(w => [w.id, w.subjectId]));
-  let planned = 0, done = 0, dS = 0, sS = 0, skipped = 0; const by: Record<string, number> = {};
-  for (const b of bs) { planned += dur(b); if (b.status === 'done') { const m = mins(b); done += m; dS += dur(b); const s = sub.get(b.workId) ?? '?'; by[s] = (by[s] ?? 0) + m; } else if (b.status === 'skipped') { sS += dur(b); skipped++; } }
-  const compliance = dS + sS ? Math.round(100 * dS / (dS + sS)) : null;
-  const lines: RevLine[] = [];
-  if (planned === 0) lines.push({ kind: 'tip', text: 'La semana pasada no hubo sesiones planificadas: no hay datos para valorar.' });
-  else if (compliance != null) {
-    if (compliance < 60 && dS + sS >= 120) { const v = Math.max(60, Math.round(a.settings.maxDayMin * 0.85 / 15) * 15); lines.push({ kind: 'warn', text: `Cumpliste el ${compliance} % de lo resuelto. Un plan que no se cumple pierde valor: conviene bajar el máximo diario (de ${a.settings.maxDayMin} a ${v} min) y que el calendario llene menos.`, action: v < a.settings.maxDayMin ? { a: 'maxDay', v } : undefined }); }
-    else if (compliance >= 90 && done >= 180) lines.push({ kind: 'ok', text: `Cumpliste el ${compliance} %: el plan es realista para ti. Si quieres más margen en una asignatura floja, es buen momento para subir su peso.` });
-    else lines.push({ kind: 'tip', text: `Cumplimiento ${compliance} % (${dS} de ${dS + sS} min resueltos).` });
-  }
-  const ov = overall(a.goals, a.grades, a.subjects), wts = ov.rows.map(r => ({ r, w: Math.max(0.5, 1 + (r.gap ?? 0)) })), W = wts.reduce((s, x) => s + x.w, 0);
-  if (done >= 120 && ov.covered > 0) for (const { r, w } of wts) {
-    const exp = Math.round(100 * w / W), got = Math.round(100 * (by[r.id] ?? 0) / done);
-    if (r.gap != null && r.gap > 0.5 && got + 10 <= exp) lines.push({ kind: 'warn', text: `${r.name}: ${got} % del tiempo frente a ~${exp} % que pide su brecha (te faltan ${String(r.gap).replace('.', ',')} puntos para tu objetivo).` });
-  }
-  const lastWeekGrades = a.grades.filter(g => g.date >= from && g.date <= to);
-  if (lastWeekGrades.length) lines.push({ kind: 'tip', text: `Notas nuevas esta semana: ${lastWeekGrades.length}. Media proyectada actual: ${ov.media == null ? '—' : String(ov.media).replace('.', ',')}.` });
-  const exams = a.works.filter(w => w.kind === 'exam' && w.dueDate >= from && w.dueDate <= to && !a.grades.some(g => g.workId === w.id));
-  if (exams.length) lines.push({ kind: 'warn', text: `Falta la nota de: ${exams.map(w => w.title).join(', ')}. Sin ella la proyección no se actualiza.` });
-  if (a.reviewsDue) lines.push({ kind: 'tip', text: `Tienes ${a.reviewsDue} repaso(s) del temario por hacer: son 20–25 min cada uno y evitan olvidar.` });
-  const bh = bestHours(a.blocks); if (bh) lines.push({ kind: 'tip', text: `Tus sesiones salen mejor ${bh.label} (media ${String(bh.avg).replace('.', ',')} de 3).` });
-  return { from, to, plannedMin: planned, doneMin: done, skipped, compliance, bySubject: by, lines };
 }

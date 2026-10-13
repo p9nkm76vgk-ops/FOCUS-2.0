@@ -8,11 +8,11 @@ const act = (o = {}) => ({ type: 'caminar', date: '2026-10-14', time: '', durMin
 test.beforeEach(() => { clock.t = T0 });
 
 test('menú lateral: secciones agrupadas con iconos vectoriales, grupos desplegables, las nueve asignaturas, sección activa y rutas que funcionan', async () => {
-  const a = await boot(); assert.ok((a.h.nav.innerHTML.match(/<svg class=ic/g) ?? []).length >= 8, 'iconos SVG'); assert.doesNotMatch(a.h.nav.innerHTML, /[⌂☑▦❖♡◔⚙]/u); assert.ok(a.h.nav.innerHTML.match(/<button class=nv[^>]*aria-label=/g).length >= 6, 'etiquetas accesibles'); assert.deepEqual(['hoy', 'tar', 'exa', 'cal', 'rut', 'est', 'eje', 'seg', 'aj'].filter(r => !routes(a).includes(r)), [], 'rutas presentes (Tareas y Exámenes dentro de su grupo)'); assert.ok(!routes(a).includes('asg'), 'Asignaturas plegado al inicio');
+  const a = await boot(); assert.ok((a.h.nav.innerHTML.match(/<svg class=ic/g) ?? []).length >= 8, 'iconos SVG'); assert.doesNotMatch(a.h.nav.innerHTML, /[⌂☑▦❖♡◔⚙]/u); assert.ok(a.h.nav.innerHTML.match(/<button class=nv[^>]*aria-label=/g).length >= 6, 'etiquetas accesibles'); assert.deepEqual(['hoy', 'tar', 'exa', 'cal', 'rut', 'est', 'obj', 'tem', 'cur', 'eje', 'seg', 'aj'].filter(r => !routes(a).includes(r)), [], 'rutas presentes (Tareas y Exámenes dentro de su grupo)'); assert.ok(!routes(a).includes('asg') && !/Asignaturas<\/span>/.test(a.h.nav.innerHTML), 'Asignaturas ya no está en el menú (se gestiona desde Ajustes)'); assert.doesNotMatch(a.h.nav.innerHTML, /Revisión semanal/);
   assert.match(a.h.nav.innerHTML, /aria-expanded=true[^>]*>(?:(?!<button).)*Planificar/s); assert.equal((a.h.nav.innerHTML.match(/data-r="asg:/g) ?? []).length, 0, 'asignaturas plegadas al inicio');
-  a.t.A.grp({ dataset: { g: 'subjects' } }); assert.ok(routes(a).includes('asg'), 'Todas'); const ids = routes(a).filter(r => r.startsWith('asg:')); assert.equal(ids.length, 9); assert.equal(new Set(ids).size, 9); for (const n of Object.keys(C)) assert.ok(a.h.nav.innerHTML.includes(n), n);
+  assert.match(a.t.V.aj(), /Gestionar asignaturas/, 'las asignaturas se gestionan desde Ajustes'); a.t.A.nav({ dataset: { r: 'asg' } }); assert.match(a.h.main.innerHTML, /\+ Asignatura/); assert.equal((a.h.nav.innerHTML.match(/aria-current=page/g) ?? []).length, 1, 'Ajustes queda marcado en la ficha de asignaturas');
   for (const r of [...new Set(routes(a))]) { a.t.A.nav({ dataset: { r } }); assert.ok(a.h.main.innerHTML.length > 20 && !a.h.main.innerHTML.includes('undefined'), r); assert.equal((a.h.nav.innerHTML.match(/aria-current=page/g) ?? []).length, 1, 'una sola sección activa en ' + r); assert.match(a.h.nav.innerHTML, new RegExp(`data-r="?${r.replace(':', ':')}"? aria-current=page|data-r="?${r}"?[^>]*aria-current=page`)); }
-  a.t.A.grp({ dataset: { g: 'subjects' } }); assert.equal(routes(a).filter(r => r.startsWith('asg:')).length, 0, 'se pliega');
+
 });
 test('menú: contraer, drawer en pantallas pequeñas y preferencia persistente (no es dato de estudio)', async () => {
   const a = await boot(); a.t.A.rail(); assert.ok(a.h.classes.has('rail')); assert.equal(JSON.parse(a.store['focusos.ui']).rail, true); a.t.A.menu(); assert.ok(a.h.classes.has('open')); a.t.A.nav({ dataset: { r: 'cal' } }); assert.ok(!a.h.classes.has('open'), 'navegar cierra el menú');
@@ -21,8 +21,8 @@ test('menú: contraer, drawer en pantallas pequeñas y preferencia persistente (
 });
 test('color por asignatura: único, coherente en menú, fichas, tareas, calendario y leyenda; el nombre siempre acompaña', async () => {
   const a = await boot(); const cols = a.S.subjects.map(s => s.color.toLowerCase()); assert.equal(new Set(cols).size, 9); for (const s of a.S.subjects) assert.equal(s.color, C[s.name]);
-  a.t.A.grp({ dataset: { g: 'subjects' } }); await a.click('addTask'); await a.submit(task(a)); const s0 = a.S.subjects[0];
-    const seen = { menú: a.h.nav.innerHTML, fichas: a.t.V.asg(), tareas: a.t.V.tar(), calendario: (a.t.A.nav({ dataset: { r: 'cal' } }), a.t.V.cal()), leyenda: a.t.V.seg() };
+  await a.click('addTask'); await a.submit(task(a)); const s0 = a.S.subjects[0];
+    const seen = { fichas: a.t.V.asg(), tareas: a.t.V.tar(), calendario: (a.t.A.nav({ dataset: { r: 'cal' } }), a.t.V.cal()), leyenda: a.t.V.seg() };
   for (const [k, h] of Object.entries(seen)) { assert.ok(h.toLowerCase().includes(`--c:${C[s0.name].toLowerCase()}`), 'color en ' + k); assert.ok(h.includes(s0.name), 'nombre en ' + k); }
   for (const s of a.S.subjects) assert.ok(seen.leyenda.includes(s.name) && seen.leyenda.toLowerCase().includes(C[s.name].toLowerCase()), 'leyenda ' + s.name);
 });

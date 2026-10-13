@@ -100,6 +100,7 @@ details.more{margin:6px 0 4px;border-top:1px solid var(--line);padding-top:6px}d
 .tg.one .day:not(.sel){display:none}.tg.one .days{grid-template-columns:minmax(0,1fr)}.tg.one .ev b,.tg.one .ev span,.tg.one .ev small{font-size:.95rem}
 
 .cr{margin:14px 0 2px;color:var(--muted);font-size:.875rem;text-transform:uppercase;letter-spacing:.07em}
+.row button.on{background:color-mix(in srgb,var(--accent) 22%,var(--surface));border-color:var(--accent);color:var(--text)}
 </style></head><body>
 <div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b></div>
 <aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
@@ -836,68 +837,70 @@ const GL=(()=>{const {addDays,daysBetween}=P;
 /** Objetivos, notas, proyección de nota, temario con repaso espaciado, ritmo aprendido, curso hasta la PAU y revisión semanal.
  *  Todo son funciones PURAS y deterministas sobre datos persistidos. Los números marcados «heurístico» son aproximaciones, no mediciones. */
                                                           
-                                                                                                                                       
-                                                                                                                                                                                                                                                  
+/** Nota de un examen o trabajo: `weight` = % que vale dentro de SU evaluación (1.ª, 2.ª o 3.ª; la 3.ª es la nota final de 2.º). Sin `weight` (datos antiguos) no entra en el cálculo. */
+                                                                                                                                                                             
+                                                                                                                                                                                                                                                   
                                                                                                                                                                                              
-const DEFAULT_GOALS        = { target: null, prevAvg: null, prev: {}, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
+const DEFAULT_GOALS        = { target: null, prevAvg: null, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
 
 const clamp = (x        , a        , b        ) => Math.min(b, Math.max(a, x));
 const r2 = (x        ) => Math.round(x * 100) / 100;
 const dur = (b                                ) => b.end - b.start;
 const mins = (b       ) => b.actualMin ?? dur(b);
 
-// ---------- Notas y proyección ----------
-/** Peso de cada tipo de nota en la media proyectada (heurístico, ajustable). Las más recientes pesan algo más (+15 % por posición). */
-const KIND_W                            = { examen: 2, tarea: 1, evaluacion: 3 };
-/** La nota de 1º cuenta como si fueran PSEUDO_PREV puntos de peso: se diluye al entrar notas de 2º. */
-const PSEUDO_PREV = 2;
-                                                         
-function projected(g                   , grades         , sid        )                                                          {
-  const gs = grades.filter(x => x.subjectId === sid && Number.isFinite(x.score)).sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
-  const prev = g?.prev?.[sid] ?? g?.prevAvg ?? undefined; // las asignaturas de 1.º no coinciden: basta la media de 1.º como punto de partida común
-  const hasPrev = typeof prev === 'number' && Number.isFinite(prev);
-  let W = 0, S = 0;
-  gs.forEach((x, i) => { const w = KIND_W[x.kind] * (1 + 0.15 * i); W += w; S += w * x.score; });
-  if (gs.length && hasPrev) return { value: r2((S + PSEUDO_PREV * prev ) / (W + PSEUDO_PREV)), n: gs.length, source: 'mixta' };
-  if (gs.length) return { value: r2(S / W), n: gs.length, source: 'notas' };
-  if (hasPrev) return { value: r2(prev ), n: 0, source: '1º' };
-  return { value: null, n: 0, source: null };
-}
+// ---------- Notas por evaluación y porcentaje ----------
+/** Evaluación por fecha (aproximada, editable al guardar la nota): sept–dic 1.ª, ene–mar 2.ª, abr–ago 3.ª. */
+const evalOfDate = (d        )            => { const m = +d.slice(5, 7); return m >= 9 ? 1 : m <= 3 ? 2 : 3; };
+const gradeEval = (g       )            => g.evalNo ?? evalOfDate(g.date);
+const usable = (g       ) => Number.isFinite(g.score) && typeof g.weight === 'number' && g.weight > 0;
 const subjectTarget = (g                   , sid        )                => g?.subjTarget?.[sid] ?? g?.target ?? null;
-/** Puntos que faltan para el objetivo (positivo = por debajo). null si no hay objetivo o no hay datos. */
-function gapOf(g                   , grades         , sid        )                {
-  const t = subjectTarget(g, sid), p = projected(g, grades, sid).value;
+                                                                                         
+/** Resumen de UNA evaluación de UNA asignatura. Ganado = Σ nota·% / 100 (puntos sobre 10). Lleva = ganado / % evaluado. Necesitas en lo que queda = (objetivo − ganado)·100 / % restante. */
+function evalSummary(grades         , sid        , evalNo           , target               ) {
+  const gs = grades.filter(x => x.subjectId === sid && gradeEval(x) === evalNo && usable(x));
+  const doneW = r2(gs.reduce((a, x) => a + x.weight , 0)), earned = r2(gs.reduce((a, x) => a + x.score * x.weight , 0) / 100);
+  const remW = r2(Math.max(0, 100 - doneW)), cur = doneW > 0 ? r2(earned * 100 / doneW) : null;
+  const need = target != null && remW > 0 && earned < target ? r2((target - earned) * 100 / remW) : null;
+  const max = r2(earned + 10 * remW / 100);
+  const status             = !gs.length ? 'sin notas' : target != null && earned >= target ? 'cumplido' : remW === 0 ? 'completa' : need != null && need > 10 ? 'imposible' : 'posible';
+  return { n: gs.length, doneW, earned, cur, remW, need, max, over: doneW > 100.0001, status };
+}
+/** Nota que se usa para proyectar a una asignatura: la media (lo que «llevas») de la evaluación en curso; si aún no hay notas, la de la última evaluación anterior con datos. */
+function projected(g                   , grades         , sid        , today        )                                                                {
+  const act = evalOfDate(today);
+  for (const e of [act, ...[3, 2, 1].filter(x => x < act), ...[3, 2, 1].filter(x => x > act)]                 ) { const r = evalSummary(grades, sid, e, null); if (r.cur != null) return { value: r.cur, n: r.n, evalNo: e }; }
+  return { value: null, n: 0, evalNo: null };
+}
+/** Puntos que faltan para el objetivo (positivo = por debajo). null si no hay objetivo o no hay notas. */
+function gapOf(g                   , grades         , sid        , today        )                {
+  const t = subjectTarget(g, sid), p = projected(g, grades, sid, today).value;
   return t == null || p == null ? null : r2(t - p);
 }
 /** Factor de horas de EXAMEN según la brecha: +10 % por punto por debajo del objetivo (máx. +30 %), −10 % como mucho si vas holgado. Heurístico. */
 const boostFactor = (gap               ) => gap == null ? 1 : r2(clamp(1 + 0.1 * gap, 0.9, 1.3));
-function boosts(g                   , grades         , subjects                                      )                         {
+function boosts(g                   , grades         , subjects                                      , today        )                         {
   const o                         = {};
-  for (const s of subjects) if (!s.archived) { const f = boostFactor(gapOf(g, grades, s.id)); if (f !== 1) o[s.id] = f; }
+  for (const s of subjects) if (!s.archived) { const f = boostFactor(gapOf(g, grades, s.id, today)); if (f !== 1) o[s.id] = f; }
   return o;
 }
-function overall(g                   , grades         , subjects                                                    ) {
-  const rows = subjects.filter(s => !s.archived).map(s => ({ id: s.id, name: s.name, ...projected(g, grades, s.id), target: subjectTarget(g, s.id), gap: gapOf(g, grades, s.id) }));
+/** Media estimada de 2.º = media de lo que «llevas» en cada asignatura con notas. */
+function overall(g                   , grades         , subjects                                                    , today        ) {
+  const rows = subjects.filter(s => !s.archived).map(s => ({ id: s.id, name: s.name, ...projected(g, grades, s.id, today), target: subjectTarget(g, s.id), gap: gapOf(g, grades, s.id, today) }));
   const vals = rows.filter(r => r.value != null);
   const media = vals.length ? r2(vals.reduce((a, r) => a + r.value , 0) / vals.length) : null;
-  const tv = rows.filter(r => r.value != null && r.target != null);
+  const tv = rows.filter(r => r.target != null);
   const target = tv.length ? r2(tv.reduce((a, r) => a + r.target , 0) / tv.length) : null;
   const worst = rows.filter(r => r.gap != null && r.gap > 0).sort((a, b) => b.gap  - a.gap  || a.name.localeCompare(b.name))[0] ?? null;
   return { rows, media, target, gap: media != null && target != null ? r2(target - media) : null, worst, covered: vals.length, total: rows.length };
 }
-/** Nota de acceso de fase general = 0,6·media de bachillerato + 0,4·PAU (sobre 10). No modela ponderaciones ni fase voluntaria. */
-function accessInfo(g                   , media               ) {
-  const pau = g?.pauExpected ?? null, acc = g?.accessTarget ?? null;
-  const access = media != null && pau != null ? r2(0.6 * media + 0.4 * pau) : null;
-  const needMedia = acc != null && pau != null ? r2((acc - 0.4 * pau) / 0.6) : null;
-  return { access, needMedia, feasible: needMedia == null ? null : needMedia <= 10 };
-}
-/** Tendencia: media de las 2 últimas notas menos la media de las anteriores (necesita ≥3 notas). */
-function trend(grades         , sid        )                {
-  const gs = grades.filter(x => x.subjectId === sid).sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
-  if (gs.length < 3) return null;
-  const last = gs.slice(-2), prev = gs.slice(0, -2), m = (a         ) => a.reduce((s, x) => s + x.score, 0) / a.length;
-  return r2(m(last) - m(prev));
+/** Nota de acceso de fase general = 0,6·nota media de bachillerato + 0,4·PAU (sobre 10). La media de bachillerato = media de 1.º y de 2.º. No modela ponderaciones ni fase voluntaria. */
+function accessInfo(g                   , media2               ) {
+  const pau = g?.pauExpected ?? null, acc = g?.accessTarget ?? null, p1 = g?.prevAvg ?? null;
+  const nmb = media2 != null ? (p1 != null ? r2((p1 + media2) / 2) : media2) : null;
+  const access = nmb != null && pau != null ? r2(0.6 * nmb + 0.4 * pau) : null;
+  const nmbNeed = acc != null && pau != null ? (acc - 0.4 * pau) / 0.6 : null;
+  const needMedia = nmbNeed == null ? null : r2(p1 != null ? 2 * nmbNeed - p1 : nmbNeed);
+  return { nmb, access, needMedia, feasible: needMedia == null ? null : needMedia <= 10 };
 }
 
 // ---------- Temario y repaso espaciado ----------
@@ -1015,37 +1018,7 @@ function macro(a                                                                
   const status = a.topics.length === 0 ? 'sin temario' : need === 0 ? 'bien' : left === 0 ? (need > 0 ? 'no llegas' : 'bien') : ratio  >= 1.3 ? 'bien' : ratio  >= 1 ? 'justo' : 'no llegas';
   return { past: false         , days, weeks: Math.round(days / 7), weekCap, phase, phases, needMin: need, capCoverageMin: capCov, capTotalMin: capAll, maintNowWeekMin: mt.nowWeekMin, maintSteadyWeekMin: mt.steadyWeekMin, backlog, status, seenPct: seen == null ? null : Math.round(100 * seen), expectedPct: expected == null ? null : Math.round(100 * expected) };
 }
-
-// ---------- Revisión semanal ----------
-                                                                                                           
-function weekReview(a                                                                                                                                                                                                      ) {
-  const from = addDays(a.today, -7), to = addDays(a.today, -1);
-  const bs = a.blocks.filter(b => b.date >= from && b.date <= to && b.status !== 'rescheduled');
-  const sub = new Map(a.works.map(w => [w.id, w.subjectId]));
-  let planned = 0, done = 0, dS = 0, sS = 0, skipped = 0; const by                         = {};
-  for (const b of bs) { planned += dur(b); if (b.status === 'done') { const m = mins(b); done += m; dS += dur(b); const s = sub.get(b.workId) ?? '?'; by[s] = (by[s] ?? 0) + m; } else if (b.status === 'skipped') { sS += dur(b); skipped++; } }
-  const compliance = dS + sS ? Math.round(100 * dS / (dS + sS)) : null;
-  const lines            = [];
-  if (planned === 0) lines.push({ kind: 'tip', text: 'La semana pasada no hubo sesiones planificadas: no hay datos para valorar.' });
-  else if (compliance != null) {
-    if (compliance < 60 && dS + sS >= 120) { const v = Math.max(60, Math.round(a.settings.maxDayMin * 0.85 / 15) * 15); lines.push({ kind: 'warn', text: `Cumpliste el ${compliance} % de lo resuelto. Un plan que no se cumple pierde valor: conviene bajar el máximo diario (de ${a.settings.maxDayMin} a ${v} min) y que el calendario llene menos.`, action: v < a.settings.maxDayMin ? { a: 'maxDay', v } : undefined }); }
-    else if (compliance >= 90 && done >= 180) lines.push({ kind: 'ok', text: `Cumpliste el ${compliance} %: el plan es realista para ti. Si quieres más margen en una asignatura floja, es buen momento para subir su peso.` });
-    else lines.push({ kind: 'tip', text: `Cumplimiento ${compliance} % (${dS} de ${dS + sS} min resueltos).` });
-  }
-  const ov = overall(a.goals, a.grades, a.subjects), wts = ov.rows.map(r => ({ r, w: Math.max(0.5, 1 + (r.gap ?? 0)) })), W = wts.reduce((s, x) => s + x.w, 0);
-  if (done >= 120 && ov.covered > 0) for (const { r, w } of wts) {
-    const exp = Math.round(100 * w / W), got = Math.round(100 * (by[r.id] ?? 0) / done);
-    if (r.gap != null && r.gap > 0.5 && got + 10 <= exp) lines.push({ kind: 'warn', text: `${r.name}: ${got} % del tiempo frente a ~${exp} % que pide su brecha (te faltan ${String(r.gap).replace('.', ',')} puntos para tu objetivo).` });
-  }
-  const lastWeekGrades = a.grades.filter(g => g.date >= from && g.date <= to);
-  if (lastWeekGrades.length) lines.push({ kind: 'tip', text: `Notas nuevas esta semana: ${lastWeekGrades.length}. Media proyectada actual: ${ov.media == null ? '—' : String(ov.media).replace('.', ',')}.` });
-  const exams = a.works.filter(w => w.kind === 'exam' && w.dueDate >= from && w.dueDate <= to && !a.grades.some(g => g.workId === w.id));
-  if (exams.length) lines.push({ kind: 'warn', text: `Falta la nota de: ${exams.map(w => w.title).join(', ')}. Sin ella la proyección no se actualiza.` });
-  if (a.reviewsDue) lines.push({ kind: 'tip', text: `Tienes ${a.reviewsDue} repaso(s) del temario por hacer: son 20–25 min cada uno y evitan olvidar.` });
-  const bh = bestHours(a.blocks); if (bh) lines.push({ kind: 'tip', text: `Tus sesiones salen mejor ${bh.label} (media ${String(bh.avg).replace('.', ',')} de 3).` });
-  return { from, to, plannedMin: planned, doneMin: done, skipped, compliance, bySubject: by, lines };
-}
-;return{DEFAULT_GOALS,KIND_W,projected,subjectTarget,gapOf,boostFactor,boosts,overall,accessInfo,trend,INTERVALS,LEVELS,newTopic,setMastery,reviewDone,syncReviews,coverage,coverageByCourse,maintenance,TOPIC_NEED,stampBase,learnedPace,QUALITY,bestHours,macro,weekReview}})();
+;return{DEFAULT_GOALS,evalOfDate,gradeEval,evalSummary,projected,subjectTarget,gapOf,boostFactor,boosts,overall,accessInfo,INTERVALS,LEVELS,newTopic,setMastery,reviewDone,syncReviews,coverage,coverageByCourse,maintenance,TOPIC_NEED,stampBase,learnedPace,QUALITY,bestHours,macro}})();
 const ST=(()=>{                                                   
 const dur = (b       ) => b.end - b.start;
 /**
@@ -1075,7 +1048,7 @@ function stats(blocks         , works        , _now     ) {
 }
 ;return{stats}})();
 const {plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='e1528a5d89',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='f076cce1d4',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -1120,7 +1093,7 @@ function syncPred(){let l=S.estimateLog||[];for(const w of S.works){const e=w.es
 let LAST=null,PENDING=false,CH=[],CHOOSING=false;
 const habitAsBlocks=()=>(S.habit||[]).filter(h=>h.status==='planned'||h.status==='done').map(h=>({id:h.id,workId:'',date:h.date,start:h.start,end:h.end,status:'planned',manual:false}));
 function ensureG(Sx){if(!Sx.goals)Sx.goals={...GL.DEFAULT_GOALS,prev:{},subjTarget:{}};if(!Array.isArray(Sx.grades))Sx.grades=[];if(!Array.isArray(Sx.syllabus))Sx.syllabus=[]}
-function scheduleOf(Sx,quiet){ensureG(Sx);const n=now();Sx.works=GL.syncReviews(Sx.works,Sx.blocks,Sx.syllabus,Sx.subjects,n.date,sid=>GL.gapOf(Sx.goals,Sx.grades,sid)).works;Sx.works=reestimate(Sx.works,Sx.blocks,ctxOf(Sx));Sx.works=GL.stampBase(Sx.works,GL.learnedPace(Sx.works,Sx.blocks));return proposeSchedule({boost:GL.boosts(Sx.goals,Sx.grades,Sx.subjects),settings:Sx.settings,works:Sx.works,blocks:Sx.blocks,activities:Sx.activities||[],routine:Sx.routine||DEFAULT_ROUTINE,habit:Sx.habit||[],now:now(),quiet,declined:(Sx.routine&&Sx.routine.declined)||[]})}
+function scheduleOf(Sx,quiet){ensureG(Sx);const n=now();Sx.works=GL.syncReviews(Sx.works,Sx.blocks,Sx.syllabus,Sx.subjects,n.date,sid=>GL.gapOf(Sx.goals,Sx.grades,sid,n.date)).works;Sx.works=reestimate(Sx.works,Sx.blocks,ctxOf(Sx));Sx.works=GL.stampBase(Sx.works,GL.learnedPace(Sx.works,Sx.blocks));return proposeSchedule({boost:GL.boosts(Sx.goals,Sx.grades,Sx.subjects,n.date),settings:Sx.settings,works:Sx.works,blocks:Sx.blocks,activities:Sx.activities||[],routine:Sx.routine||DEFAULT_ROUTINE,habit:Sx.habit||[],now:now(),quiet,declined:(Sx.routine&&Sx.routine.declined)||[]})}
 function finish(Sx,r){const tm={};Sx.works.forEach(w=>{if(w.topics?.length&&(w.status==='pending'||w.status==='in_progress'))Object.assign(tm,assignTopics(w,r.blocks))});Sx.blocks=r.blocks.map(b=>tm[b.id]&&!b.manual&&b.topicId!==tm[b.id]?{...b,topicId:tm[b.id]}:b);Sx.habit=r.habit;W=r.warnings}
 async function persist(){syncPred();S.version=(S.version||0)+1;LAST=JSON.stringify(S);try{await repo.save(S)}catch(e){toast('Error al guardar: '+e.message)}render()}
 function extendRoutine(){const R=S.routine;if(!R||!R.enabled)return;const n=now(),to=addDays(n.date,RTN.HORIZON_DAYS-1);if(R.generatedThrough&&R.generatedThrough>=to)return;const from=R.generatedThrough&&R.generatedThrough>=n.date?addDays(R.generatedThrough,1):n.date;S.habit=[...(S.habit||[]),...generate({settings:S.settings,routine:R,subjects:S.subjects,works:S.works,blocks:S.blocks,activities:S.activities||[],habit:S.habit||[],now:n,from,to})];S.routine={...R,generatedThrough:to}}
@@ -1226,21 +1199,20 @@ const shownWarnings=()=>W.filter(w=>{if(w.type!=='deficit')return true;const x=w
 const dueTxt=w=>isUndated(w)?'Sin fecha':fd(w.dueDate)+(w.dueMinute!=null?' '+fm(w.dueMinute):'');
 const wrow=w=>{const s=sub(w.subjectId),[p,c]=prio(w);return`<div class="card item" style="--c:${s.color}" data-a=${w.kind==='exam'?'editExam':'editTask'} data-id="${w.id}">${w.kind==='task'?`<button class=chk2 data-a=toggle data-id="${w.id}" aria-label="${w.status==='done'?'Reabrir':'Completar'}">${w.status==='done'?'↺':'✓'}</button>`:''}<span class=dot></span><div><b${w.status==='done'?' style="text-decoration:line-through"':''}>${esc(w.title)}</b><small>${esc(s.name)} · ${dueTxt(w)} · ${hr(w.estMin)}${w.kind==='exam'?' · prep. '+w.readiness+'%':''}</small>${estLine(w)}</div>${w.status==='pending'||w.status==='in_progress'?`<span class="tag ${c}">${p}</span>`:`<em>${STS.find(x=>x[0]===w.status)[1]}</em>`}</div>`};
 
-const UIK='focusos.ui',NAVT={obj:'Objetivos y notas',tem:'Temario',cur:'Curso hasta la PAU',rev:'Revisión semanal',hoy:'Hoy',tar:'Tareas',exa:'Exámenes',cal:'Calendario',asg:'Asignaturas',eje:'Ejercicio físico',rut:'Rutina semanal',est:'Estimaciones',seg:'Progreso y estadísticas',aj:'Ajustes'};let UI={rail:false,theme:'dark',open:{plan:true,goal:true,subjects:false}},SF=false;
+const UIK='focusos.ui',NAVT={obj:'Objetivos y notas',tem:'Temario',cur:'Curso hasta la PAU',hoy:'Hoy',tar:'Tareas',exa:'Exámenes',cal:'Calendario',asg:'Asignaturas',eje:'Ejercicio físico',rut:'Rutina semanal',est:'Estimaciones',seg:'Progreso y estadísticas',aj:'Ajustes'};let UI={rail:false,theme:'dark',open:{plan:true,goal:true,subjects:false}},SF=false;
 try{const u=JSON.parse(localStorage.getItem(UIK)||'{}');UI={rail:!!u.rail,theme:['dark','light','auto'].includes(u.theme)?u.theme:'dark',open:{...UI.open,...(u.open||{})},lastExport:+u.lastExport||0}}catch{}
 const saveUI=()=>{try{localStorage.setItem(UIK,JSON.stringify(UI))}catch{}};
 function applyTheme(){try{const t=UI.theme==='auto'?(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):UI.theme;document.documentElement.dataset.theme=t;const m=document.querySelector('meta[name=theme-color]');m&&m.setAttribute('content',t==='light'?'#F6F4EF':'#121214')}catch{}}
 const IC={hoy:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M10 20v-5h4v5"/>',plan:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',rut:'<path d="M17 3.5 20 6.5l-3 3"/><path d="M4 11V9.5a3 3 0 0 1 3-3h13"/><path d="M7 20.5 4 17.5l3-3"/><path d="M20 13v1.5a3 3 0 0 1-3 3H4"/>',tar:'<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1.2 1.2L7 4.8M3.5 12l1.2 1.2L7 10.8M3.5 18l1.2 1.2L7 16.8"/>',exa:'<path d="M6 3.5h9l3 3V20.5H6z"/><path d="M14.5 3.5v4h3.5M9 12h6M9 16h6"/>',est:'<path d="M4 18a8 8 0 1 1 16 0"/><path d="m12 18 4-6"/>',asg:'<path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h12.5v15H7a2.5 2.5 0 0 0-2.5 2.5z"/><path d="M4.5 5.5v15M9 7.5h7"/>',well:'<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',eje:'<path d="M3 12h4l2.5-6 4 12 2.5-6H21"/>',seg:'<path d="M5 20V10M12 20V4M19 20v-7"/>',aj:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',chev:'<path d="m9 6 6 6-6 6"/>',lt:'<path d="m14 7-5 5 5 5"/>',gt:'<path d="m10 7 5 5-5 5"/>'};
 const ic=n=>`<svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false>${IC[n]}</svg>`;
-function renderNav(){const [r,arg]=route.split(':'),cur=k=>r===k?' aria-current=page':'',
+function renderNav(){const [r,arg]=route.split(':'),cur=k=>r===k||(k==='aj'&&r==='asg')?' aria-current=page':'',
  item=(k,g,l)=>`<button class=nv title="${l}" aria-label="${l}" data-a=nav data-r=${k}${cur(k)}>${ic(g)}<span class=lbl>${l}</span></button>`,
  sb=(k,l)=>`<button class="nv sub" aria-label="${l}" data-a=nav data-r=${k}${cur(k)}><span class=lbl>${l}</span></button>`,
  grp=(key,g,l,kids,act)=>`<button class=nv title="${l}" aria-label="${l}" data-a=grp data-g=${key} aria-expanded=${!!UI.open[key]}${act?' aria-current=true':''}>${ic(g)}<span class=lbl>${l}</span><span class=chev>${ic('chev')}</span></button>${UI.open[key]?kids:''}`;
  document.body.classList.toggle('rail',UI.rail);
  $('#nav').innerHTML=`<div class=brand><span>Focus OS</span><button data-a=rail aria-label="${UI.rail?'Expandir':'Contraer'} menú">${ic(UI.rail?'gt':'lt')}</button></div>`+item('hoy','hoy','Hoy')
  +grp('plan','plan','Planificar',sb('cal','Calendario')+sb('rut','Rutina semanal')+sb('tar','Tareas')+sb('exa','Exámenes')+sb('est','Estimaciones'),['cal','rut','tar','exa','est'].includes(r))
- +grp('subjects','asg','Asignaturas',`<button class="nv sub" aria-label="Todas las asignaturas" data-a=nav data-r=asg${r==='asg'&&!arg?' aria-current=page':''}><span class=lbl>Todas</span></button>`+S.subjects.filter(s=>!s.archived).map(s=>`<button class="nv sub" aria-label="${esc(s.name)}" data-a=nav data-r="asg:${esc(s.id)}"${r==='asg'&&arg===s.id?' aria-current=page':''}><span class=dot style="--c:${sub(s.id).color}"></span><span class=lbl>${esc(s.name)}</span></button>`).join(''),r==='asg')
- +grp('goal','seg','Objetivos',sb('obj','Notas y objetivo')+sb('tem','Temario')+sb('cur','Curso hasta la PAU')+sb('rev','Revisión semanal'),['obj','tem','cur','rev'].includes(r))
+ +grp('goal','seg','Objetivos',sb('obj','Notas y objetivo')+sb('tem','Temario')+sb('cur','Curso hasta la PAU'),['obj','tem','cur'].includes(r))
  +item('eje','eje','Ejercicio físico')+item('seg','seg','Progreso y estadísticas')+item('aj','aj','Ajustes')}
 function setSubjectColor(id,color){const s=S.subjects.find(x=>x.id===id);if(!s||!/^#[0-9a-fA-F]{6}$/.test(color))return'Color no válido.';if(colorConflict(S.subjects,id,color)){render();return'Ese color ya lo usa otra asignatura.'}
  const ck=s.colorKey;S.subjects=S.subjects.map(x=>x.id!==id?x:{...x,userColor:ck&&color.toLowerCase()===DEFAULT_SUBJECT_COLORS[ck].toLowerCase()?undefined:color});commit();return null}
@@ -1397,29 +1369,34 @@ async function boot(){applyTheme();let r;try{r=await repo.load()}catch(e){r={err
 const n1=x=>x==null?'—':String(Math.round(x*10)/10).replace('.',','),pn=x=>x===''||x==null?null:+String(x).replace(',','.'),monOf=d=>addDays(d,-((weekday(d)+6)%7));
 const subsAct=()=>S.subjects.filter(s=>!s.archived);
 const barH=(p,c)=>`<div class=bar><i style="width:${Math.min(100,p||0)}%;background:${c||'var(--accent)'}"></i></div>`;
-function gradeForm(id,pre){ensureG(S);const g=id?S.grades.find(x=>x.id===id):null,p=pre||{},sj=g?.subjectId||p.subjectId||subsAct()[0]?.id;
- openForm(id?'Editar nota':'Nueva nota',[{k:'subjectId',l:'Asignatura',t:'chips',o:subsAct().map(s=>[s.id,s.name,sub(s.id).color]),v:sj},{k:'kind',l:'Tipo',t:'chips',o:[['examen','Examen'],['tarea','Tarea o trabajo'],['evaluacion','Nota de evaluación']],v:g?.kind||p.kind||'examen'},{k:'score',l:'Nota (0 a 10)',t:'number',min:0,max:10,step:'0.01',v:g?.score??''},{k:'date',l:'Fecha',t:'date',v:g?.date||p.date||now().date},{k:'label',l:'Detalle (opcional)',t:'text',v:g?.label||p.label||''}],v=>{
-  const sc=pn(v.score);if(!(sc!=null&&sc>=0&&sc<=10))return'La nota debe estar entre 0 y 10.';if(!okDate(v.date))return'Revisa la fecha.';if(!S.subjects.some(x=>x.id===v.subjectId))return'Elige una asignatura.';
-  const o={id:g?.id||uid(),subjectId:v.subjectId,score:Math.round(sc*100)/100,kind:v.kind,date:v.date,label:(v.label||'').trim()||undefined,workId:g?.workId||p.workId||undefined};
-  S.grades=g?S.grades.map(x=>x.id===g.id?o:x):[...S.grades,o];commit({quiet:true})},g&&(()=>{S.grades=S.grades.filter(x=>x.id!==g.id);commit({quiet:true})}))}
+const EVN={1:'1.ª evaluación',2:'2.ª evaluación',3:'3.ª evaluación · nota final'};let OBJEV=null;
+function gradeForm(id,pre){ensureG(S);const g=id?S.grades.find(x=>x.id===id):null,p=pre||{},sj=g?.subjectId||p.subjectId||subsAct()[0]?.id,dt=g?.date||p.date||now().date,ev=g?GL.gradeEval(g):p.evalNo||GL.evalOfDate(dt);
+ openForm(id?'Editar nota':'Añadir nota de examen',[{k:'subjectId',l:'Asignatura',t:'chips',o:subsAct().map(s=>[s.id,s.name,sub(s.id).color]),v:sj},{k:'evalNo',l:'Evaluación',t:'chips',o:[['1','1.ª'],['2','2.ª'],['3','3.ª · final']],v:String(ev)},{k:'weight',l:'Porcentaje que valía el examen (% de la evaluación)',t:'number',min:0.1,max:100,step:'0.1',v:g?.weight??p.weight??''},{k:'score',l:'Nota sacada (0 a 10)',t:'number',min:0,max:10,step:'0.01',v:g?.score??''},{k:'label',l:'Examen o tema (opcional)',t:'text',v:g?.label||p.label||''},{k:'date',l:'Fecha',t:'date',v:dt}],v=>{
+  const sc=pn(v.score),wt=pn(v.weight),en=+v.evalNo;if(!(sc!=null&&sc>=0&&sc<=10))return'La nota debe estar entre 0 y 10.';if(!(wt!=null&&wt>0&&wt<=100))return'El porcentaje debe estar entre 0 y 100.';if(!okDate(v.date))return'Revisa la fecha.';if(!S.subjects.some(x=>x.id===v.subjectId))return'Elige una asignatura.';if(![1,2,3].includes(en))return'Elige la evaluación.';
+  const used=S.grades.filter(x=>x.subjectId===v.subjectId&&GL.gradeEval(x)===en&&x.id!==g?.id&&typeof x.weight==='number').reduce((a,x)=>a+x.weight,0);if(used+wt>100.0001)return`En la ${en}.ª evaluación de ${sub(v.subjectId).name} ya llevas ${String(Math.round(used*10)/10).replace('.',',')} % registrado: con este pasaría de 100 %.`;
+  const o={id:g?.id||uid(),subjectId:v.subjectId,score:Math.round(sc*100)/100,weight:Math.round(wt*10)/10,evalNo:en,date:v.date,label:(v.label||'').trim()||undefined,workId:g?.workId||p.workId||undefined};
+  S.grades=g?S.grades.map(x=>x.id===g.id?o:x):[...S.grades,o];OBJEV=en;commit({quiet:true})},g&&(()=>{S.grades=S.grades.filter(x=>x.id!==g.id);commit({quiet:true})}))}
 function goalsForm(){ensureG(S);const g=S.goals,ss=subsAct();
  openForm('Objetivo y punto de partida',[{k:'target',l:'Nota media que quieres en cada asignatura (5 a 10)',t:'number',min:5,max:10,step:'0.1',v:g.target??''},
-  {k:'prevAvg',l:'Nota media de 1.º de Bachillerato (0 a 10)',t:'number',min:0,max:10,step:'0.01',v:g.prevAvg??''},
+  {k:'prevAvg',l:'Nota media de 1.º de Bachillerato (para la nota de acceso)',t:'number',min:0,max:10,step:'0.01',v:g.prevAvg??''},
   {t:'more',l:'Objetivo distinto en alguna asignatura (opcional)'},...ss.map(s=>({k:'t_'+s.id,l:s.name,t:'number',min:5,max:10,step:'0.1',v:g.subjTarget[s.id]??''})),{t:'end'},
   {t:'more',l:'PAU y nota de acceso (opcional)'},{k:'pauDate',l:'Primer día de la PAU',t:'date',v:g.pauDate||''},{k:'pauExpected',l:'Nota que esperas en la PAU (0 a 10)',t:'number',min:0,max:10,step:'0.1',v:g.pauExpected??''},{k:'accessTarget',l:'Nota de acceso que buscas (sobre 10, fase general)',t:'number',min:5,max:10,step:'0.01',v:g.accessTarget??''},{t:'end'}],v=>{
   const num=(k,a,b)=>{const x=pn(v[k]);return x==null?null:(x>=a&&x<=b?x:NaN)},tg=num('target',5,10);if(Number.isNaN(tg))return'El objetivo va de 5 a 10.';
   const pa=num('prevAvg',0,10);if(Number.isNaN(pa))return'La media de 1.º va de 0 a 10.';const st={};for(const s of ss){const t=num('t_'+s.id,5,10);if(Number.isNaN(t))return'Revisa el objetivo de '+s.name+' (5–10).';if(t!=null)st[s.id]=t}
   const pe=num('pauExpected',0,10),at=num('accessTarget',5,10);if(Number.isNaN(pe)||Number.isNaN(at))return'Revisa los datos de la PAU.';if(v.pauDate&&!okDate(v.pauDate))return'Revisa la fecha de la PAU.';
   S.goals={...g,target:tg,prevAvg:pa,subjTarget:st,pauDate:v.pauDate||null,start:v.pauDate?(g.start||now().date):null,pauExpected:pe,accessTarget:at};commit({quiet:true})})}
-V.obj=()=>{ensureG(S);const g=S.goals,ov=GL.overall(g,S.grades,S.subjects),ac=GL.accessInfo(g,ov.media),td=now().date,pend=S.works.filter(w=>w.kind==='exam'&&w.dueDate<td&&w.status!=='archived'&&!S.grades.some(x=>x.workId===w.id));
- const head=`<h1>Objetivos y notas</h1><div class=row style="justify-content:flex-start;margin:0 0 14px"><button class=pri data-a=addGrade>+ Nota</button><button data-a=editGoals>${g.target==null?'Definir objetivo':'Editar objetivo'}</button></div>`;
- const sum=g.target==null?`<div class=card><h3>Aún no hay objetivo</h3><p class=m>Dime la nota que buscas, tu media de 1.º y las notas que llevas en 2.º. Con eso la app calcula tu brecha y dedica más horas de examen a lo que más te acerca a tu meta.</p><button class=pri data-a=editGoals>Definir objetivo</button></div>`
- :`<div class=card><h3>Media proyectada ${n1(ov.media)} · objetivo ${n1(ov.target)}</h3><p class=m>${ov.gap==null?'Introduce notas o tus notas de 1.º para proyectar.':ov.gap>0?`Te faltan <b>${n1(ov.gap)}</b> puntos${ov.worst?` · mayor brecha: <b>${esc(ov.worst.name)}</b> (${n1(ov.worst.gap)})`:''}.`:'Vas por encima de tu objetivo.'} Proyección con ${ov.covered} de ${ov.total} asignaturas (heurística: ${GL.KIND_W.examen} examen · ${GL.KIND_W.tarea} tarea · ${GL.KIND_W.evaluacion} evaluación; las recientes pesan algo más).</p>${ac.access!=null?`<p class=m>Nota de acceso estimada (0,6·media + 0,4·PAU): <b>${n1(ac.access)}</b>${ac.needMedia!=null?` · para tu nota de acceso objetivo necesitas una media de <b>${n1(ac.needMedia)}</b>${ac.feasible?'':' (no alcanzable solo con la media: revisa el objetivo)'}`:''}. No incluye ponderaciones ni fase voluntaria.</p>`:ac.needMedia!=null?`<p class=m>Para tu nota de acceso objetivo necesitas una media de <b>${n1(ac.needMedia)}</b>.</p>`:''}</div>`;
- const rows=ov.rows.map(r=>{const t=GL.trend(S.grades,r.id),f=GL.boostFactor(r.gap);return`<tr><td><span class=dot style="--c:${sub(r.id).color}"></span> ${esc(r.name)}</td><td>${n1(S.goals.prev[r.id]??S.goals.prevAvg)}</td><td>${r.n}</td><td><b>${n1(r.value)}</b></td><td>${n1(r.target)}</td><td class="${r.gap>0.5?'neg':''}">${r.gap==null?'—':r.gap===0?'0':(r.gap>0?'−':'+')+n1(Math.abs(r.gap))}</td><td>${t==null?'—':(t>0?'↑ ':t<0?'↓ ':'→ ')+n1(Math.abs(t))}</td><td>${r.gap==null?'—':'×'+String(f).replace('.',',')}</td></tr>`}).join('');
- const tab=`<div class=tblw><table class=tbl><thead><tr><th>Asignatura</th><th>Punto de partida</th><th>Notas</th><th>Proyectada</th><th>Objetivo</th><th>Brecha</th><th>Tendencia</th><th>Horas de examen</th></tr></thead><tbody>${rows}</tbody></table></div><p class=m>«Horas de examen»: +10 % por punto de brecha (máx. +30 %), hasta −10 % si vas holgado. Solo afecta a exámenes; las tareas siempre se planifican completas.</p>`;
+V.obj=()=>{ensureG(S);const g=S.goals,td=now().date,ev=OBJEV||GL.evalOfDate(td),ov=GL.overall(g,S.grades,S.subjects,td),ac=GL.accessInfo(g,ov.media),pend=S.works.filter(w=>w.kind==='exam'&&w.dueDate<td&&w.status!=='archived'&&!S.grades.some(x=>x.workId===w.id));
+ const head=`<h1>Objetivos y notas</h1><div class=row style="justify-content:flex-start;margin:0 0 14px"><button class=pri data-a=addGrade>+ Nota de examen</button><button data-a=editGoals>${g.target==null?'Definir objetivo':'Editar objetivo'}</button></div>`;
+ const sum=g.target==null?`<div class=card><h3>Aún no hay objetivo</h3><p class=m>Dime la nota que buscas en cada asignatura. Cada vez que apuntes un examen (con su nota y el porcentaje que valía), la app te dirá qué nota necesitas sacar en lo que queda de la evaluación.</p><button class=pri data-a=editGoals>Definir objetivo</button></div>`
+ :`<div class=card><h3>Objetivo ${n1(ov.target)}${ov.media!=null?` · llevas ${n1(ov.media)} de media`:''}</h3><p class=m>${ov.media==null?'Apunta tus primeros exámenes para ver cómo vas.':`La media es la de tus asignaturas con notas (${ov.covered} de ${ov.total}), en la evaluación actual o la última con datos.${ov.covered<ov.total?' La nota de acceso será fiable cuando estén todas.':''}`}</p>${ac.access!=null?`<p class=m>Nota de acceso estimada (0,6 · media de bachillerato ${n1(ac.nmb)} + 0,4 · PAU): <b>${n1(ac.access)}</b>${ac.needMedia!=null?` · para tu nota de acceso objetivo necesitas una media de 2.º de <b>${n1(ac.needMedia)}</b>${ac.feasible?'':' (no alcanzable: revisa el objetivo)'}`:''}. No incluye ponderaciones ni fase voluntaria.</p>`:ac.needMedia!=null?`<p class=m>Para tu nota de acceso objetivo necesitas una media de 2.º de <b>${n1(ac.needMedia)}</b>.</p>`:''}</div>`;
+ const tabs=`<div class=row style="justify-content:flex-start;margin:6px 0 4px" role=group aria-label="Evaluación">${[1,2,3].map(e=>`<button data-a=objEv data-k=${e} aria-pressed=${e===ev} class="${e===ev?'on':''}">${e===3?'3.ª · final':e+'.ª'}</button>`).join('')}</div><p class=m>${EVN[ev]}${ev===3?' = nota final de 2.º de Bachillerato.':'.'} Las notas de la 1.ª y la 2.ª se guardan para ver tu evolución.</p>`;
+ const rows=subsAct().map(s=>{const t=GL.subjectTarget(g,s.id),r=GL.evalSummary(S.grades,s.id,ev,t),st=r.status;
+  const need=t==null?'—':r.remW===0?'—':st==='cumplido'?'✓ Ya cumples':st==='imposible'?`<span class=neg>No llegas (máx. ${n1(r.max)})</span>`:`<b>${n1(r.need)}</b>`;
+  return`<tr><td><span class=dot style="--c:${sub(s.id).color}"></span> ${esc(s.name)}</td><td>${r.cur==null?'—':'<b>'+n1(r.cur)+'</b>'}</td><td class="${r.over?'neg':''}">${String(r.doneW).replace('.',',')} %</td><td>${n1(t)}</td><td>${need}</td></tr>`}).join('');
+ const tab=`<div class=tblw><table class=tbl><thead><tr><th>Asignatura</th><th>Llevas</th><th>% evaluado</th><th>Objetivo</th><th>Necesitas en el resto</th></tr></thead><tbody>${rows}</tbody></table></div><p class=m><b>Llevas:</b> tu media de lo ya evaluado. <b>Necesitas en el resto:</b> la nota media que tendrías que sacar en el porcentaje que aún no se ha evaluado para llegar a tu objetivo. Si pasa de 10, el objetivo ya no es alcanzable y se indica el máximo posible. Las asignaturas más lejos de su objetivo reciben más horas de examen en el calendario.</p>`;
  const pd=pend.length?`<h2>Pendientes de nota</h2>${pend.map(w=>`<div class="card item" style="--c:${sub(w.subjectId).color}"><span class=dot></span><div><b>${esc(sub(w.subjectId).name)} · ${esc(w.title)}</b><small>${w.dueDate}</small></div><button data-a=gradeFor data-id="${w.id}">Poner nota</button></div>`).join('')}`:'';
- const gl=[...S.grades].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).map(x=>`<div class="card item" style="--c:${sub(x.subjectId).color}" data-a=editGrade data-id="${x.id}" role=button tabindex=0><span class=dot></span><div><b>${n1(x.score)} · ${esc(sub(x.subjectId).name)}</b><small>${{examen:'Examen',tarea:'Tarea',evaluacion:'Evaluación'}[x.kind]} · ${x.date}${x.label?' · '+esc(x.label):''}</small></div></div>`).join('')||'<div class=empty>Todavía no hay notas guardadas.</div>';
- return head+sum+(g.target!=null||S.grades.length||g.prevAvg!=null||Object.keys(g.prev).length?'<h2>Por asignatura</h2>'+tab:'')+pd+'<h2>Notas</h2>'+gl};
+ const gs=S.grades.filter(x=>GL.gradeEval(x)===ev).sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)),gl=gs.map(x=>`<div class="card item" style="--c:${sub(x.subjectId).color}" data-a=editGrade data-id="${x.id}" role=button tabindex=0><span class=dot></span><div><b>${n1(x.score)} · ${esc(sub(x.subjectId).name)}${typeof x.weight==='number'?' · '+String(x.weight).replace('.',',')+' %':''}</b><small>${x.date}${x.label?' · '+esc(x.label):''}${typeof x.weight!=='number'?' · falta el porcentaje: tócala para completarla':''}</small></div></div>`).join('')||'<div class=empty>Todavía no hay notas en esta evaluación.</div>';
+ return head+sum+'<h2>Cómo vas</h2>'+tabs+tab+pd+'<h2>Notas de esta evaluación</h2>'+gl};
 V.tem=()=>{ensureG(S);const td=now().date;
  const ss=subsAct().map(s=>{const c=GL.coverage(S.syllabus,s.id),ts=S.syllabus.filter(t=>t.subjectId===s.id).sort((a,b)=>a.createdAt-b.createdAt||a.name.localeCompare(b.name));
   return`<div class=card style="--c:${sub(s.id).color}"><h3><span class=dot></span> ${esc(s.name)}</h3><p class=m>${c.n?`${c.seen} de ${c.n} temas vistos · dominio ${c.pctMastery} %`:'Sin temas todavía'}</p>${c.n?barH(c.pctMastery,sub(s.id).color):''}${[1,2].map(cr=>{const l=ts.filter(t=>(t.course??2)===cr);return l.length?`<h4 class=cr>${cr}.º de Bachillerato</h4>`+l.map(t=>`<div class=trow><div class=tn><b>${esc(t.name)}</b><small>${t.mastery?(t.next?(t.next<=td?'Repaso toca ya':'Próximo repaso: '+fd(t.next)):''):'Sin ver'}${t.reviews?' · '+t.reviews+' repasos':''}</small></div><div class=lv role=group aria-label="Nivel de ${esc(t.name)}">${GL.LEVELS.map((l,i)=>`<button data-a=lvl data-id="${t.id}" data-k=${i} aria-pressed=${t.mastery===i} class="${t.mastery===i?'on':''}">${l}</button>`).join('')}<button data-a=editTopic data-id="${t.id}" aria-label="Editar tema">Editar</button></div></div>`).join(''):''}).join('')}<div class=row style="justify-content:flex-start;margin-top:10px"><button data-a=addTopics data-id="${s.id}">+ Temas</button></div></div>`}).join('');
@@ -1436,25 +1413,21 @@ V.cur=()=>{ensureG(S);const m=GL.macro({goals:S.goals,topics:S.syllabus,settings
  const msg=m.status==='sin temario'?'Añade los temas de cada asignatura en Temario para poder comparar lo que falta con tu capacidad.':m.status==='no llegas'?`Faltan unos ${hh(m.needMin)} de trabajo (orientativo) y solo caben unos ${hh(m.capCoverageMin)} antes de la fase de práctica. Faltan ~${hh(Math.max(0,m.needMin-m.capCoverageMin))}: amplía la disponibilidad, sube el máximo diario o prioriza los temas más flojos.`:`Faltan unos ${hh(m.needMin)} de trabajo (orientativo) y caben unos ${hh(m.capCoverageMin)} antes de la fase de práctica.`;
  const cov=subsAct().map(s=>{const c=GL.coverage(S.syllabus,s.id);return c.n?`<div class=trow><div class=tn><b>${esc(s.name)}</b><small>${c.seen}/${c.n} temas vistos</small></div>${barH(c.pctSeen,sub(s.id).color)}</div>`:''}).join('');
  return`<h1>Curso hasta la PAU</h1><div class=card><h3>${m.days} días (${m.weeks} semanas)</h3><p class=m>Fase actual: <b>${esc(m.phase.label)}</b> (hasta ${fd(m.phase.to)})</p>${m.phases.map(p=>`<div class="trow ph${p.id===m.phase.id?' on':''}"><div class=tn><b>${esc(p.label)}</b><small>${fd(p.from>td?p.from:p.from)} – ${fd(p.to)}</small></div></div>`).join('')}</div>
- <div class=card><h3>${st}</h3><p class=m>${msg}</p><p class=m>Capacidad teórica: ${hh(m.weekCap)} por semana (según tus ajustes); se asume que cumples el 70 %. Hasta la PAU: ~${hh(m.capTotalMin)}. Las horas por tema son heurísticas (sin ver 2 h, visto 1 h, entendido 30 min).</p><p class=m><b>Todo se arrastra hasta la PAU:</b> el repaso de lo ya visto te cuesta ahora ~${hh(m.maintNowWeekMin)} por semana (ya descontado de lo que queda para temario nuevo) y, con todo el temario visto, subirá a ~${hh(m.maintSteadyWeekMin)} por semana.${m.backlog?` Tienes <b>${m.backlog}</b> repasos atrasados.`:''}</p>${m.seenPct!=null?`<p class=m>Temario visto: <b>${m.seenPct} %</b>${m.expectedPct!=null?` · esperado a hoy en una progresión lineal: ${m.expectedPct} %`:''}</p>`:''}</div>${cov?'<h2>Cobertura por asignatura</h2>'+cov:''}${S.syllabus.length?'<h2>Cobertura por curso</h2>'+GL.coverageByCourse(S.syllabus).filter(c=>c.n).map(c=>`<div class=trow><div class=tn><b>${c.course}.º de Bachillerato</b><small>${c.seen}/${c.n} temas vistos · dominio ${c.pctMastery} %</small></div>${barH(c.pctSeen)}</div>`).join(''):''}`};
-V.rev=()=>{ensureG(S);const td=now().date,due=S.works.filter(w=>w.auto==='review'&&(w.status==='pending'||w.status==='in_progress')).length,r=GL.weekReview({blocks:S.blocks,works:S.works,subjects:S.subjects,grades:S.grades,goals:S.goals,settings:S.settings,today:td,reviewsDue:due});
- const bys=Object.entries(r.bySubject).sort((a,b)=>b[1]-a[1]).map(([id,m])=>`<div class=trow><div class=tn><b>${esc(sub(id).name)}</b><small>${hr(m)}</small></div>${barH(r.doneMin?100*m/r.doneMin:0,sub(id).color)}</div>`).join('');
- return`<h1>Revisión semanal</h1><p class=m>Del ${fd(r.from)} al ${fd(r.to)}</p><div class=card><div class=kpis><div><b>${hr(r.plannedMin)}</b><small>planificado</small></div><div><b>${hr(r.doneMin)}</b><small>completado</small></div><div><b>${r.compliance==null?'—':r.compliance+' %'}</b><small>cumplimiento</small></div><div><b>${r.skipped}</b><small>omitidas</small></div></div></div>
- ${r.lines.length?'<h2>Qué ajustar</h2>'+r.lines.map(l=>`<div class="card rl ${l.kind}"><span>${esc(l.text)}</span>${l.action?`<button class=pri data-a=revApply data-v=${l.action.v}>Aplicar</button>`:''}</div>`).join(''):''}${bys?'<h2>Dónde fue el tiempo</h2>'+bys:''}<div class=row style="justify-content:flex-start;margin-top:14px"><button class=pri data-a=revSeen>${S.reviewedOn===monOf(td)?'Revisada ✓':'Marcar como revisada'}</button></div>`};
-const hoyExtra=()=>{ensureG(S);const td=now().date,g=S.goals,ov=GL.overall(g,S.grades,S.subjects);let h='';
- if(g.target!=null&&ov.media!=null)h+=`<div class="card item" data-a=nav data-r=obj role=button tabindex=0><div><b>Media proyectada ${n1(ov.media)} · objetivo ${n1(ov.target)}</b><small>${ov.gap>0?`Te faltan ${n1(ov.gap)} puntos${ov.worst?' · más brecha: '+esc(ov.worst.name):''}`:'Por encima de tu objetivo'}</small></div></div>`;
+ <div class=card><h3>${st}</h3><p class=m>${msg}</p><p class=m>Capacidad teórica: ${hh(m.weekCap)} por semana (según tus ajustes); se asume que cumples el 70 %. Hasta la PAU: ~${hh(m.capTotalMin)}. Las horas por tema son heurísticas (sin ver 2 h, visto 1 h, entendido 30 min).</p><p class=m><b>Todo se arrastra hasta la PAU:</b> el repaso de lo ya visto te cuesta ahora ~${hh(m.maintNowWeekMin)} por semana (ya descontado de lo que queda para temario nuevo) y, con todo el temario visto, subirá a ~${hh(m.maintSteadyWeekMin)} por semana.${m.backlog?` Tienes <b>${m.backlog}</b> repasos atrasados.`:''}</p>${m.seenPct!=null?`<p class=m>Temario visto: <b>${m.seenPct} %</b>${m.expectedPct!=null?` · esperado a hoy en una progresión lineal: ${m.expectedPct} %`:''}</p>`:''}</div>${(()=>{const b=GL.bestHours(S.blocks);return b?`<div class=card><p class=m>Tus sesiones salen mejor ${b.label} (valoración media ${n1(b.avg)} de 3).</p></div>`:''})()}${cov?'<h2>Cobertura por asignatura</h2>'+cov:''}${S.syllabus.length?'<h2>Cobertura por curso</h2>'+GL.coverageByCourse(S.syllabus).filter(c=>c.n).map(c=>`<div class=trow><div class=tn><b>${c.course}.º de Bachillerato</b><small>${c.seen}/${c.n} temas vistos · dominio ${c.pctMastery} %</small></div>${barH(c.pctSeen)}</div>`).join(''):''}`};
+const hoyExtra=()=>{ensureG(S);const td=now().date,g=S.goals,ov=GL.overall(g,S.grades,S.subjects,td);let h='';
+ if(g.target!=null&&ov.media!=null)h+=`<div class="card item" data-a=nav data-r=obj role=button tabindex=0><div><b>Llevas ${n1(ov.media)} de media · objetivo ${n1(ov.target)}</b><small>${ov.gap>0?`Te faltan ${n1(ov.gap)} puntos${ov.worst?' · la que más: '+esc(ov.worst.name):''}`:'Por encima de tu objetivo'}</small></div></div>`;
  for(const w of S.works.filter(w=>w.kind==='exam'&&w.dueDate<td&&w.dueDate>=addDays(td,-14)&&w.status!=='archived'&&!S.grades.some(x=>x.workId===w.id)).slice(0,2))h+=`<div class="card item"><div><b>¿Qué nota sacaste en ${esc(sub(w.subjectId).name)}?</b><small>${esc(w.title)} · ${w.dueDate}</small></div><button data-a=gradeFor data-id="${w.id}">Poner nota</button></div>`;
- if((weekday(td)===0||weekday(td)===1)&&S.reviewedOn!==monOf(td))h+=`<div class="card item" data-a=nav data-r=rev role=button tabindex=0><div><b>Revisión semanal lista</b><small>10 minutos para ajustar el plan</small></div></div>`;
  if((S.works.length||S.grades.length||S.syllabus.length)&&Date.now()-(UI.lastExport||0)>7*864e5)h+=`<div class="card item"><div><b>Haz una copia de seguridad</b><small>Tus datos viven solo en este dispositivo. Descarga una copia cada semana.</small></div><button data-a=export>Descargar copia</button></div>`;
  return h};
 {const h0=V.hoy;V.hoy=a=>h0(a).replace(/(<h1>Hoy<\/h1><p class=m>[^<]*<\/p>)/,m=>m+hoyExtra())}
-Object.assign(A,{editGoals:goalsForm,addGrade:()=>gradeForm(),editGrade:t=>gradeForm(t.dataset.id),gradeFor:t=>{const w=wk(t.dataset.id);if(w)gradeForm(null,{subjectId:w.subjectId,kind:'examen',workId:w.id,label:w.title,date:w.dueDate})},
+Object.assign(A,{editGoals:goalsForm,addGrade:()=>gradeForm(),editGrade:t=>gradeForm(t.dataset.id),gradeFor:t=>{const w=wk(t.dataset.id);if(w)gradeForm(null,{subjectId:w.subjectId,workId:w.id,label:w.title,date:w.dueDate})},
  lvl:t=>{S.syllabus=S.syllabus.map(x=>x.id===t.dataset.id?GL.setMastery(x,+t.dataset.k,now().date):x);commit({quiet:true})},addTopics:t=>topicsForm(t.dataset.id),editTopic:t=>topicForm(t.dataset.id),
- revApply:t=>{S.settings={...S.settings,maxDayMin:+t.dataset.v};toast('Máximo diario: '+hr(+t.dataset.v));commit({quiet:true})},revSeen:()=>{S.reviewedOn=monOf(now().date);commit({quiet:true})},
+ objEv:t=>{OBJEV=+t.dataset.k;render()},
  calMode:()=>{CALMODE=CALMODE==='day'?'week':'day';render()}});
 {const wk0=A.wk;A.wk=t=>{if(CALMODE!=='day')return wk0(t);const k=+t.dataset.k,n=now();CALDAY=k===0?n.date:addDays(CALDAY||n.date,k>0?1:-1);ws=monOf(CALDAY);render()}}
 
 {const ex0=A.export;A.export=t=>{UI.lastExport=Date.now();saveUI();return ex0(t)}}
+{const aj0=V.aj;V.aj=a=>aj0(a)+`<div class=card><h3>Asignaturas</h3><p class=m>Colores, nombre y archivo de asignaturas.</p><button data-a=nav data-r=asg>Gestionar asignaturas</button></div>`}
 
 boot();
 </script></body></html>
