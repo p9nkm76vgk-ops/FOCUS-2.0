@@ -88,3 +88,13 @@ details.more{margin:6px 0 4px;border-top:1px solid var(--line);padding-top:6px}d
 .lg .sw.av{background:color-mix(in srgb,var(--accent) 10%,transparent);border-left:0;border:1px solid var(--line)}
 
 @media(max-width:999px){:root{--stick:57px}}
+
+/* v6: objetivos, temario, curso, revisión, vista de día */
+.bar{height:8px;border-radius:99px;background:var(--surface2);overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;border-radius:99px}
+.trow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--line)}.trow .tn{min-width:140px;flex:1}.trow .tn small{display:block;color:var(--muted);font-size:.875rem}
+.trow.ph.on b{color:var(--accent)}.trow .bar{flex:1;min-width:120px}
+.lv{display:flex;gap:6px;flex-wrap:wrap}.lv button{min-height:44px;padding:4px 12px;font-size:.9rem}.lv button.on{background:color-mix(in srgb,var(--accent) 22%,var(--surface));border-color:var(--accent);color:var(--text)}
+.tblw{overflow-x:auto;max-width:100%}.tbl{width:100%;border-collapse:collapse;font-size:.92rem}.tbl th,.tbl td{padding:10px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}.tbl th{color:var(--muted);font-weight:600;font-size:.875rem}.tbl .neg{color:var(--warn);font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px}.kpis b{display:block;font-size:1.4rem}.kpis small{color:var(--muted);font-size:.875rem}
+.rl{display:flex;gap:12px;align-items:center;justify-content:space-between}.rl.warn{border-left:4px solid var(--warn)}.rl.ok{border-left:4px solid var(--ok)}.rl.tip{border-left:4px solid var(--muted)}
+.tg.one .day:not(.sel){display:none}.tg.one .days{grid-template-columns:minmax(0,1fr)}.tg.one .ev b,.tg.one .ev span,.tg.one .ev small{font-size:.95rem}

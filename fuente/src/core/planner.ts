@@ -50,10 +50,10 @@ export function subtract(wins: Win[], cuts: Win[]): Win[] {
 }
 
 interface Demand { key: string; w: Work; part: 'main' | 'review'; need: number; from: string; to: string; ext?: string; last: string; cutoff: number; prio: number; clipped: boolean }
-interface Day { occ: Win[]; total: number; perWork: Map<string, number> }
+interface Day { occ: (Win & { sub?: string })[]; total: number; perWork: Map<string, number> }
 
 /** Planificador determinista e idempotente. Función pura: (estado, ahora) → nuevo estado. */
-export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]; activities?: { date: string; start: number | null; end: number | null; status: string }[] }, now: Now): PlanResult {
+export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]; boost?: Record<string, number>; activities?: { date: string; start: number | null; end: number | null; status: string }[] }, now: Now): PlanResult {
   const s = input.settings;
   const active = (w?: Work) => !!w && (w.status === 'pending' || w.status === 'in_progress');
   const byId = new Map(input.works.map(w => [w.id, w]));
@@ -67,7 +67,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   }
   const days = new Map<string, Day>();
   const day = (d: string) => { let x = days.get(d); if (!x) { x = { occ: [], total: 0, perWork: new Map() }; days.set(d, x); } return x; };
-  const occupy = (b: Block) => { const x = day(b.date); x.occ.push({ start: b.start, end: b.end }); x.total += dur(b); x.perWork.set(b.workId, (x.perWork.get(b.workId) ?? 0) + dur(b)); };
+  const occupy = (b: Block) => { const x = day(b.date); x.occ.push({ start: b.start, end: b.end, sub: byId.get(b.workId)?.subjectId }); x.total += dur(b); x.perWork.set(b.workId, (x.perWork.get(b.workId) ?? 0) + dur(b)); };
   history.filter(b => b.status === 'done').forEach(occupy);
   manualF.forEach(occupy);
   // Ejercicio y actividades con hora: tiempo OCUPADO (no cuenta para el tope diario de estudio). El estudio automático se coloca alrededor; nunca se mueve a la fuerza.
@@ -84,7 +84,8 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   for (const w of input.works.filter(active)) {
     const done = w.estimate ? 0 /* el estimador ya descuenta el progreso */ : history.filter(b => b.workId === w.id && b.status === 'done').reduce((a, b) => a + (b.actualMin ?? dur(b)), 0);
     const manual = manualF.filter(b => b.workId === w.id).reduce((a, b) => a + dur(b), 0);
-    const need = Math.max(0, totalNeed(w) - done - manual);
+    const f = w.kind === 'exam' ? (input.boost?.[w.subjectId] ?? 1) : 1; // más horas de examen donde la brecha con el objetivo es mayor
+    const need = Math.max(0, (f === 1 ? totalNeed(w) : Math.round(totalNeed(w) * f / 5) * 5) - done - manual);
     const und = isUndated(w);
     const overdue = !und && (w.dueDate < now.date || (w.dueDate === now.date && w.dueMinute !== undefined && w.dueMinute <= now.minute));
     if (overdue) warnings.push({ workId: w.id, type: 'overdue', message: `"${w.title}" está atrasada (${w.dueDate}).` });
@@ -119,17 +120,18 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     while (left > 0) {
       let len = Math.min(s.preferredMin, left);
       if (left - len > 0 && left - len < s.minSessionMin) len = Math.min(left, s.maxSessionMin);
-      const cands: { dt: string; start: number; L: number; key: [number, number, string] }[] = [];
+      const cands: { dt: string; start: number; L: number; key: [number, number, number, string] }[] = [];
       for (let dt = d.from; dt <= to; dt = addDays(dt, 1)) {
         const x = day(dt), capLeft = s.maxDayMin - x.total; if (capLeft <= 0) continue;
-        for (const f of free(dt, true)) {
+        const fr = free(dt, true), easy = d.w.difficulty <= 2 && d.w.kind === 'task' && !isUndated(d.w) ? [...fr].reverse() : fr; // lo fácil, más tarde; lo difícil, a primera hora
+        for (const f of easy) {
           const st = up5(f.start), end = Math.min(f.end, dt === d.last ? d.cutoff : 1440);
           const L = Math.min(len, end - st, capLeft, s.maxSessionMin);
-          if (L >= Math.min(s.minSessionMin, left)) { cands.push({ dt, start: st, L, key: [x.perWork.get(d.w.id) ? 1 : 0, x.total, dt] }); break; }
+          if (L >= Math.min(s.minSessionMin, left)) { const adj = x.occ.some(o => o.sub === d.w.subjectId && (Math.abs(st - o.end) <= s.minGapMin + 5 || Math.abs(st + L - o.start) <= s.minGapMin + 5)) ? 1 : 0; cands.push({ dt, start: st, L, key: [x.perWork.get(d.w.id) ? 1 : 0, adj, x.total, dt] }); break; }
         }
       }
       if (!cands.length) break;
-      cands.sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.key[2].localeCompare(b.key[2]));
+      cands.sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.key[2] - b.key[2] || a.key[3].localeCompare(b.key[3]));
       const c = cands[0];
       let id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}`, k = 1; while (used.has(id)) id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}:r${k++}`; used.add(id);
       const b: Block = { id, workId: d.w.id, date: c.dt, start: c.start, end: c.start + c.L, status: 'planned', manual: false, part: d.part };

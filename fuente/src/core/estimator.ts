@@ -86,7 +86,7 @@ export function estimateTask(i: { pace?: number; kind: Learn; size: number; diff
 
 const cmp = (a: Block, b: Block) => a.date.localeCompare(b.date) || a.start - b.start || a.id.localeCompare(b.id);
 /** Recalcula la estimación de los trabajos ACTIVOS con estimador. No toca sesiones ni historial. Pura e idempotente. */
-export interface EstCtx { families?: Record<string, string>; predictions?: PredictionRecord[]; now?: string; capacityFor?: (w: Work) => { freeMin: number; freeDays: number } }
+export interface EstCtx { learned?: Record<string, { factor: number; n: number }>; families?: Record<string, string>; predictions?: PredictionRecord[]; now?: string; capacityFor?: (w: Work) => { freeMin: number; freeDays: number } }
 /** Forma compatible con la UI y el planificador a partir de la estimación v2 (el central p50 es lo que se planifica). */
 const toV1 = (e: EstimateV2): Estimate => { const m = (p: string) => e.phases.find(x => x.phase === p)?.minutes ?? 0;
   return { totalMin: e.totalMin, investedMin: e.investedMin, remainingMin: e.interval.p50, lowMin: e.interval.p10, highMin: e.interval.p90, learnMin: m('aprendizaje'), practiceMin: m('practica') + m('recuperacion') + m('errores'), reviewMin: m('repaso'),
@@ -105,11 +105,15 @@ export function reestimate(works: Work[], blocks: Block[], ctx?: EstCtx): Work[]
     const invested = done.reduce((x, b) => x + mins(b), 0), unattributed = done.filter(b => !b.log?.topicId).reduce((x, b) => x + mins(b), 0);
     const kind = w.learn ?? (w.kind === 'exam' ? 'mixto' : 'ejercicios'), cal = calibrate(samples, w.subjectId, kind);
     if (w.topics?.length) {
-      const e = estimateExam({ pace: w.pace, topics: w.topics, kind, goal: w.goal ?? 'notable', cal, invested, unattributed, manualMin: w.manualEstMin });
+      const lf = ctx?.learned?.[w.subjectId], pc = lf ? (w.pace ?? 1) * lf.factor : w.pace;
+      const e = estimateExam({ pace: pc, topics: w.topics, kind, goal: w.goal ?? 'notable', cal, invested, unattributed, manualMin: w.manualEstMin });
+      if (lf && w.manualEstMin == null) e.factors.push(`Ajuste por tu ritmo real en esta asignatura: ×${String(lf.factor).replace('.', ',')} (${lf.n} trabajos terminados)`);
       const rd = Math.round(100 * w.topics.reduce((x, t) => x + t.mastery, 0) / (3 * w.topics.length));
       return { ...w, estimate: e, estMin: Math.max(5, Math.round(e.totalMin / 5) * 5), readiness: rd };
     }
-    const e = estimateTask({ pace: w.pace, kind, size: w.size ?? 3, difficulty: w.difficulty, cal, invested, manualMin: w.manualEstMin });
+    const lf2 = ctx?.learned?.[w.subjectId], pc2 = lf2 ? (w.pace ?? 1) * lf2.factor : w.pace;
+    const e = estimateTask({ pace: pc2, kind, size: w.size ?? 3, difficulty: w.difficulty, cal, invested, manualMin: w.manualEstMin });
+    if (lf2 && w.manualEstMin == null) e.factors.push(`Ajuste por tu ritmo real en esta asignatura: ×${String(lf2.factor).replace('.', ',')} (${lf2.n} trabajos terminados)`);
     return { ...w, estimate: e, estMin: Math.max(5, Math.round(e.totalMin / 5) * 5) };
   });
 }

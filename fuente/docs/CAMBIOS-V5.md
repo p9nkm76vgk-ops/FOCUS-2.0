@@ -33,3 +33,15 @@ El historial de GitHub conserva la versión 4 (commit anterior). Tus datos no ca
 - Tocar un hueco libre propone una sesión a esa hora; el pasado se rechaza.
 - Aviso «No caben N min…»: ahora indica cuántos min/día más harían falta y se puede descartar con «Entendido» (reaparece solo si el déficit crece). Las tareas sin fecha ya no muestran ese aviso.
 - Pruebas: 160 en Node, 39 comprobaciones en Chromium.
+
+## v6: objetivo de nota, notas, temario, repaso espaciado, curso, revisión semanal
+- **Objetivos y notas** (nuevo): objetivo de media, notas de 1.º, notas de 2.º (examen, tarea, evaluación), objetivo por asignatura, PAU esperada y nota de acceso (0,6·media + 0,4·PAU; sin ponderaciones). Proyección = media ponderada (examen 2, tarea 1, evaluación 3; las recientes +15 % por posición) diluida con la nota de 1.º (peso 2).
+- **Planificador por brecha**: las horas de EXAMEN se multiplican por 1 + 0,1·brecha (acotado 0,9–1,3). Las tareas no cambian. Heurístico, ajustable en `goals.ts`.
+- **Temario**: temas por asignatura con nivel (sin ver / visto / entendido / dominado). Al verlos se programan repasos a +2, 7, 21, 45 y 90 días como tareas automáticas (`auto:'review'`, id estable `rev:<tema>:<n>`, máx. 8 activas, idempotentes). Resultado del repaso: bien / regular / mal.
+- **Ritmo aprendido**: con ≥3 trabajos terminados por asignatura, la estimación se ajusta (mediana de tiempo real / estimación inicial, encogida hacia 1, acotada 0,7–1,6). Se explica en los factores de la estimación y no toca minutos fijados a mano ni el estimador 2.0.
+- **Calidad de sesión** (bien/regular/mal, opcional) → mejor franja horaria si hay ≥8 sesiones valoradas.
+- **Curso hasta la PAU**: fases (cobertura / práctica / simulacros), capacidad semanal con 70 % de cumplimiento supuesto vs. horas heurísticas del temario restante.
+- **Revisión semanal**: cumplimiento = min hechos / (hechos + omitidos); compara reparto real vs. brecha; botón para bajar el máximo diario.
+- **Planificador**: evita dos sesiones de la misma asignatura pegadas cuando hay alternativa; las tareas fáciles (dificultad ≤2) buscan el último hueco del día.
+- **Calendario**: vista de día; recordatorio semanal de copia de seguridad en Hoy.
+- NO hecho: arrastrar sesiones con el dedo; sincronización en la nube. Pruebas: 186 en Node, 34 + 39 + 57 + 11 en Chromium. Sin Safari/iPad real.

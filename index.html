@@ -88,6 +88,16 @@ details.more{margin:6px 0 4px;border-top:1px solid var(--line);padding-top:6px}d
 .lg .sw.av{background:color-mix(in srgb,var(--accent) 10%,transparent);border-left:0;border:1px solid var(--line)}
 
 @media(max-width:999px){:root{--stick:57px}}
+
+/* v6: objetivos, temario, curso, revisión, vista de día */
+.bar{height:8px;border-radius:99px;background:var(--surface2);overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;border-radius:99px}
+.trow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--line)}.trow .tn{min-width:140px;flex:1}.trow .tn small{display:block;color:var(--muted);font-size:.875rem}
+.trow.ph.on b{color:var(--accent)}.trow .bar{flex:1;min-width:120px}
+.lv{display:flex;gap:6px;flex-wrap:wrap}.lv button{min-height:44px;padding:4px 12px;font-size:.9rem}.lv button.on{background:color-mix(in srgb,var(--accent) 22%,var(--surface));border-color:var(--accent);color:var(--text)}
+.tblw{overflow-x:auto;max-width:100%}.tbl{width:100%;border-collapse:collapse;font-size:.92rem}.tbl th,.tbl td{padding:10px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}.tbl th{color:var(--muted);font-weight:600;font-size:.875rem}.tbl .neg{color:var(--warn);font-weight:600}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px}.kpis b{display:block;font-size:1.4rem}.kpis small{color:var(--muted);font-size:.875rem}
+.rl{display:flex;gap:12px;align-items:center;justify-content:space-between}.rl.warn{border-left:4px solid var(--warn)}.rl.ok{border-left:4px solid var(--ok)}.rl.tip{border-left:4px solid var(--muted)}
+.tg.one .day:not(.sel){display:none}.tg.one .days{grid-template-columns:minmax(0,1fr)}.tg.one .ev b,.tg.one .ev span,.tg.one .ev small{font-size:.95rem}
 </style></head><body>
 <div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b></div>
 <aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
@@ -145,10 +155,10 @@ function subtract(wins       , cuts       )        {
 }
 
                                                                                                                                                                                       
-                                                                         
+                                                                                              
 
 /** Planificador determinista e idempotente. Función pura: (estado, ahora) → nuevo estado. */
-function plan(input                                                                                                                                                   , now     )             {
+function plan(input                                                                                                                                                                                   , now     )             {
   const s = input.settings;
   const active = (w       ) => !!w && (w.status === 'pending' || w.status === 'in_progress');
   const byId = new Map(input.works.map(w => [w.id, w]));
@@ -162,7 +172,7 @@ function plan(input                                                             
   }
   const days = new Map             ();
   const day = (d        ) => { let x = days.get(d); if (!x) { x = { occ: [], total: 0, perWork: new Map() }; days.set(d, x); } return x; };
-  const occupy = (b       ) => { const x = day(b.date); x.occ.push({ start: b.start, end: b.end }); x.total += dur(b); x.perWork.set(b.workId, (x.perWork.get(b.workId) ?? 0) + dur(b)); };
+  const occupy = (b       ) => { const x = day(b.date); x.occ.push({ start: b.start, end: b.end, sub: byId.get(b.workId)?.subjectId }); x.total += dur(b); x.perWork.set(b.workId, (x.perWork.get(b.workId) ?? 0) + dur(b)); };
   history.filter(b => b.status === 'done').forEach(occupy);
   manualF.forEach(occupy);
   // Ejercicio y actividades con hora: tiempo OCUPADO (no cuenta para el tope diario de estudio). El estudio automático se coloca alrededor; nunca se mueve a la fuerza.
@@ -179,7 +189,8 @@ function plan(input                                                             
   for (const w of input.works.filter(active)) {
     const done = w.estimate ? 0 /* el estimador ya descuenta el progreso */ : history.filter(b => b.workId === w.id && b.status === 'done').reduce((a, b) => a + (b.actualMin ?? dur(b)), 0);
     const manual = manualF.filter(b => b.workId === w.id).reduce((a, b) => a + dur(b), 0);
-    const need = Math.max(0, totalNeed(w) - done - manual);
+    const f = w.kind === 'exam' ? (input.boost?.[w.subjectId] ?? 1) : 1; // más horas de examen donde la brecha con el objetivo es mayor
+    const need = Math.max(0, (f === 1 ? totalNeed(w) : Math.round(totalNeed(w) * f / 5) * 5) - done - manual);
     const und = isUndated(w);
     const overdue = !und && (w.dueDate < now.date || (w.dueDate === now.date && w.dueMinute !== undefined && w.dueMinute <= now.minute));
     if (overdue) warnings.push({ workId: w.id, type: 'overdue', message: `"${w.title}" está atrasada (${w.dueDate}).` });
@@ -214,17 +225,18 @@ function plan(input                                                             
     while (left > 0) {
       let len = Math.min(s.preferredMin, left);
       if (left - len > 0 && left - len < s.minSessionMin) len = Math.min(left, s.maxSessionMin);
-      const cands                                                                            = [];
+      const cands                                                                                    = [];
       for (let dt = d.from; dt <= to; dt = addDays(dt, 1)) {
         const x = day(dt), capLeft = s.maxDayMin - x.total; if (capLeft <= 0) continue;
-        for (const f of free(dt, true)) {
+        const fr = free(dt, true), easy = d.w.difficulty <= 2 && d.w.kind === 'task' && !isUndated(d.w) ? [...fr].reverse() : fr; // lo fácil, más tarde; lo difícil, a primera hora
+        for (const f of easy) {
           const st = up5(f.start), end = Math.min(f.end, dt === d.last ? d.cutoff : 1440);
           const L = Math.min(len, end - st, capLeft, s.maxSessionMin);
-          if (L >= Math.min(s.minSessionMin, left)) { cands.push({ dt, start: st, L, key: [x.perWork.get(d.w.id) ? 1 : 0, x.total, dt] }); break; }
+          if (L >= Math.min(s.minSessionMin, left)) { const adj = x.occ.some(o => o.sub === d.w.subjectId && (Math.abs(st - o.end) <= s.minGapMin + 5 || Math.abs(st + L - o.start) <= s.minGapMin + 5)) ? 1 : 0; cands.push({ dt, start: st, L, key: [x.perWork.get(d.w.id) ? 1 : 0, adj, x.total, dt] }); break; }
         }
       }
       if (!cands.length) break;
-      cands.sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.key[2].localeCompare(b.key[2]));
+      cands.sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.key[2] - b.key[2] || a.key[3].localeCompare(b.key[3]));
       const c = cands[0];
       let id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}`, k = 1; while (used.has(id)) id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}:r${k++}`; used.add(id);
       const b        = { id, workId: d.w.id, date: c.dt, start: c.start, end: c.start + c.L, status: 'planned', manual: false, part: d.part };
@@ -270,7 +282,7 @@ function capacityFor(s          , blocks         , now     , w      , acts      
   }
   return { freeMin, freeDays };
 }
-;return{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,subtract,isUndated,NO_DATE}})();
+;return{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,subtract,isUndated,NO_DATE,daysBetween}})();
 const EST2=(()=>{/** Registro de parámetros del estimador 2.0. FASE 1: solo declaración; el estimador v1 no los usa.
  *  Etiquetas: EVIDENCIA-ESTRUCTURA (la estructura está respaldada, el valor no) · HEURÍSTICO-PREVIO (valor inicial sin respaldo,
  *  se sustituye por tus datos) · APRENDIDO (se estima de tus datos) · UMBRAL-CONFIGURABLE (decisión de producto, editable). */
@@ -497,7 +509,7 @@ function estimateTask(i                                                         
 
 const cmp = (a       , b       ) => a.date.localeCompare(b.date) || a.start - b.start || a.id.localeCompare(b.id);
 /** Recalcula la estimación de los trabajos ACTIVOS con estimador. No toca sesiones ni historial. Pura e idempotente. */
-                                                                                                                                                                               
+                                                                                                                                                                                                                                        
 /** Forma compatible con la UI y el planificador a partir de la estimación v2 (el central p50 es lo que se planifica). */
 const toV1 = (e            )           => { const m = (p        ) => e.phases.find(x => x.phase === p)?.minutes ?? 0;
   return { totalMin: e.totalMin, investedMin: e.investedMin, remainingMin: e.interval.p50, lowMin: e.interval.p10, highMin: e.interval.p90, learnMin: m('aprendizaje'), practiceMin: m('practica') + m('recuperacion') + m('errores'), reviewMin: m('repaso'),
@@ -516,11 +528,15 @@ function reestimate(works        , blocks         , ctx         )         {
     const invested = done.reduce((x, b) => x + mins(b), 0), unattributed = done.filter(b => !b.log?.topicId).reduce((x, b) => x + mins(b), 0);
     const kind = w.learn ?? (w.kind === 'exam' ? 'mixto' : 'ejercicios'), cal = calibrate(samples, w.subjectId, kind);
     if (w.topics?.length) {
-      const e = estimateExam({ pace: w.pace, topics: w.topics, kind, goal: w.goal ?? 'notable', cal, invested, unattributed, manualMin: w.manualEstMin });
+      const lf = ctx?.learned?.[w.subjectId], pc = lf ? (w.pace ?? 1) * lf.factor : w.pace;
+      const e = estimateExam({ pace: pc, topics: w.topics, kind, goal: w.goal ?? 'notable', cal, invested, unattributed, manualMin: w.manualEstMin });
+      if (lf && w.manualEstMin == null) e.factors.push(`Ajuste por tu ritmo real en esta asignatura: ×${String(lf.factor).replace('.', ',')} (${lf.n} trabajos terminados)`);
       const rd = Math.round(100 * w.topics.reduce((x, t) => x + t.mastery, 0) / (3 * w.topics.length));
       return { ...w, estimate: e, estMin: Math.max(5, Math.round(e.totalMin / 5) * 5), readiness: rd };
     }
-    const e = estimateTask({ pace: w.pace, kind, size: w.size ?? 3, difficulty: w.difficulty, cal, invested, manualMin: w.manualEstMin });
+    const lf2 = ctx?.learned?.[w.subjectId], pc2 = lf2 ? (w.pace ?? 1) * lf2.factor : w.pace;
+    const e = estimateTask({ pace: pc2, kind, size: w.size ?? 3, difficulty: w.difficulty, cal, invested, manualMin: w.manualEstMin });
+    if (lf2 && w.manualEstMin == null) e.factors.push(`Ajuste por tu ritmo real en esta asignatura: ×${String(lf2.factor).replace('.', ',')} (${lf2.n} trabajos terminados)`);
     return { ...w, estimate: e, estMin: Math.max(5, Math.round(e.totalMin / 5) * 5) };
   });
 }
@@ -647,9 +663,9 @@ function reconcile(i                                                            
 }
 
 /** Propone el horario completo. 1º respeta la rutina como ocupada; solo si no cabe y desplazarla reduce el déficit, propone reubicarla. */
-function proposeSchedule(i                                                                                                                                                                       ) {
+function proposeSchedule(i                                                                                                                                                                                                       ) {
   const fx = fixedBusy(i.routine, i.now.date, i.settings.horizonDays + 2), deficits = (w                    ) => w.filter(x => x.type === 'deficit').length;
-  const run = (mode                 ) => { const p = plan({ settings: i.settings, works: i.works, blocks: i.blocks, activities: [...i.activities, ...fx, ...(mode === 'keep' ? habitBusy(i.habit) : [])] }, i.now);
+  const run = (mode                 ) => { const p = plan({ settings: i.settings, works: i.works, blocks: i.blocks, boost: i.boost, activities: [...i.activities, ...fx, ...(mode === 'keep' ? habitBusy(i.habit) : [])] }, i.now);
     return { p, r: reconcile({ settings: i.settings, routine: i.routine, works: i.works, blocks: p.blocks, activities: i.activities, habit: i.habit, now: i.now, mode, absorb: !i.quiet, declined: i.declined }) }; };
   let pick = run('keep'), mode                  = 'keep'; const dA = deficits(pick.p.warnings);
   if (dA > 0 && i.routine.enabled && !i.quiet) { const B = run('soft'); if (deficits(B.p.warnings) < dA) { pick = B; mode = 'soft'; } }
@@ -772,6 +788,9 @@ function ensureFeatures(s     , steps          ) {
   if (!Array.isArray(s.suggestionLog)) { s.suggestionLog = []; steps.push('suggestionLog=[]'); }
   if (!s.routine || typeof s.routine !== 'object') { s.routine = clone(DEFAULT_ROUTINE); steps.push('routine'); }
   if (!Array.isArray(s.habit)) { s.habit = []; steps.push('habit=[]'); }
+  if (!s.goals || typeof s.goals !== 'object') { s.goals = { target: null, prev: {}, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null }; steps.push('goals'); }
+  if (!Array.isArray(s.grades)) { s.grades = []; steps.push('grades=[]'); }
+  if (!Array.isArray(s.syllabus)) { s.syllabus = []; steps.push('syllabus=[]'); }
   if (!s.explore || !Array.isArray(s.explore.log)) { s.explore = { log: [] }; steps.push('explore'); }
   for (const sj of s.subjects ?? []) if (sj.colorKey === undefined && sj.name in DEFAULT_SUBJECT_COLORS) { sj.colorKey = sj.name; steps.push(`subjects.${sj.id}.colorKey`); } // el color heredado `color` no se toca
 }
@@ -809,6 +828,210 @@ function previewUpgrade(state     , workId        , estimate                 ) {
   return { before: w.estimate ?? null, after: estimate({ ...clone(w), estimatorVersion: 2 }) };
 }
 ;return{migrateState,lostPaths,setEstimatorVersion,previewUpgrade,SCHEMA_VERSION}})();
+const GL=(()=>{const {addDays,daysBetween}=P;
+                                              
+
+/** Objetivos, notas, proyección de nota, temario con repaso espaciado, ritmo aprendido, curso hasta la PAU y revisión semanal.
+ *  Todo son funciones PURAS y deterministas sobre datos persistidos. Los números marcados «heurístico» son aproximaciones, no mediciones. */
+                                                          
+                                                                                                                                       
+                                                                                                                                                                                                                         
+                                                                                                                                                                             
+const DEFAULT_GOALS        = { target: null, prev: {}, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
+
+const clamp = (x        , a        , b        ) => Math.min(b, Math.max(a, x));
+const r2 = (x        ) => Math.round(x * 100) / 100;
+const dur = (b                                ) => b.end - b.start;
+const mins = (b       ) => b.actualMin ?? dur(b);
+
+// ---------- Notas y proyección ----------
+/** Peso de cada tipo de nota en la media proyectada (heurístico, ajustable). Las más recientes pesan algo más (+15 % por posición). */
+const KIND_W                            = { examen: 2, tarea: 1, evaluacion: 3 };
+/** La nota de 1º cuenta como si fueran PSEUDO_PREV puntos de peso: se diluye al entrar notas de 2º. */
+const PSEUDO_PREV = 2;
+                                                         
+function projected(g                   , grades         , sid        )                                                          {
+  const gs = grades.filter(x => x.subjectId === sid && Number.isFinite(x.score)).sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  const prev = g?.prev?.[sid];
+  const hasPrev = typeof prev === 'number' && Number.isFinite(prev);
+  let W = 0, S = 0;
+  gs.forEach((x, i) => { const w = KIND_W[x.kind] * (1 + 0.15 * i); W += w; S += w * x.score; });
+  if (gs.length && hasPrev) return { value: r2((S + PSEUDO_PREV * prev ) / (W + PSEUDO_PREV)), n: gs.length, source: 'mixta' };
+  if (gs.length) return { value: r2(S / W), n: gs.length, source: 'notas' };
+  if (hasPrev) return { value: r2(prev ), n: 0, source: '1º' };
+  return { value: null, n: 0, source: null };
+}
+const subjectTarget = (g                   , sid        )                => g?.subjTarget?.[sid] ?? g?.target ?? null;
+/** Puntos que faltan para el objetivo (positivo = por debajo). null si no hay objetivo o no hay datos. */
+function gapOf(g                   , grades         , sid        )                {
+  const t = subjectTarget(g, sid), p = projected(g, grades, sid).value;
+  return t == null || p == null ? null : r2(t - p);
+}
+/** Factor de horas de EXAMEN según la brecha: +10 % por punto por debajo del objetivo (máx. +30 %), −10 % como mucho si vas holgado. Heurístico. */
+const boostFactor = (gap               ) => gap == null ? 1 : r2(clamp(1 + 0.1 * gap, 0.9, 1.3));
+function boosts(g                   , grades         , subjects                                      )                         {
+  const o                         = {};
+  for (const s of subjects) if (!s.archived) { const f = boostFactor(gapOf(g, grades, s.id)); if (f !== 1) o[s.id] = f; }
+  return o;
+}
+function overall(g                   , grades         , subjects                                                    ) {
+  const rows = subjects.filter(s => !s.archived).map(s => ({ id: s.id, name: s.name, ...projected(g, grades, s.id), target: subjectTarget(g, s.id), gap: gapOf(g, grades, s.id) }));
+  const vals = rows.filter(r => r.value != null);
+  const media = vals.length ? r2(vals.reduce((a, r) => a + r.value , 0) / vals.length) : null;
+  const tv = rows.filter(r => r.value != null && r.target != null);
+  const target = tv.length ? r2(tv.reduce((a, r) => a + r.target , 0) / tv.length) : null;
+  const worst = rows.filter(r => r.gap != null && r.gap > 0).sort((a, b) => b.gap  - a.gap  || a.name.localeCompare(b.name))[0] ?? null;
+  return { rows, media, target, gap: media != null && target != null ? r2(target - media) : null, worst, covered: vals.length, total: rows.length };
+}
+/** Nota de acceso de fase general = 0,6·media de bachillerato + 0,4·PAU (sobre 10). No modela ponderaciones ni fase voluntaria. */
+function accessInfo(g                   , media               ) {
+  const pau = g?.pauExpected ?? null, acc = g?.accessTarget ?? null;
+  const access = media != null && pau != null ? r2(0.6 * media + 0.4 * pau) : null;
+  const needMedia = acc != null && pau != null ? r2((acc - 0.4 * pau) / 0.6) : null;
+  return { access, needMedia, feasible: needMedia == null ? null : needMedia <= 10 };
+}
+/** Tendencia: media de las 2 últimas notas menos la media de las anteriores (necesita ≥3 notas). */
+function trend(grades         , sid        )                {
+  const gs = grades.filter(x => x.subjectId === sid).sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  if (gs.length < 3) return null;
+  const last = gs.slice(-2), prev = gs.slice(0, -2), m = (a         ) => a.reduce((s, x) => s + x.score, 0) / a.length;
+  return r2(m(last) - m(prev));
+}
+
+// ---------- Temario y repaso espaciado ----------
+const INTERVALS = [2, 7, 21, 45, 90];
+const LEVELS = ['Sin ver', 'Visto', 'Entendido', 'Dominado'];
+function newTopic(id        , subjectId        , name        , mastery        , today        , createdAt = 0)         {
+  return setMastery({ id, subjectId, name, mastery: 0, reviews: 0, last: null, next: null, createdAt }, mastery, today);
+}
+function setMastery(t        , level        , today        )         {
+  const L = clamp(Math.round(level), 0, 3)                 ;
+  if (L === 0) return { ...t, mastery: 0, reviews: 0, last: null, next: null };
+  const first = t.mastery === 0;
+  return { ...t, mastery: L, reviews: first ? 0 : t.reviews, last: first ? today : t.last, next: t.next ?? addDays(today, INTERVALS[Math.min(first ? 0 : t.reviews, INTERVALS.length - 1)]) };
+}
+/** Resultado de un repaso: bien → sube un nivel y espacia más; regular → repetir en 3 días; mal → baja y repetir mañana. */
+function reviewDone(t        , rating                            , today        )         {
+  if (rating === 'bien') { const n = t.reviews + 1; return { ...t, reviews: n, mastery: Math.min(3, Math.max(1, t.mastery + 1))             , last: today, next: addDays(today, INTERVALS[Math.min(n, INTERVALS.length - 1)]) }; }
+  if (rating === 'regular') return { ...t, last: today, next: addDays(today, 3) };
+  return { ...t, reviews: Math.max(0, t.reviews - 1), mastery: Math.max(1, t.mastery - 1)             , last: today, next: addDays(today, 1) };
+}
+const REVIEW_MIN = 25, REVIEW_LOOKAHEAD = 2, REVIEW_WINDOW = 3, REVIEW_MAX_ACTIVE = 8;
+/** Sincroniza las tareas automáticas de repaso con el temario. Idempotente: mismo estado → mismo resultado. Nunca borra trabajo con sesiones hechas (lo archiva). */
+function syncReviews(works        , blocks         , topics          , subjects                                      , today        , gap                                , ms = 0)                                                        {
+  const live = new Set(subjects.filter(s => !s.archived).map(s => s.id));
+  const due = topics.filter(t => t.mastery >= 1 && t.next && t.next <= addDays(today, REVIEW_LOOKAHEAD) && live.has(t.subjectId))
+    .sort((a, b) => (gap(b.subjectId) ?? 0) - (gap(a.subjectId) ?? 0) || a.next .localeCompare(b.next ) || a.id.localeCompare(b.id)).slice(0, REVIEW_MAX_ACTIVE);
+  const want = new Map(due.map(t => [`rev:${t.id}:${t.reviews}`, t]));
+  const have = new Set(works.map(w => w.id)), added           = [], removed           = [];
+  const act = (w      ) => w.status === 'pending' || w.status === 'in_progress';
+  let out         = [];
+  for (const w of works) {
+    if (w.auto !== 'review' || !act(w) || want.has(w.id)) { out.push(w); continue; }
+    removed.push(w.id);
+    if (blocks.some(b => b.workId === w.id && b.status === 'done')) out.push({ ...w, status: 'archived' });
+  }
+  for (const [id, t] of want) {
+    if (have.has(id)) continue;
+    const m = t.mastery >= 3 ? 20 : REVIEW_MIN;
+    out.push({ id, kind: 'task', subjectId: t.subjectId, title: 'Repaso: ' + t.name, dueDate: addDays(t.next  > today ? t.next  : today, REVIEW_WINDOW), estMin: m, manualEstMin: m, autoEst: false, difficulty: 2, importance: 3, readiness: 0, status: 'pending', auto: 'review', topicRef: t.id, createdAt: ms }        );
+    added.push(id);
+  }
+  return { works: out, added, removed };
+}
+function coverage(topics          , sid        ) {
+  const ts = topics.filter(t => t.subjectId === sid), n = ts.length, seen = ts.filter(t => t.mastery >= 1).length, sum = ts.reduce((a, t) => a + t.mastery, 0);
+  return { n, seen, pctSeen: n ? Math.round(100 * seen / n) : null, pctMastery: n ? Math.round(100 * sum / (3 * n)) : null, due: ts.filter(t => t.mastery >= 1 && t.next && t.next <= addDays('9999-12-31', 0)).length };
+}
+/** Minutos que faltan por tema según su nivel (heurístico): sin ver 120, visto 60, entendido 30, dominado 10 (mantenimiento). */
+const TOPIC_NEED = [120, 60, 30, 10];
+
+// ---------- Ritmo aprendido (estimación vs. tiempo real) ----------
+/** Guarda la estimación inicial (sin el ajuste aprendido) de cada trabajo con estimador v1 la primera vez que existe. */
+function stampBase(works        , learned                                               )         {
+  return works.map(w => w.base0 == null && w.estimate && w.estimatorVersion !== 2 && w.auto !== 'review' && w.manualEstMin == null ? { ...w, base0: Math.max(5, Math.round(w.estimate.totalMin / (learned[w.subjectId]?.factor ?? 1))) } : w);
+}
+function learnedPace(works        , blocks         )                                                {
+  const bySub = new Map                  ();
+  for (const w of works) {
+    if (w.status !== 'done' || !(w.base0 && w.base0 > 0) || w.auto === 'review') continue;
+    const inv = blocks.filter(b => b.workId === w.id && b.status === 'done').reduce((a, b) => a + mins(b), 0);
+    if (inv < 10) continue;
+    (bySub.get(w.subjectId) ?? bySub.set(w.subjectId, []).get(w.subjectId) ).push(clamp(inv / w.base0, 0.4, 2.5));
+  }
+  const out                                                = {};
+  for (const [sid, rs0] of bySub) {
+    const rs = rs0.slice(-8), n = rs.length; if (n < 3) continue;
+    const s = [...rs].sort((a, b) => a - b), med = n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+    out[sid] = { factor: r2(clamp(1 + (med - 1) * n / (n + 3), 0.7, 1.6)), n };
+  }
+  return out;
+}
+
+// ---------- Calidad de sesión ----------
+const QUALITY = [['3', 'Bien'], ['2', 'Regular'], ['1', 'Mal']];
+/** Franja horaria con mejor calidad media (≥3 sesiones valoradas en la franja y ≥8 en total). */
+function bestHours(blocks         )                                                   {
+  const q = blocks.filter(b => b.status === 'done' && (b       ).quality >= 1);
+  if (q.length < 8) return null;
+  const bk = (m        ) => m < 15 * 60 ? 'antes de las 15:00' : m < 18 * 60 ? '15:00–18:00' : m < 21 * 60 ? '18:00–21:00' : 'después de las 21:00';
+  const g = new Map                  ();
+  for (const b of q) { const k = bk(b.start); (g.get(k) ?? g.set(k, []).get(k) ).push((b       ).quality); }
+  const rows = [...g].filter(([, v]) => v.length >= 3).map(([label, v]) => ({ label, avg: r2(v.reduce((a, x) => a + x, 0) / v.length), n: v.length })).sort((a, b) => b.avg - a.avg || b.n - a.n);
+  return rows.length >= 2 && rows[0].avg - rows[rows.length - 1].avg >= 0.3 ? rows[0] : null;
+}
+
+// ---------- Curso hasta la PAU ----------
+function macro(a                                                                                                                                                    ) {
+  const g = a.goals; if (!g.pauDate) return null;
+  const days = daysBetween(a.today, g.pauDate);
+  if (days < 0) return { past: true          };
+  const dayCap = (d        ) => Math.min(a.settings.maxDayMin, (a.settings.availability[d] ?? []).reduce((s, w) => s + dur(w), 0));
+  const weekCap = [0, 1, 2, 3, 4, 5, 6].reduce((s, d) => s + dayCap(d), 0);
+  const covEnd = addDays(g.pauDate, -43), pracEnd = addDays(g.pauDate, -15);
+  const phases = [{ id: 'cobertura', label: 'Cobertura del temario', from: g.start ?? a.today, to: covEnd }, { id: 'practica', label: 'Práctica y errores', from: addDays(covEnd, 1), to: pracEnd }, { id: 'simulacros', label: 'Simulacros y repaso final', from: addDays(pracEnd, 1), to: g.pauDate }];
+  const phase = a.today <= covEnd ? phases[0] : a.today <= pracEnd ? phases[1] : phases[2];
+  const need = a.topics.reduce((s, t) => s + TOPIC_NEED[t.mastery], 0);
+  const left = Math.max(0, daysBetween(a.today, covEnd)), REAL = 0.7; // se asume que solo el 70 % de la capacidad teórica se cumple
+  const capCov = Math.round(weekCap * REAL * left / 7), capAll = Math.round(weekCap * REAL * days / 7);
+  const ratio = need === 0 ? null : capCov / need;
+  const seen = a.topics.length ? a.topics.filter(t => t.mastery >= 1).length / a.topics.length : null;
+  const total = g.start && covEnd > g.start ? daysBetween(g.start, covEnd) : 0;
+  const expected = total > 0 ? clamp(daysBetween(g.start , a.today) / total, 0, 1) : null;
+  const status = a.topics.length === 0 ? 'sin temario' : need === 0 ? 'bien' : left === 0 ? (need > 0 ? 'no llegas' : 'bien') : ratio  >= 1.3 ? 'bien' : ratio  >= 1 ? 'justo' : 'no llegas';
+  return { past: false         , days, weeks: Math.round(days / 7), weekCap, phase, phases, needMin: need, capCoverageMin: capCov, capTotalMin: capAll, status, seenPct: seen == null ? null : Math.round(100 * seen), expectedPct: expected == null ? null : Math.round(100 * expected) };
+}
+
+// ---------- Revisión semanal ----------
+                                                                                                           
+function weekReview(a                                                                                                                                                                                                      ) {
+  const from = addDays(a.today, -7), to = addDays(a.today, -1);
+  const bs = a.blocks.filter(b => b.date >= from && b.date <= to && b.status !== 'rescheduled');
+  const sub = new Map(a.works.map(w => [w.id, w.subjectId]));
+  let planned = 0, done = 0, dS = 0, sS = 0, skipped = 0; const by                         = {};
+  for (const b of bs) { planned += dur(b); if (b.status === 'done') { const m = mins(b); done += m; dS += dur(b); const s = sub.get(b.workId) ?? '?'; by[s] = (by[s] ?? 0) + m; } else if (b.status === 'skipped') { sS += dur(b); skipped++; } }
+  const compliance = dS + sS ? Math.round(100 * dS / (dS + sS)) : null;
+  const lines            = [];
+  if (planned === 0) lines.push({ kind: 'tip', text: 'La semana pasada no hubo sesiones planificadas: no hay datos para valorar.' });
+  else if (compliance != null) {
+    if (compliance < 60 && dS + sS >= 120) { const v = Math.max(60, Math.round(a.settings.maxDayMin * 0.85 / 15) * 15); lines.push({ kind: 'warn', text: `Cumpliste el ${compliance} % de lo resuelto. Un plan que no se cumple pierde valor: conviene bajar el máximo diario (de ${a.settings.maxDayMin} a ${v} min) y que el calendario llene menos.`, action: v < a.settings.maxDayMin ? { a: 'maxDay', v } : undefined }); }
+    else if (compliance >= 90 && done >= 180) lines.push({ kind: 'ok', text: `Cumpliste el ${compliance} %: el plan es realista para ti. Si quieres más margen en una asignatura floja, es buen momento para subir su peso.` });
+    else lines.push({ kind: 'tip', text: `Cumplimiento ${compliance} % (${dS} de ${dS + sS} min resueltos).` });
+  }
+  const ov = overall(a.goals, a.grades, a.subjects), wts = ov.rows.map(r => ({ r, w: Math.max(0.5, 1 + (r.gap ?? 0)) })), W = wts.reduce((s, x) => s + x.w, 0);
+  if (done >= 120 && ov.covered > 0) for (const { r, w } of wts) {
+    const exp = Math.round(100 * w / W), got = Math.round(100 * (by[r.id] ?? 0) / done);
+    if (r.gap != null && r.gap > 0.5 && got + 10 <= exp) lines.push({ kind: 'warn', text: `${r.name}: ${got} % del tiempo frente a ~${exp} % que pide su brecha (te faltan ${String(r.gap).replace('.', ',')} puntos para tu objetivo).` });
+  }
+  const lastWeekGrades = a.grades.filter(g => g.date >= from && g.date <= to);
+  if (lastWeekGrades.length) lines.push({ kind: 'tip', text: `Notas nuevas esta semana: ${lastWeekGrades.length}. Media proyectada actual: ${ov.media == null ? '—' : String(ov.media).replace('.', ',')}.` });
+  const exams = a.works.filter(w => w.kind === 'exam' && w.dueDate >= from && w.dueDate <= to && !a.grades.some(g => g.workId === w.id));
+  if (exams.length) lines.push({ kind: 'warn', text: `Falta la nota de: ${exams.map(w => w.title).join(', ')}. Sin ella la proyección no se actualiza.` });
+  if (a.reviewsDue) lines.push({ kind: 'tip', text: `Tienes ${a.reviewsDue} repaso(s) del temario por hacer: son 20–25 min cada uno y evitan olvidar.` });
+  const bh = bestHours(a.blocks); if (bh) lines.push({ kind: 'tip', text: `Tus sesiones salen mejor ${bh.label} (media ${String(bh.avg).replace('.', ',')} de 3).` });
+  return { from, to, plannedMin: planned, doneMin: done, skipped, compliance, bySubject: by, lines };
+}
+;return{DEFAULT_GOALS,KIND_W,projected,subjectTarget,gapOf,boostFactor,boosts,overall,accessInfo,trend,INTERVALS,LEVELS,newTopic,setMastery,reviewDone,syncReviews,coverage,TOPIC_NEED,stampBase,learnedPace,QUALITY,bestHours,macro,weekReview}})();
 const ST=(()=>{                                                   
 const dur = (b       ) => b.end - b.start;
 /**
@@ -838,7 +1061,7 @@ function stats(blocks         , works        , _now     ) {
 }
 ;return{stats}})();
 const {plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='1362ee89b1',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='8be9f56312',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -875,14 +1098,15 @@ let S,W=[],route='hoy',ws=null;
 const sub=id=>{const s=S.subjects.find(x=>x.id===id);return s?{...s,color:effectiveColor(s)}:{name:'(sin asignatura)',color:'#7A746B'}},wk=id=>S.works.find(w=>w.id===id);
 const toast=m=>{const t=$('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',3500)};
 const FAM=[['generico','Otra asignatura'],['problemas','Problemas y cálculo (Matemáticas, Física, Química)'],['conceptos','Conceptos y desarrollo (Historia, Filosofía, Business)'],['produccion','Producción y lengua (Lengua, Catalán, Inglés)']],UNIT={problemas:'tipo de problema',conceptos:'apartado',produccion:'texto u obra',generico:'apartado'};
-const ctxOf=Sx=>({families:Object.fromEntries(Sx.subjects.map(s=>[s.id,s.family||'generico'])),predictions:Sx.estimateLog||[],now:now().date,capacityFor:w=>capacityFor(Sx.settings,Sx.blocks,now(),w,[...(Sx.activities||[]),...fixedBusy(Sx.routine||DEFAULT_ROUTINE,now().date,Sx.settings.horizonDays+2)])});
+const ctxOf=Sx=>({learned:GL.learnedPace(Sx.works,Sx.blocks),families:Object.fromEntries(Sx.subjects.map(s=>[s.id,s.family||'generico'])),predictions:Sx.estimateLog||[],now:now().date,capacityFor:w=>capacityFor(Sx.settings,Sx.blocks,now(),w,[...(Sx.activities||[]),...fixedBusy(Sx.routine||DEFAULT_ROUTINE,now().date,Sx.settings.horizonDays+2)])});
 const ctx=()=>ctxOf(S);
 function syncPred(){let l=S.estimateLog||[];for(const w of S.works){const e=w.estimateV2;if(w.estimatorVersion!==2||!e)continue;const id=w.id+'|total|v2.0';
  if(w.status==='pending'||w.status==='in_progress')l=recordPrediction(l,{id,workId:w.id,phase:'total',at:now().date,predictedMin:e.interval.p50,p10:e.interval.p10,p90:e.interval.p90,modelVersion:'v2.0',baseMin:e.investedMin});
  else if(w.status==='done'){const r=l.find(x=>x.id===id);if(r&&r.observedMin==null)l=closePrediction(l,id,Math.max(1,e.investedMin-(r.baseMin||0)))}}S.estimateLog=l}
 let LAST=null,PENDING=false,CH=[],CHOOSING=false;
 const habitAsBlocks=()=>(S.habit||[]).filter(h=>h.status==='planned'||h.status==='done').map(h=>({id:h.id,workId:'',date:h.date,start:h.start,end:h.end,status:'planned',manual:false}));
-function scheduleOf(Sx,quiet){Sx.works=reestimate(Sx.works,Sx.blocks,ctxOf(Sx));return proposeSchedule({settings:Sx.settings,works:Sx.works,blocks:Sx.blocks,activities:Sx.activities||[],routine:Sx.routine||DEFAULT_ROUTINE,habit:Sx.habit||[],now:now(),quiet,declined:(Sx.routine&&Sx.routine.declined)||[]})}
+function ensureG(Sx){if(!Sx.goals)Sx.goals={...GL.DEFAULT_GOALS,prev:{},subjTarget:{}};if(!Array.isArray(Sx.grades))Sx.grades=[];if(!Array.isArray(Sx.syllabus))Sx.syllabus=[]}
+function scheduleOf(Sx,quiet){ensureG(Sx);const n=now();Sx.works=GL.syncReviews(Sx.works,Sx.blocks,Sx.syllabus,Sx.subjects,n.date,sid=>GL.gapOf(Sx.goals,Sx.grades,sid)).works;Sx.works=reestimate(Sx.works,Sx.blocks,ctxOf(Sx));Sx.works=GL.stampBase(Sx.works,GL.learnedPace(Sx.works,Sx.blocks));return proposeSchedule({boost:GL.boosts(Sx.goals,Sx.grades,Sx.subjects),settings:Sx.settings,works:Sx.works,blocks:Sx.blocks,activities:Sx.activities||[],routine:Sx.routine||DEFAULT_ROUTINE,habit:Sx.habit||[],now:now(),quiet,declined:(Sx.routine&&Sx.routine.declined)||[]})}
 function finish(Sx,r){const tm={};Sx.works.forEach(w=>{if(w.topics?.length&&(w.status==='pending'||w.status==='in_progress'))Object.assign(tm,assignTopics(w,r.blocks))});Sx.blocks=r.blocks.map(b=>tm[b.id]&&!b.manual&&b.topicId!==tm[b.id]?{...b,topicId:tm[b.id]}:b);Sx.habit=r.habit;W=r.warnings}
 async function persist(){syncPred();S.version=(S.version||0)+1;LAST=JSON.stringify(S);try{await repo.save(S)}catch(e){toast('Error al guardar: '+e.message)}render()}
 function extendRoutine(){const R=S.routine;if(!R||!R.enabled)return;const n=now(),to=addDays(n.date,RTN.HORIZON_DAYS-1);if(R.generatedThrough&&R.generatedThrough>=to)return;const from=R.generatedThrough&&R.generatedThrough>=n.date?addDays(R.generatedThrough,1):n.date;S.habit=[...(S.habit||[]),...generate({settings:S.settings,routine:R,subjects:S.subjects,works:S.works,blocks:S.blocks,activities:S.activities||[],habit:S.habit||[],now:n,from,to})];S.routine={...R,generatedThrough:to}}
@@ -908,7 +1132,7 @@ function fieldHtml(f){
  if(f.t==='more')return`<details class=more><summary>${esc(f.l)}</summary>`;
  if(f.t==='end')return'</details>';
  if(f.t==='chips')return`<fieldset class=fs><legend>${esc(f.l)}</legend><div class=chips2>${f.o.map(o=>`<label class=ch><input type=radio name=${f.k} value="${esc(o[0])}"${String(o[0])===String(f.v)?' checked':''}><span>${o[2]?`<i class=dot style="--c:${esc(o[2])}"></i>`:''}${esc(o[1])}</span></label>`).join('')}</div>${f.h?`<small>${esc(f.h)}</small>`:''}</fieldset>`;
- return`<label>${esc(f.l)}${f.t==='select'?`<select name=${f.k}>${f.o.map(o=>`<option value="${esc(o[0])}" ${o[0]==f.v?'selected':''}>${esc(o[1])}</option>`).join('')}</select>`:f.t==='area'?`<textarea name=${f.k} rows=3>${esc(f.v)}</textarea>`:`<input name=${f.k} type=${f.t||'text'} value="${esc(f.v)}" ${f.min!=null?'min='+f.min:''} ${f.max!=null?'max='+f.max:''}${f.ph?' placeholder="'+esc(f.ph)+'"':''}>`}</label>`}
+ return`<label>${esc(f.l)}${f.t==='select'?`<select name=${f.k}>${f.o.map(o=>`<option value="${esc(o[0])}" ${o[0]==f.v?'selected':''}>${esc(o[1])}</option>`).join('')}</select>`:f.t==='area'?`<textarea name=${f.k} rows=3>${esc(f.v)}</textarea>`:`<input name=${f.k} type=${f.t||'text'} value="${esc(f.v)}" ${f.min!=null?'min='+f.min:''} ${f.max!=null?'max='+f.max:''}${f.step?' step='+f.step:''}${f.ph?' placeholder="'+esc(f.ph)+'"':''}>`}</label>`}
 function openForm(title,fields,ok,del,lbl,again){const d=$('#dlg');d.innerHTML=`<form id=f><h3>${esc(title)}</h3>${fields.map(fieldHtml).join('')}<p class=err id=ferr></p><div class=row><button type=button data-a=close>Cancelar</button>${del?'<button type=button class=danger id=fdel>Eliminar</button>':''}${again?`<button type=submit value=again>${esc(again)}</button>`:''}<button class=pri value=save>${esc(lbl||'Guardar')}</button></div></form>`;if(!d.open)d.showModal();
  $('#f').onsubmit=e=>{e.preventDefault();const ag=!!(e.submitter&&e.submitter.value==='again'),err=ok(Object.fromEntries(new FormData(e.target)),ag);if(err)$('#ferr').textContent=err;else if(!CHOOSING&&!ag)d.close()};
  if(del)$('#fdel').onclick=()=>{if(confirm('¿Eliminar definitivamente? No se puede deshacer.')){const e=del();if(e)$('#ferr').textContent=e;else if(!CHOOSING)d.close()}}}
@@ -965,13 +1189,13 @@ function workForm(kind,id,pre){const w=id?wk(id):{},E=kind==='exam',subs=S.subje
   LASTSUB=sid;S.works=id?S.works.map(x=>x.id===id?o:x):[...S.works,o];
   if(again&&!id){toast('Guardada: «'+title+'». Añade otra.');commit().then(()=>{if(!CHOOSING)workForm(kind,null,{subjectId:sid})})}else commit()},id&&(()=>{if(S.blocks.some(b=>b.workId===id&&b.status==='done'))return'Tiene sesiones completadas: márcala como Archivada para conservar el historial.';S.works=S.works.filter(x=>x.id!==id);S.blocks=S.blocks.filter(b=>b.workId!==id);commit()}),undefined,id||E?undefined:'Guardar y añadir otra')}
 function logForm(id){const b=S.blocks.find(x=>x.id===id),w=wk(b.workId)||{},tp=(w.topics||[]).map(x=>[x.id,x.name]);
- openForm('Registrar sesión',[{k:'actualMin',l:'Minutos reales de estudio',t:'number',min:1,v:b.end-b.start},...(tp.length?[{k:'topicId',l:'Tema trabajado',t:'select',o:[['','(ninguno / varios)'],...tp],v:b.topicId||''}]:[]),{k:'goalMet',l:'¿Alcanzaste el objetivo de la sesión?',t:'select',o:[['1','Sí'],['0','No del todo']],v:'1'},{k:'progress',l:'Progreso aproximado en el tema (% del trabajo que le quedaba)',t:'number',min:0,max:100,v:60},{k:'difficulty',l:'Dificultad encontrada (1-5)',t:'number',min:1,max:5,v:3},{k:'interrupted',l:'¿Interrupciones importantes?',t:'select',o:[['0','No'],['1','Sí']],v:'0'},{k:'phase',l:'Fase trabajada (opcional)',t:'select',o:[['','(no indicar)'],['aprendizaje','Aprendizaje / ejemplos'],['practica','Práctica'],['recuperacion','Recuperación sin apuntes'],['errores','Corrección de errores'],['repaso','Repaso']],v:''},{k:'units',l:'Unidades trabajadas (opcional)',t:'number',min:0,v:''},{k:'ind',l:'Ítems correctos SIN ayuda (opcional)',t:'number',min:0,v:''},{k:'asi',l:'Ítems correctos CON ayuda',t:'number',min:0,v:''},{k:'err',l:'Ítems con error',t:'number',min:0,v:''},{k:'omi',l:'Ítems omitidos',t:'number',min:0,v:''}],v=>{
+ openForm('Registrar sesión',[{k:'actualMin',l:'Minutos reales de estudio',t:'number',min:1,v:b.end-b.start},...(tp.length?[{k:'topicId',l:'Tema trabajado',t:'select',o:[['','(ninguno / varios)'],...tp],v:b.topicId||''}]:[]),{k:'goalMet',l:'¿Alcanzaste el objetivo de la sesión?',t:'select',o:[['1','Sí'],['0','No del todo']],v:'1'},{k:'quality',l:'¿Cómo ha ido la sesión?',t:'chips',o:[['','Sin valorar'],...GL.QUALITY],v:w.auto==='review'?'3':''},{k:'progress',l:'Progreso aproximado en el tema (% del trabajo que le quedaba)',t:'number',min:0,max:100,v:60},{k:'difficulty',l:'Dificultad encontrada (1-5)',t:'number',min:1,max:5,v:3},{k:'interrupted',l:'¿Interrupciones importantes?',t:'select',o:[['0','No'],['1','Sí']],v:'0'},{k:'phase',l:'Fase trabajada (opcional)',t:'select',o:[['','(no indicar)'],['aprendizaje','Aprendizaje / ejemplos'],['practica','Práctica'],['recuperacion','Recuperación sin apuntes'],['errores','Corrección de errores'],['repaso','Repaso']],v:''},{k:'units',l:'Unidades trabajadas (opcional)',t:'number',min:0,v:''},{k:'ind',l:'Ítems correctos SIN ayuda (opcional)',t:'number',min:0,v:''},{k:'asi',l:'Ítems correctos CON ayuda',t:'number',min:0,v:''},{k:'err',l:'Ítems con error',t:'number',min:0,v:''},{k:'omi',l:'Ítems omitidos',t:'number',min:0,v:''}],v=>{
   const am=+v.actualMin,pr=+(v.progress??60),df=+(v.difficulty??3);if(!(am>=1&&am<=600))return'Los minutos reales deben estar entre 1 y 600.';if(!(pr>=0&&pr<=100))return'El progreso va de 0 a 100.';if(!(df>=1&&df<=5))return'Dificultad de 1 a 5.';
   const nn=k=>v[k]===''||v[k]==null?0:+v[k],it={independent:nn('ind'),assisted:nn('asi'),wrong:nn('err'),skipped:nn('omi')},n=it.independent+it.assisted+it.wrong+it.skipped,un=nn('units');
   if([it.independent,it.assisted,it.wrong,it.skipped,un].some(x=>!(x>=0)))return'Las cantidades deben ser números no negativos.';
-  const topicId=v.topicId||undefined;b.status='done';b.actualMin=am;b.log={actualMin:am,topicId,progress:pr,difficulty:df,goalMet:v.goalMet!=='0',interrupted:v.interrupted==='1',valid:v.interrupted!=='1'&&am>=5,...(v.phase?{phase:v.phase}:{}),...(un>0?{units:un}:{}),...(n>0?{items:{n,...it}}:{})};
+  const topicId=v.topicId||undefined;b.status='done';b.actualMin=am;if(+v.quality>=1)b.quality=+v.quality;b.log={actualMin:am,topicId,progress:pr,difficulty:df,goalMet:v.goalMet!=='0',interrupted:v.interrupted==='1',valid:v.interrupted!=='1'&&am>=5,...(v.phase?{phase:v.phase}:{}),...(un>0?{units:un}:{}),...(n>0?{items:{n,...it}}:{})};
   if(n>0&&topicId&&w.topics)S.works=S.works.map(x=>x.id!==w.id?x:{...x,topics:x.topics.map(y=>y.id===topicId?{...y,evidence:[...(y.evidence||[]),{at:now().date,items:n,...it,kind:'recuperacion'}]}:y)});
-  if(topicId&&w.topics&&w.estimatorVersion!==2){S.works=S.works.map(x=>x.id!==w.id?x:{...x,topics:x.topics.map(y=>y.id===topicId?{...y,mastery:Math.min(3,Math.round((y.mastery+(3-y.mastery)*pr/100)*1000)/1000)}:y)})}commit()})}
+  if(topicId&&w.topics&&w.estimatorVersion!==2){S.works=S.works.map(x=>x.id!==w.id?x:{...x,topics:x.topics.map(y=>y.id===topicId?{...y,mastery:Math.min(3,Math.round((y.mastery+(3-y.mastery)*pr/100)*1000)/1000)}:y)})}if(w.auto==='review'&&w.topicRef){S.syllabus=(S.syllabus||[]).map(t=>t.id===w.topicRef?GL.reviewDone(t,v.quality==='1'?'mal':v.quality==='2'?'regular':'bien',now().date):t);w.status='done';w.updatedAt=Date.now()}commit()})}
 function blkForm(id,pre){const b=id?S.blocks.find(x=>x.id===id):pre||{},ws_=S.works.filter(w=>w.status==='pending'||w.status==='in_progress').map(w=>[w.id,sub(w.subjectId).name+' · '+w.title]);if(!ws_.length)return toast('No hay tareas ni exámenes activos');
  openForm(id?'Mover sesión':'Nueva sesión manual',[{k:'workId',l:'Trabajo',t:'select',o:ws_,v:b.workId||ws_[0][0]},{k:'date',l:'Fecha',t:'date',v:b.date||now().date},{k:'s',l:'Inicio',t:'time',v:b.start!=null?fm(b.start):'17:00'},{k:'e',l:'Fin',t:'time',v:b.end!=null?fm(b.end):'18:00'}],v=>{
   const s=pm(v.s),e=pm(v.e),n=now();if(!okDate(v.date)||s==null||e==null||e<=s)return'Revisa fecha y horas (el fin debe ser posterior al inicio).';if(v.date<n.date||(v.date===n.date&&s<n.minute))return'No se puede programar en el pasado.';
@@ -988,8 +1212,8 @@ const shownWarnings=()=>W.filter(w=>{if(w.type!=='deficit')return true;const x=w
 const dueTxt=w=>isUndated(w)?'Sin fecha':fd(w.dueDate)+(w.dueMinute!=null?' '+fm(w.dueMinute):'');
 const wrow=w=>{const s=sub(w.subjectId),[p,c]=prio(w);return`<div class="card item" style="--c:${s.color}" data-a=${w.kind==='exam'?'editExam':'editTask'} data-id="${w.id}">${w.kind==='task'?`<button class=chk2 data-a=toggle data-id="${w.id}" aria-label="${w.status==='done'?'Reabrir':'Completar'}">${w.status==='done'?'↺':'✓'}</button>`:''}<span class=dot></span><div><b${w.status==='done'?' style="text-decoration:line-through"':''}>${esc(w.title)}</b><small>${esc(s.name)} · ${dueTxt(w)} · ${hr(w.estMin)}${w.kind==='exam'?' · prep. '+w.readiness+'%':''}</small>${estLine(w)}</div>${w.status==='pending'||w.status==='in_progress'?`<span class="tag ${c}">${p}</span>`:`<em>${STS.find(x=>x[0]===w.status)[1]}</em>`}</div>`};
 
-const UIK='focusos.ui',NAVT={hoy:'Hoy',tar:'Tareas',exa:'Exámenes',cal:'Calendario',asg:'Asignaturas',eje:'Ejercicio físico',rut:'Rutina semanal',est:'Estimaciones',seg:'Progreso y estadísticas',aj:'Ajustes'};let UI={rail:false,theme:'dark',open:{plan:true,subjects:false}},SF=false;
-try{const u=JSON.parse(localStorage.getItem(UIK)||'{}');UI={rail:!!u.rail,theme:['dark','light','auto'].includes(u.theme)?u.theme:'dark',open:{...UI.open,...(u.open||{})}}}catch{}
+const UIK='focusos.ui',NAVT={obj:'Objetivos y notas',tem:'Temario',cur:'Curso hasta la PAU',rev:'Revisión semanal',hoy:'Hoy',tar:'Tareas',exa:'Exámenes',cal:'Calendario',asg:'Asignaturas',eje:'Ejercicio físico',rut:'Rutina semanal',est:'Estimaciones',seg:'Progreso y estadísticas',aj:'Ajustes'};let UI={rail:false,theme:'dark',open:{plan:true,goal:true,subjects:false}},SF=false;
+try{const u=JSON.parse(localStorage.getItem(UIK)||'{}');UI={rail:!!u.rail,theme:['dark','light','auto'].includes(u.theme)?u.theme:'dark',open:{...UI.open,...(u.open||{})},lastExport:+u.lastExport||0}}catch{}
 const saveUI=()=>{try{localStorage.setItem(UIK,JSON.stringify(UI))}catch{}};
 function applyTheme(){try{const t=UI.theme==='auto'?(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):UI.theme;document.documentElement.dataset.theme=t;const m=document.querySelector('meta[name=theme-color]');m&&m.setAttribute('content',t==='light'?'#F6F4EF':'#121214')}catch{}}
 const IC={hoy:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M10 20v-5h4v5"/>',plan:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',rut:'<path d="M17 3.5 20 6.5l-3 3"/><path d="M4 11V9.5a3 3 0 0 1 3-3h13"/><path d="M7 20.5 4 17.5l3-3"/><path d="M20 13v1.5a3 3 0 0 1-3 3H4"/>',tar:'<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1.2 1.2L7 4.8M3.5 12l1.2 1.2L7 10.8M3.5 18l1.2 1.2L7 16.8"/>',exa:'<path d="M6 3.5h9l3 3V20.5H6z"/><path d="M14.5 3.5v4h3.5M9 12h6M9 16h6"/>',est:'<path d="M4 18a8 8 0 1 1 16 0"/><path d="m12 18 4-6"/>',asg:'<path d="M4.5 5.5A2.5 2.5 0 0 1 7 3h12.5v15H7a2.5 2.5 0 0 0-2.5 2.5z"/><path d="M4.5 5.5v15M9 7.5h7"/>',well:'<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',eje:'<path d="M3 12h4l2.5-6 4 12 2.5-6H21"/>',seg:'<path d="M5 20V10M12 20V4M19 20v-7"/>',aj:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',chev:'<path d="m9 6 6 6-6 6"/>',lt:'<path d="m14 7-5 5 5 5"/>',gt:'<path d="m10 7 5 5-5 5"/>'};
@@ -1002,6 +1226,7 @@ function renderNav(){const [r,arg]=route.split(':'),cur=k=>r===k?' aria-current=
  $('#nav').innerHTML=`<div class=brand><span>Focus OS</span><button data-a=rail aria-label="${UI.rail?'Expandir':'Contraer'} menú">${ic(UI.rail?'gt':'lt')}</button></div>`+item('hoy','hoy','Hoy')
  +grp('plan','plan','Planificar',sb('cal','Calendario')+sb('rut','Rutina semanal')+sb('tar','Tareas')+sb('exa','Exámenes')+sb('est','Estimaciones'),['cal','rut','tar','exa','est'].includes(r))
  +grp('subjects','asg','Asignaturas',`<button class="nv sub" aria-label="Todas las asignaturas" data-a=nav data-r=asg${r==='asg'&&!arg?' aria-current=page':''}><span class=lbl>Todas</span></button>`+S.subjects.filter(s=>!s.archived).map(s=>`<button class="nv sub" aria-label="${esc(s.name)}" data-a=nav data-r="asg:${esc(s.id)}"${r==='asg'&&arg===s.id?' aria-current=page':''}><span class=dot style="--c:${sub(s.id).color}"></span><span class=lbl>${esc(s.name)}</span></button>`).join(''),r==='asg')
+ +grp('goal','seg','Objetivos',sb('obj','Notas y objetivo')+sb('tem','Temario')+sb('cur','Curso hasta la PAU')+sb('rev','Revisión semanal'),['obj','tem','cur','rev'].includes(r))
  +item('eje','eje','Ejercicio físico')+item('seg','seg','Progreso y estadísticas')+item('aj','aj','Ajustes')}
 function setSubjectColor(id,color){const s=S.subjects.find(x=>x.id===id);if(!s||!/^#[0-9a-fA-F]{6}$/.test(color))return'Color no válido.';if(colorConflict(S.subjects,id,color)){render();return'Ese color ya lo usa otra asignatura.'}
  const ck=s.colorKey;S.subjects=S.subjects.map(x=>x.id!==id?x:{...x,userColor:ck&&color.toLowerCase()===DEFAULT_SUBJECT_COLORS[ck].toLowerCase()?undefined:color});commit();return null}
@@ -1038,7 +1263,7 @@ V.hoy=()=>{const n=now(),tb=S.blocks.filter(b=>b.date===n.date&&b.status!=='resc
 V.tar=()=>{const t=S.works.filter(w=>w.kind==='task'),open=t.filter(w=>w.status!=='done'&&w.status!=='archived'),dated=open.filter(w=>!isUndated(w)).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)),und=open.filter(isUndated).sort((a,b)=>priority(b,now())-priority(a,now())),rest=t.filter(w=>!open.includes(w)).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
  return`<h1>Tareas</h1><button class=pri data-a=addTask>+ Nueva tarea</button><br><br>${dated.map(wrow).join('')}${und.length?`<h2>Sin fecha</h2><p class=m>No tienen fecha límite, pero cuentan: Focus OS las coloca en los mejores huecos de las próximas dos semanas, por orden de importancia.</p>${und.map(wrow).join('')}`:''}${rest.length?`<h2>Terminadas</h2>${rest.map(wrow).join('')}`:''}${t.length?'':'<p class=m>Aún no hay tareas.</p>'}`};
 V.exa=()=>{const l=S.works.filter(w=>w.kind==='exam').sort((a,b)=>a.dueDate.localeCompare(b.dueDate));return`<h1>Exámenes</h1><button class=pri data-a=addExam>+ Nuevo examen</button><br><br>${l.map(wrow).join('')||'<p class=m>Aún no hay exámenes.</p>'}`};
-const PXM=1.5;let CALG=null;
+const PXM=1.5;let CALG=null,CALMODE='week',CALDAY=null;
 const calScroll=()=>{try{const g=CALG,n=now(),el=document.querySelector('.tg');if(!g||!el)return 0;const m=Math.max(g.g0,(n.minute>=g.g0?n.minute:900)-90);return Math.max(0,el.getBoundingClientRect().top+window.scrollY+(m-g.g0)*PXM-80)}catch{return 0}};
 /** Calendario semanal con eje horario: cada bloque ocupa su hora real, se ve la disponibilidad (franja suave), la hora actual y la carga de cada día. Tocar un hueco libre propone una sesión ahí. */
 function calEvents(d){const ev=[],nos=[];
@@ -1047,14 +1272,14 @@ function calEvents(d){const ev=[],nos=[];
  for(const a of S.activities.filter(x=>x.date===d)){const nm=a.category==='exercise'?'Ejercicio · '+TL(a.type):a.title||'Actividad opcional',o={c:'var(--muted)',cls:'act '+a.status,t:'act',id:a.id,name:nm,sub:a.status==='done'?'completada':a.status==='skipped'?'omitida':'',act:true};if(a.start==null)nos.push(o);else ev.push({...o,s:a.start,e:a.end})}
  return{ev,nos}}
 const evHtml=(x,g0)=>{const top=(x.s-g0)*PXM,h=Math.max(18,(x.e-x.s)*PXM-2),tall=h>=44;return`<div class="ev ${x.cls}" style="--c:${x.c};top:${top}px;height:${h}px" data-a=blkMenu data-t=${x.t} data-id="${esc(x.id)}" role=button tabindex=0 aria-label="${esc(x.name)} ${fm(x.s)}–${fm(x.e)}"><b>${esc(x.name)}</b><span>${fm(x.s)} · ${x.e-x.s} min</span>${tall&&x.sub?`<small>${esc(x.sub)}</small>`:''}</div>`};
-V.cal=()=>{const n=now();ws=ws||addDays(n.date,-((weekday(n.date)+6)%7));const ds=[...Array(7)].map((_,i)=>addDays(ws,i)),per=ds.map(calEvents);
+V.cal=()=>{const n=now();ws=ws||addDays(n.date,-((weekday(n.date)+6)%7));if(!CALDAY||CALDAY<ws||CALDAY>addDays(ws,6))CALDAY=n.date>=ws&&n.date<=addDays(ws,6)?n.date:ws;const ds=[...Array(7)].map((_,i)=>addDays(ws,i)),per=ds.map(calEvents);
  let lo=420,hi=1350;ds.forEach((d,i)=>{for(const w of S.settings.availability[weekday(d)]||[]){lo=Math.min(lo,w.start);hi=Math.max(hi,w.end)}for(const x of per[i].ev){lo=Math.min(lo,x.s);hi=Math.max(hi,x.e)}});
  const g0=Math.floor(lo/60)*60,g1=Math.ceil(hi/60)*60,H=(g1-g0)*PXM;CALG={g0,g1,ws};
  const hours=[];for(let m=g0;m<g1;m+=60)hours.push(`<i style="top:${(m-g0)*PXM}px">${fm(m)}</i>`);
  const nowY=n.minute>=g0&&n.minute<=g1?(n.minute-g0)*PXM:null,e1=addDays(ws,6);
  const cols=ds.map((d,i)=>{const {ev,nos}=per[i],av=(S.settings.availability[weekday(d)]||[]).map(w=>`<u class=av style="top:${(w.start-g0)*PXM}px;height:${(w.end-w.start)*PXM}px"></u>`).join(''),blocked=S.settings.blockedDates.filter(b=>b.date===d).map(b=>`<u class=bl style="top:${(b.start-g0)*PXM}px;height:${(b.end-b.start)*PXM}px"></u>`).join(''),mins=ev.filter(x=>x.t==='ob'&&x.cls.includes('planned')||x.t==='ob'&&x.cls.includes('done')).reduce((a,x)=>a+x.e-x.s,0),past=d<n.date;
-  return`<div class="day${d===n.date?' today':''}${past?' past':''}"><div class=dh><b>${DOW[weekday(d)]} ${+d.slice(8)}</b><small>${mins?hr(mins):'libre'}</small></div><div class=nos>${nos.map(x=>`<div class="chip0 ${x.t}" style="--c:${x.c}" data-a=blkMenu data-t=${x.t} data-id="${esc(x.id)}" role=button tabindex=0>${esc(x.name)} · ${esc(x.sub)}</div>`).join('')}</div><div class=dc data-a=slot data-d=${d} style="height:${H}px">${av}${blocked}${ev.map(x=>evHtml(x,g0)).join('')}${d===n.date&&nowY!=null?`<div class=nowl style="top:${nowY}px"></div>`:''}</div></div>`}).join('');
- return`<h1>Calendario</h1><div class=row style="justify-content:flex-start;margin:0 0 12px"><button data-a=wk data-k=-7 aria-label="Semana anterior">←</button><button data-a=wk data-k=0>Hoy</button><button data-a=wk data-k=7 aria-label="Semana siguiente">→</button><b class=wl>${+ws.slice(8)} ${MON[+ws.slice(5,7)-1]} – ${+e1.slice(8)} ${MON[+e1.slice(5,7)-1]}</b><button data-a=addBlk>+ Sesión</button><button data-a=addAct>+ Ejercicio</button><button data-a=replan>Regenerar futuro</button></div><p class=lg><span class=sw></span> Obligatorio <span class="sw o"></span> Sugerido <span class="sw av"></span> Franja de estudio · toca un hueco para añadir una sesión</p><div class="tg${per.some(x=>x.nos.length)?' hasnos':''}"><div class=ax><div class=axh></div><div class=axb style="height:${H}px">${hours.join('')}</div></div><div class=days>${cols}</div></div>`};
+  return`<div class="day${d===n.date?' today':''}${past?' past':''}${d===CALDAY?' sel':''}"><div class=dh><b>${DOW[weekday(d)]} ${+d.slice(8)}</b><small>${mins?hr(mins):'libre'}</small></div><div class=nos>${nos.map(x=>`<div class="chip0 ${x.t}" style="--c:${x.c}" data-a=blkMenu data-t=${x.t} data-id="${esc(x.id)}" role=button tabindex=0>${esc(x.name)} · ${esc(x.sub)}</div>`).join('')}</div><div class=dc data-a=slot data-d=${d} style="height:${H}px">${av}${blocked}${ev.map(x=>evHtml(x,g0)).join('')}${d===n.date&&nowY!=null?`<div class=nowl style="top:${nowY}px"></div>`:''}</div></div>`}).join('');
+ return`<h1>Calendario</h1><div class=row style="justify-content:flex-start;margin:0 0 12px"><button data-a=wk data-k=-7 aria-label="Semana anterior">←</button><button data-a=wk data-k=0>Hoy</button><button data-a=wk data-k=7 aria-label="Semana siguiente">→</button><b class=wl>${CALMODE==='day'?fdl(CALDAY):`${+ws.slice(8)} ${MON[+ws.slice(5,7)-1]} – ${+e1.slice(8)} ${MON[+e1.slice(5,7)-1]}`}</b><button data-a=calMode aria-pressed=${CALMODE==='day'}>${CALMODE==='day'?'Ver semana':'Ver día'}</button><button data-a=addBlk>+ Sesión</button><button data-a=addAct>+ Ejercicio</button><button data-a=replan>Regenerar futuro</button></div><p class=lg><span class=sw></span> Obligatorio <span class="sw o"></span> Sugerido <span class="sw av"></span> Franja de estudio · toca un hueco para añadir una sesión</p><div class="tg${per.some(x=>x.nos.length)?' hasnos':''}${CALMODE==='day'?' one':''}"><div class=ax><div class=axh></div><div class=axb style="height:${H}px">${hours.join('')}</div></div><div class=days>${cols}</div></div>`};
 function calSlot(t,e){if(!CALG||!e||e.target!==t)return;const d=t.dataset.d,r=t.getBoundingClientRect(),n=now();let m=CALG.g0+Math.round((e.clientY-r.top)/PXM/15)*15;if(d<n.date||(d===n.date&&m<n.minute))return toast('No se puede programar en el pasado.');blkForm(null,{date:d,start:m,end:m+50})}
 V.asg=id=>{if(id&&S.subjects.some(s=>s.id===id)){const s=sub(id),ws_=S.works.filter(w=>w.subjectId===id),min=S.blocks.filter(b=>b.status==='done'&&ws_.some(w=>w.id===b.workId)).reduce((a,b)=>a+(b.actualMin??b.end-b.start),0);
  return`<h1><span class=dot style="--c:${s.color}"></span> ${esc(s.name)}</h1><p class=m>${(FAM.find(f=>f[0]===(s.family||'generico'))||FAM[0])[1]} · ${hr(min)} estudiadas · color <b>${esc(s.color.toUpperCase())}</b></p><div class=row style="justify-content:flex-start"><button class=pri data-a=addTask>+ Tarea</button><button data-a=addExam>+ Examen</button><button data-a=editSub data-id="${s.id}">Editar asignatura</button></div><h2>Exámenes</h2>${ws_.filter(w=>w.kind==='exam').map(wrow).join('')||'<div class=empty>Sin exámenes para esta asignatura.</div>'}<h2>Tareas</h2>${ws_.filter(w=>w.kind==='task').map(wrow).join('')||'<div class=empty>Sin tareas para esta asignatura.</div>'}`}
@@ -1136,7 +1361,7 @@ document.addEventListener('submit',e=>{if(e.target.id!=='sf')return;e.preventDef
 function render(){const [r,arg]=route.split(':');renderNav();$('#main').innerHTML=(V[r]||V.hoy)(arg);$('#topTitle').textContent=r==='asg'&&arg?sub(arg).name:NAVT[r]||'Focus OS'}
 const tick=()=>{if(S&&!$('#dlg').open&&route!=='aj'&&route!=='rut'){extendRoutine();commit({quiet:true})}};
 const dl=(txt,name)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)};
-const fresh=()=>({schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
+const fresh=()=>({goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
 function recovery(err){S=null;$('#main').innerHTML=`<h1>Datos no válidos</h1><div class="card warn">${esc(err)}</div><p class=m>No se ha sobrescrito nada: la copia dañada sigue guardada en este navegador. Puedes descargarla, importar una copia JSON válida o empezar de cero (la dañada se conserva aparte).</p><div class=row style="justify-content:flex-start"><button data-a=dlBad>Descargar copia dañada</button><button class=danger data-a=fresh>Empezar de cero</button></div><label>Importar copia JSON<input type=file id=imp accept=".json,application/json"></label>`}
 function importText(text){let o;try{o=JSON.parse(text)}catch{toast('El archivo no es un JSON válido.');return'json'}
  const e=validate(o);if(e){toast('Copia no válida: '+e);return e}
@@ -1153,6 +1378,69 @@ const estNote=w=>(w.estimate?estNote1(w):'<b>Estimador v1:</b> se usan tus minut
 async function boot(){applyTheme();let r;try{r=await repo.load()}catch(e){r={error:e.message}}if(r.error)return recovery(r.error);
  S=r.state||fresh();if(!Array.isArray(S.activities))S.activities=[];if(!Array.isArray(S.suggestionLog))S.suggestionLog=[];if(!S.routine)S.routine={...DEFAULT_ROUTINE};if(!Array.isArray(S.habit))S.habit=[];if(!S.explore||!Array.isArray(S.explore.log))S.explore={log:[]};if(r.warn)toast(r.warn);try{navigator.storage.persist()}catch{}extendRoutine();await commit({quiet:true});try{const dl=$('#dlg');dl.addEventListener&&dl.addEventListener('close',()=>{CHOOSING=false;if(PENDING){PENDING=false;S=JSON.parse(LAST);render()}})}catch{}try{if('serviceWorker' in navigator&&isSecureContext)navigator.serviceWorker.register('sw.js').catch(()=>{})}catch{}
  setInterval(tick,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick()})}
-boot();
 
+/* ===== Objetivos, notas, temario, curso hasta la PAU y revisión semanal (v6). Todo se calcula en src/core/goals.ts; aquí solo hay pantallas. ===== */
+const n1=x=>x==null?'—':String(Math.round(x*10)/10).replace('.',','),pn=x=>x===''||x==null?null:+String(x).replace(',','.'),monOf=d=>addDays(d,-((weekday(d)+6)%7));
+const subsAct=()=>S.subjects.filter(s=>!s.archived);
+const barH=(p,c)=>`<div class=bar><i style="width:${Math.min(100,p||0)}%;background:${c||'var(--accent)'}"></i></div>`;
+function gradeForm(id,pre){ensureG(S);const g=id?S.grades.find(x=>x.id===id):null,p=pre||{},sj=g?.subjectId||p.subjectId||subsAct()[0]?.id;
+ openForm(id?'Editar nota':'Nueva nota',[{k:'subjectId',l:'Asignatura',t:'chips',o:subsAct().map(s=>[s.id,s.name,sub(s.id).color]),v:sj},{k:'kind',l:'Tipo',t:'chips',o:[['examen','Examen'],['tarea','Tarea o trabajo'],['evaluacion','Nota de evaluación']],v:g?.kind||p.kind||'examen'},{k:'score',l:'Nota (0 a 10)',t:'number',min:0,max:10,step:'0.01',v:g?.score??''},{k:'date',l:'Fecha',t:'date',v:g?.date||p.date||now().date},{k:'label',l:'Detalle (opcional)',t:'text',v:g?.label||p.label||''}],v=>{
+  const sc=pn(v.score);if(!(sc!=null&&sc>=0&&sc<=10))return'La nota debe estar entre 0 y 10.';if(!okDate(v.date))return'Revisa la fecha.';if(!S.subjects.some(x=>x.id===v.subjectId))return'Elige una asignatura.';
+  const o={id:g?.id||uid(),subjectId:v.subjectId,score:Math.round(sc*100)/100,kind:v.kind,date:v.date,label:(v.label||'').trim()||undefined,workId:g?.workId||p.workId||undefined};
+  S.grades=g?S.grades.map(x=>x.id===g.id?o:x):[...S.grades,o];commit({quiet:true})},g&&(()=>{S.grades=S.grades.filter(x=>x.id!==g.id);commit({quiet:true})}))}
+function goalsForm(){ensureG(S);const g=S.goals,ss=subsAct();
+ openForm('Objetivo y punto de partida',[{k:'target',l:'Nota media que quieres en cada asignatura (5 a 10)',t:'number',min:5,max:10,step:'0.1',v:g.target??''},
+  {t:'more',l:'Notas finales de 1.º (opcional)'},...ss.map(s=>({k:'p_'+s.id,l:s.name,t:'number',min:0,max:10,step:'0.01',v:g.prev[s.id]??''})),{t:'end'},
+  {t:'more',l:'Objetivo distinto en alguna asignatura (opcional)'},...ss.map(s=>({k:'t_'+s.id,l:s.name,t:'number',min:5,max:10,step:'0.1',v:g.subjTarget[s.id]??''})),{t:'end'},
+  {t:'more',l:'PAU y nota de acceso (opcional)'},{k:'pauDate',l:'Primer día de la PAU',t:'date',v:g.pauDate||''},{k:'pauExpected',l:'Nota que esperas en la PAU (0 a 10)',t:'number',min:0,max:10,step:'0.1',v:g.pauExpected??''},{k:'accessTarget',l:'Nota de acceso que buscas (sobre 10, fase general)',t:'number',min:5,max:10,step:'0.01',v:g.accessTarget??''},{t:'end'}],v=>{
+  const num=(k,a,b)=>{const x=pn(v[k]);return x==null?null:(x>=a&&x<=b?x:NaN)},tg=num('target',5,10);if(Number.isNaN(tg))return'El objetivo va de 5 a 10.';
+  const prev={},st={};for(const s of ss){const p=num('p_'+s.id,0,10),t=num('t_'+s.id,5,10);if(Number.isNaN(p)||Number.isNaN(t))return'Revisa las notas de '+s.name+' (0–10; objetivo 5–10).';if(p!=null)prev[s.id]=p;if(t!=null)st[s.id]=t}
+  const pe=num('pauExpected',0,10),at=num('accessTarget',5,10);if(Number.isNaN(pe)||Number.isNaN(at))return'Revisa los datos de la PAU.';if(v.pauDate&&!okDate(v.pauDate))return'Revisa la fecha de la PAU.';
+  S.goals={...g,target:tg,prev,subjTarget:st,pauDate:v.pauDate||null,start:v.pauDate?(g.start||now().date):null,pauExpected:pe,accessTarget:at};commit({quiet:true})})}
+V.obj=()=>{ensureG(S);const g=S.goals,ov=GL.overall(g,S.grades,S.subjects),ac=GL.accessInfo(g,ov.media),td=now().date,pend=S.works.filter(w=>w.kind==='exam'&&w.dueDate<td&&w.status!=='archived'&&!S.grades.some(x=>x.workId===w.id));
+ const head=`<h1>Objetivos y notas</h1><div class=row style="justify-content:flex-start;margin:0 0 14px"><button class=pri data-a=addGrade>+ Nota</button><button data-a=editGoals>${g.target==null?'Definir objetivo':'Editar objetivo'}</button></div>`;
+ const sum=g.target==null?`<div class=card><h3>Aún no hay objetivo</h3><p class=m>Dime la nota que buscas y tus notas de partida (1.º y lo que llevas en 2.º). Con eso la app calcula tu brecha y dedica más horas de examen a lo que más te acerca a tu meta.</p><button class=pri data-a=editGoals>Definir objetivo</button></div>`
+ :`<div class=card><h3>Media proyectada ${n1(ov.media)} · objetivo ${n1(ov.target)}</h3><p class=m>${ov.gap==null?'Introduce notas o tus notas de 1.º para proyectar.':ov.gap>0?`Te faltan <b>${n1(ov.gap)}</b> puntos${ov.worst?` · mayor brecha: <b>${esc(ov.worst.name)}</b> (${n1(ov.worst.gap)})`:''}.`:'Vas por encima de tu objetivo.'} Proyección con ${ov.covered} de ${ov.total} asignaturas (heurística: ${GL.KIND_W.examen} examen · ${GL.KIND_W.tarea} tarea · ${GL.KIND_W.evaluacion} evaluación; las recientes pesan algo más).</p>${ac.access!=null?`<p class=m>Nota de acceso estimada (0,6·media + 0,4·PAU): <b>${n1(ac.access)}</b>${ac.needMedia!=null?` · para tu nota de acceso objetivo necesitas una media de <b>${n1(ac.needMedia)}</b>${ac.feasible?'':' (no alcanzable solo con la media: revisa el objetivo)'}`:''}. No incluye ponderaciones ni fase voluntaria.</p>`:ac.needMedia!=null?`<p class=m>Para tu nota de acceso objetivo necesitas una media de <b>${n1(ac.needMedia)}</b>.</p>`:''}</div>`;
+ const rows=ov.rows.map(r=>{const t=GL.trend(S.grades,r.id),f=GL.boostFactor(r.gap);return`<tr><td><span class=dot style="--c:${sub(r.id).color}"></span> ${esc(r.name)}</td><td>${n1(S.goals.prev[r.id])}</td><td>${r.n}</td><td><b>${n1(r.value)}</b></td><td>${n1(r.target)}</td><td class="${r.gap>0.5?'neg':''}">${r.gap==null?'—':r.gap===0?'0':(r.gap>0?'−':'+')+n1(Math.abs(r.gap))}</td><td>${t==null?'—':(t>0?'↑ ':t<0?'↓ ':'→ ')+n1(Math.abs(t))}</td><td>${r.gap==null?'—':'×'+String(f).replace('.',',')}</td></tr>`}).join('');
+ const tab=`<div class=tblw><table class=tbl><thead><tr><th>Asignatura</th><th>1.º</th><th>Notas</th><th>Proyectada</th><th>Objetivo</th><th>Brecha</th><th>Tendencia</th><th>Horas de examen</th></tr></thead><tbody>${rows}</tbody></table></div><p class=m>«Horas de examen»: +10 % por punto de brecha (máx. +30 %), hasta −10 % si vas holgado. Solo afecta a exámenes; las tareas siempre se planifican completas.</p>`;
+ const pd=pend.length?`<h2>Pendientes de nota</h2>${pend.map(w=>`<div class="card item" style="--c:${sub(w.subjectId).color}"><span class=dot></span><div><b>${esc(sub(w.subjectId).name)} · ${esc(w.title)}</b><small>${w.dueDate}</small></div><button data-a=gradeFor data-id="${w.id}">Poner nota</button></div>`).join('')}`:'';
+ const gl=[...S.grades].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id)).map(x=>`<div class="card item" style="--c:${sub(x.subjectId).color}" data-a=editGrade data-id="${x.id}" role=button tabindex=0><span class=dot></span><div><b>${n1(x.score)} · ${esc(sub(x.subjectId).name)}</b><small>${{examen:'Examen',tarea:'Tarea',evaluacion:'Evaluación'}[x.kind]} · ${x.date}${x.label?' · '+esc(x.label):''}</small></div></div>`).join('')||'<div class=empty>Todavía no hay notas guardadas.</div>';
+ return head+sum+(g.target!=null||S.grades.length||Object.keys(g.prev).length?'<h2>Por asignatura</h2>'+tab:'')+pd+'<h2>Notas</h2>'+gl};
+V.tem=()=>{ensureG(S);const td=now().date;
+ const ss=subsAct().map(s=>{const c=GL.coverage(S.syllabus,s.id),ts=S.syllabus.filter(t=>t.subjectId===s.id).sort((a,b)=>a.createdAt-b.createdAt||a.name.localeCompare(b.name));
+  return`<div class=card style="--c:${sub(s.id).color}"><h3><span class=dot></span> ${esc(s.name)}</h3><p class=m>${c.n?`${c.seen} de ${c.n} temas vistos · dominio ${c.pctMastery} %`:'Sin temas todavía'}</p>${c.n?barH(c.pctMastery,sub(s.id).color):''}${ts.map(t=>`<div class=trow><div class=tn><b>${esc(t.name)}</b><small>${t.mastery?(t.next?(t.next<=td?'Repaso toca ya':'Próximo repaso: '+fd(t.next)):''):'Sin ver'}${t.reviews?' · '+t.reviews+' repasos':''}</small></div><div class=lv role=group aria-label="Nivel de ${esc(t.name)}">${GL.LEVELS.map((l,i)=>`<button data-a=lvl data-id="${t.id}" data-k=${i} aria-pressed=${t.mastery===i} class="${t.mastery===i?'on':''}">${l}</button>`).join('')}<button data-a=editTopic data-id="${t.id}" aria-label="Editar tema">Editar</button></div></div>`).join('')}<div class=row style="justify-content:flex-start;margin-top:10px"><button data-a=addTopics data-id="${s.id}">+ Temas</button></div></div>`}).join('');
+ return`<h1>Temario</h1><p class=m>Apunta los temas de cada asignatura y marca cuánto los dominas. Al marcar un tema como visto, la app programa sola sus repasos (a los 2, 7, 21, 45 y 90 días si te salen bien) como tareas de 25 min en el calendario.</p>${ss}`};
+function topicsForm(sid){openForm('Añadir temas · '+sub(sid).name,[{k:'names',l:'Un tema por línea',t:'area',v:''},{k:'level',l:'Nivel de partida',t:'chips',o:GL.LEVELS.map((l,i)=>[String(i),l]),v:'0'}],v=>{
+  const have=new Set(S.syllabus.filter(t=>t.subjectId===sid).map(t=>t.name.toLowerCase())),names=String(v.names).split('\n').map(x=>x.trim()).filter(Boolean).filter((x,i,arr)=>arr.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i).filter(x=>!have.has(x.toLowerCase())).slice(0,60);
+  if(!names.length)return'Escribe al menos un tema nuevo.';const base=Date.now();
+  S.syllabus=[...S.syllabus,...names.map((nm,i)=>GL.newTopic(uid(),sid,nm.slice(0,120),+v.level,now().date,base+i))];commit({quiet:true})})}
+function topicForm(id){const t=S.syllabus.find(x=>x.id===id);if(!t)return;openForm('Editar tema',[{k:'name',l:'Nombre',t:'text',v:t.name}],v=>{const nm=(v.name||'').trim();if(!nm)return'El nombre no puede estar vacío.';S.syllabus=S.syllabus.map(x=>x.id===id?{...x,name:nm.slice(0,120)}:x);commit({quiet:true})},()=>{S.syllabus=S.syllabus.filter(x=>x.id!==id);commit({quiet:true})})}
+V.cur=()=>{ensureG(S);const m=GL.macro({goals:S.goals,topics:S.syllabus,settings:S.settings,today:now().date});
+ if(!m)return`<h1>Curso hasta la PAU</h1><div class=card><h3>Falta la fecha de la PAU</h3><p class=m>Con la fecha, la app divide lo que queda en fases y compara tu capacidad de estudio con lo que falta del temario.</p><button class=pri data-a=editGoals>Poner fecha</button></div>`;
+ if(m.past)return`<h1>Curso hasta la PAU</h1><div class=card><p class=m>La fecha de la PAU ya ha pasado. Cámbiala en el objetivo si no es correcta.</p><button data-a=editGoals>Editar</button></div>`;
+ const hh=x=>hr(Math.round(x/15)*15),st={bien:'✓ Vas bien',justo:'⚠ Vas justo','no llegas':'⛔ A este ritmo no llegas','sin temario':'Falta el temario'}[m.status],td=now().date;
+ const msg=m.status==='sin temario'?'Añade los temas de cada asignatura en Temario para poder comparar lo que falta con tu capacidad.':m.status==='no llegas'?`Faltan unos ${hh(m.needMin)} de trabajo (orientativo) y solo caben unos ${hh(m.capCoverageMin)} antes de la fase de práctica. Faltan ~${hh(Math.max(0,m.needMin-m.capCoverageMin))}: amplía la disponibilidad, sube el máximo diario o prioriza los temas más flojos.`:`Faltan unos ${hh(m.needMin)} de trabajo (orientativo) y caben unos ${hh(m.capCoverageMin)} antes de la fase de práctica.`;
+ const cov=subsAct().map(s=>{const c=GL.coverage(S.syllabus,s.id);return c.n?`<div class=trow><div class=tn><b>${esc(s.name)}</b><small>${c.seen}/${c.n} temas vistos</small></div>${barH(c.pctSeen,sub(s.id).color)}</div>`:''}).join('');
+ return`<h1>Curso hasta la PAU</h1><div class=card><h3>${m.days} días (${m.weeks} semanas)</h3><p class=m>Fase actual: <b>${esc(m.phase.label)}</b> (hasta ${fd(m.phase.to)})</p>${m.phases.map(p=>`<div class="trow ph${p.id===m.phase.id?' on':''}"><div class=tn><b>${esc(p.label)}</b><small>${fd(p.from>td?p.from:p.from)} – ${fd(p.to)}</small></div></div>`).join('')}</div>
+ <div class=card><h3>${st}</h3><p class=m>${msg}</p><p class=m>Capacidad teórica: ${hh(m.weekCap)} por semana (según tus ajustes); se asume que cumples el 70 %. Hasta la PAU: ~${hh(m.capTotalMin)}. Las horas por tema son heurísticas (sin ver 2 h, visto 1 h, entendido 30 min).</p>${m.seenPct!=null?`<p class=m>Temario visto: <b>${m.seenPct} %</b>${m.expectedPct!=null?` · esperado a hoy en una progresión lineal: ${m.expectedPct} %`:''}</p>`:''}</div>${cov?'<h2>Cobertura por asignatura</h2>'+cov:''}`};
+V.rev=()=>{ensureG(S);const td=now().date,due=S.works.filter(w=>w.auto==='review'&&(w.status==='pending'||w.status==='in_progress')).length,r=GL.weekReview({blocks:S.blocks,works:S.works,subjects:S.subjects,grades:S.grades,goals:S.goals,settings:S.settings,today:td,reviewsDue:due});
+ const bys=Object.entries(r.bySubject).sort((a,b)=>b[1]-a[1]).map(([id,m])=>`<div class=trow><div class=tn><b>${esc(sub(id).name)}</b><small>${hr(m)}</small></div>${barH(r.doneMin?100*m/r.doneMin:0,sub(id).color)}</div>`).join('');
+ return`<h1>Revisión semanal</h1><p class=m>Del ${fd(r.from)} al ${fd(r.to)}</p><div class=card><div class=kpis><div><b>${hr(r.plannedMin)}</b><small>planificado</small></div><div><b>${hr(r.doneMin)}</b><small>completado</small></div><div><b>${r.compliance==null?'—':r.compliance+' %'}</b><small>cumplimiento</small></div><div><b>${r.skipped}</b><small>omitidas</small></div></div></div>
+ ${r.lines.length?'<h2>Qué ajustar</h2>'+r.lines.map(l=>`<div class="card rl ${l.kind}"><span>${esc(l.text)}</span>${l.action?`<button class=pri data-a=revApply data-v=${l.action.v}>Aplicar</button>`:''}</div>`).join(''):''}${bys?'<h2>Dónde fue el tiempo</h2>'+bys:''}<div class=row style="justify-content:flex-start;margin-top:14px"><button class=pri data-a=revSeen>${S.reviewedOn===monOf(td)?'Revisada ✓':'Marcar como revisada'}</button></div>`};
+const hoyExtra=()=>{ensureG(S);const td=now().date,g=S.goals,ov=GL.overall(g,S.grades,S.subjects);let h='';
+ if(g.target!=null&&ov.media!=null)h+=`<div class="card item" data-a=nav data-r=obj role=button tabindex=0><div><b>Media proyectada ${n1(ov.media)} · objetivo ${n1(ov.target)}</b><small>${ov.gap>0?`Te faltan ${n1(ov.gap)} puntos${ov.worst?' · más brecha: '+esc(ov.worst.name):''}`:'Por encima de tu objetivo'}</small></div></div>`;
+ for(const w of S.works.filter(w=>w.kind==='exam'&&w.dueDate<td&&w.dueDate>=addDays(td,-14)&&w.status!=='archived'&&!S.grades.some(x=>x.workId===w.id)).slice(0,2))h+=`<div class="card item"><div><b>¿Qué nota sacaste en ${esc(sub(w.subjectId).name)}?</b><small>${esc(w.title)} · ${w.dueDate}</small></div><button data-a=gradeFor data-id="${w.id}">Poner nota</button></div>`;
+ if((weekday(td)===0||weekday(td)===1)&&S.reviewedOn!==monOf(td))h+=`<div class="card item" data-a=nav data-r=rev role=button tabindex=0><div><b>Revisión semanal lista</b><small>10 minutos para ajustar el plan</small></div></div>`;
+ if((S.works.length||S.grades.length||S.syllabus.length)&&Date.now()-(UI.lastExport||0)>7*864e5)h+=`<div class="card item"><div><b>Haz una copia de seguridad</b><small>Tus datos viven solo en este dispositivo. Descarga una copia cada semana.</small></div><button data-a=export>Descargar copia</button></div>`;
+ return h};
+{const h0=V.hoy;V.hoy=a=>h0(a).replace(/(<h1>Hoy<\/h1><p class=m>[^<]*<\/p>)/,m=>m+hoyExtra())}
+Object.assign(A,{editGoals:goalsForm,addGrade:()=>gradeForm(),editGrade:t=>gradeForm(t.dataset.id),gradeFor:t=>{const w=wk(t.dataset.id);if(w)gradeForm(null,{subjectId:w.subjectId,kind:'examen',workId:w.id,label:w.title,date:w.dueDate})},
+ lvl:t=>{S.syllabus=S.syllabus.map(x=>x.id===t.dataset.id?GL.setMastery(x,+t.dataset.k,now().date):x);commit({quiet:true})},addTopics:t=>topicsForm(t.dataset.id),editTopic:t=>topicForm(t.dataset.id),
+ revApply:t=>{S.settings={...S.settings,maxDayMin:+t.dataset.v};toast('Máximo diario: '+hr(+t.dataset.v));commit({quiet:true})},revSeen:()=>{S.reviewedOn=monOf(now().date);commit({quiet:true})},
+ calMode:()=>{CALMODE=CALMODE==='day'?'week':'day';render()}});
+{const wk0=A.wk;A.wk=t=>{if(CALMODE!=='day')return wk0(t);const k=+t.dataset.k,n=now();CALDAY=k===0?n.date:addDays(CALDAY||n.date,k>0?1:-1);ws=monOf(CALDAY);render()}}
+
+{const ex0=A.export;A.export=t=>{UI.lastExport=Date.now();saveUI();return ex0(t)}}
+
+boot();
 </script></body></html>
