@@ -1,0 +1,15 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="color-scheme" content="dark light"><title>Focus OS</title><link rel=icon type=image/png href=icon-192.png><link rel=manifest href=manifest.webmanifest><link rel=apple-touch-icon href=icon-180.png><meta name=apple-mobile-web-app-capable content=yes><meta name=mobile-web-app-capable content=yes><meta name=apple-mobile-web-app-title content="Focus OS"><meta name=apple-mobile-web-app-status-bar-style content=black><meta name=theme-color content="#111113"><style>/*CSS*/</style></head><body>
+<div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b></div>
+<aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
+<main id=main class=main>Cargando…</main><dialog id=dlg></dialog><div id=toast role=status></div>
+<script>
+const P=(()=>{/*PLANNER*/;return{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,subtract,isUndated,NO_DATE}})();
+const EST2=(()=>{/*CONFIG*/;/*ESTIMATOR2*/;return{estimateV2,recordPrediction,closePrediction}})();
+const EST=(()=>{const {estimateV2}=EST2;/*ESTIMATOR*/;return{reestimate,assignTopics,PARAMS}})();
+const RTN=(()=>{const {addDays,weekday,subtract,plan}=P;/*ROUTINE*/;return{DEFAULT_ROUTINE,INTENSITY,HORIZON_DAYS,activityFor,fixedBusy,habitBusy,generate,reconcile,proposeSchedule,regenerate,describe,mondayOf}})();
+const PAL=(()=>{/*PALETTE*/;return{DEFAULT_SUBJECT_COLORS,SPARE_COLORS,effectiveColor,nextSpare,colorConflict,resetColors}})();
+const LIFE=(()=>{const {addDays,weekday,subtract}=P;/*LIFESTYLE*/;return{EXERCISE_TYPES,LIMITS,mondayOf,freeWindows,findSlot,conflictOf,validateActivity,weekMinutes,suggest}})();
+const MIG=(()=>{const {DEFAULT_SUBJECT_COLORS}=PAL,{DEFAULT_ROUTINE}=RTN;/*MIGRATE*/;return{migrateState,lostPaths,setEstimatorVersion,previewUpgrade,SCHEMA_VERSION}})();
+const ST=(()=>{/*STATS*/;return{stats}})();
+/*APP*/
+</script></body></html>

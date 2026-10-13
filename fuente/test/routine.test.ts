@@ -1,0 +1,78 @@
+// Rutina semanal habitual + adaptación a obligaciones (unitarias reales en Node).
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { generate, reconcile, proposeSchedule, regenerate, DEFAULT_ROUTINE, INTENSITY, mondayOf } from '../src/core/routine.ts';
+import { DEFAULT_SETTINGS, addDays } from '../src/core/planner.ts';
+import { DEFAULT_SUBJECT_COLORS as C } from '../src/core/palette.ts';
+import type { Block, HabitBlock, Routine, Work } from '../src/core/types.ts';
+
+const NOW = { date: '2026-10-12', minute: 480 }; // lunes 08:00
+const names = Object.keys(C), subjects = names.map((n, i) => ({ id: 's' + i, name: n, colorKey: n }));
+const sid = (n: string) => subjects.find(s => s.name === n)!.id;
+const R = (o: Partial<Routine> = {}): Routine => ({ ...DEFAULT_ROUTINE, enabled: true, ...o });
+const gen = (o: any = {}) => generate({ settings: DEFAULT_SETTINGS, routine: R(), subjects, works: [], blocks: [], activities: [], habit: [], now: NOW, from: NOW.date, to: addDays(NOW.date, 13), ...o });
+const hab = (n: string, date: string, start: number, end: number, o: Partial<HabitBlock> = {}): HabitBlock => ({ id: `hab:${date}:${start}:${sid(n)}`, date, start, end, subjectId: sid(n), kind: 'estudio', title: n, detail: '', status: 'planned', pinned: false, ...o });
+const task = (n: string, o: Partial<Work> = {}): Work => ({ id: 'w' + n, kind: 'task', subjectId: sid(n), title: 'Deberes de ' + n, dueDate: '2026-10-13', estMin: 45, difficulty: 3, importance: 3, readiness: 0, status: 'pending', ...o });
+const items = (r: { habit: HabitBlock[]; blocks: Block[] }) => [...r.habit.filter(h => h.status === 'planned' || h.status === 'done'), ...r.blocks.filter(b => b.status === 'planned' || b.status === 'done')].map(x => ({ date: x.date, start: x.start, end: x.end, id: x.id }));
+const noOverlap = (xs: { date: string; start: number; end: number; id: string }[]) => { for (const a of xs) for (const b of xs) if (a !== b && a.date === b.date) assert.ok(a.end <= b.start || b.end <= a.start, `solape ${a.id} / ${b.id}`); };
+const windowsOk = (xs: { date: string; start: number; end: number }[]) => xs.forEach(x => assert.ok((DEFAULT_SETTINGS.availability[new Date(x.date + 'T00:00:00Z').getUTCDay()] ?? []).some(w => w.start <= x.start && x.end <= w.end), `fuera de disponibilidad ${x.date} ${x.start}`));
+
+test('un día sin obligaciones recibe rutina; respeta disponibilidad, pasado, bloqueos y actividades fijas; sin solapes', () => {
+  const g = gen({ from: NOW.date, to: NOW.date }); assert.ok(g.length >= 2 && g.length <= INTENSITY.equilibrado.daily + 1); noOverlap(items({ habit: g, blocks: [] })); windowsOk(g);
+  const fixed = gen({ routine: R({ fixed: [{ id: 'f', name: 'Inglés particular', days: [1], start: 1020, end: 1140 }] }), from: NOW.date, to: NOW.date });
+  assert.ok(fixed.every(h => h.end <= 1020 - 10 || h.start >= 1140 + 10), 'no pisa la actividad fija');
+  const blocked = gen({ settings: { ...DEFAULT_SETTINGS, blockedDates: [{ date: NOW.date, start: 0, end: 1440 }] }, from: NOW.date, to: NOW.date }); assert.equal(blocked.length, 0);
+  assert.equal(gen({ from: '2026-10-05', to: '2026-10-09' }).length, 0, 'nada en el pasado');
+});
+test('reparto equilibrado: cuota semanal por asignatura, alternancia entre días y repaso espaciado de una asignatura distinta', () => {
+  const g = gen({ from: '2026-10-12', to: '2026-10-18' }); noOverlap(items({ habit: g, blocks: [] })); windowsOk(g);
+  const per = (s: string) => g.filter(h => h.subjectId === sid(s) && h.kind === 'estudio').length; for (const n of names) assert.ok(per(n) <= INTENSITY.equilibrado.perWeek, n);
+  assert.ok(new Set(g.map(h => h.subjectId)).size >= 6, 'varias asignaturas'); for (let d = 0; d < 6; d++) { const a = new Set(g.filter(h => h.date === addDays('2026-10-12', d) && h.kind === 'estudio').map(h => h.subjectId)), b = g.filter(h => h.date === addDays('2026-10-12', d + 1) && h.kind === 'estudio').map(h => h.subjectId); assert.ok(b.every(x => !a.has(x)) || a.size >= names.length - 1, 'sin repetir asignatura en días consecutivos'); }
+  for (const d of ['2026-10-12', '2026-10-13']) { const day = g.filter(h => h.date === d), rev = day.find(h => h.kind === 'repaso'); if (rev) assert.ok(!day.some(h => h.kind === 'estudio' && h.subjectId === rev.subjectId)); }
+  assert.equal(gen({ routine: R({ intensity: 'ligero' }), from: NOW.date, to: NOW.date }).length, 1); assert.ok(gen({ routine: R({ intensity: 'exigente' }), from: NOW.date, to: NOW.date }).length >= 3);
+  assert.equal(gen({ routine: R({ perWeek: Object.fromEntries(subjects.map(s => [s.id, 0])) }), from: NOW.date, to: NOW.date }).length, 0, 'frecuencia 0 = no se genera');
+});
+test('sin información del último tema no se inventa temario; con tema indicado se usa; textos genéricos adaptables', () => {
+  const g = gen({ from: NOW.date, to: NOW.date }); assert.ok(g.every(h => !h.detail.includes('Tema indicado por ti') && h.detail.length > 20 && h.title.length > 5));
+  const t = gen({ routine: R({ lastTopic: Object.fromEntries(subjects.map(s => [s.id, 'La Restauración'])) }), from: NOW.date, to: NOW.date }); assert.ok(t.some(h => h.detail.includes('Tema indicado por ti: La Restauración.')));
+  assert.ok(g.some(h => /comentario|ejercicios|vocabulario|Repasar|Repaso/i.test(h.title)));
+});
+test('generación idempotente: repetirla no añade nada', () => { const a = gen(), b = gen({ habit: a }); assert.equal(b.length, 0); });
+const mon = [hab('Historia de España', '2026-10-12', 1020, 1065), hab('Lengua Castellana', '2026-10-12', 1080, 1125)];
+const sched = (o: any = {}) => proposeSchedule({ settings: DEFAULT_SETTINGS, works: [], blocks: [], activities: [], routine: R(), habit: mon, now: NOW, ...o });
+test('EJEMPLO: deberes de Historia sustituyen el bloque de Historia; Lengua se mantiene; sin duplicar ni solapar', () => {
+  const r = sched({ works: [task('Historia de España')] }); const h = r.habit.find(x => x.subjectId === sid('Historia de España'))!, l = r.habit.find(x => x.subjectId === sid('Lengua Castellana'))!;
+  assert.equal(h.status, 'replaced'); assert.match(h.note!, /Deberes de Historia/); assert.deepEqual([l.date, l.start, l.end, l.status], ['2026-10-12', 1080, 1125, 'planned']);
+  const wb = r.blocks.filter(b => b.workId === 'wHistoria de España' && b.status === 'planned'); assert.equal(wb.length, 1, 'sin duplicar'); assert.deepEqual([wb[0].date, wb[0].start], ['2026-10-12', 1020]); assert.equal(wb[0].end - wb[0].start, 45);
+  assert.equal(r.changes.length, 1); assert.equal(r.changes[0].kind, 'sustituido'); noOverlap(items(r)); assert.equal(r.mode, 'keep');
+  const again = sched({ works: [task('Historia de España')], blocks: r.blocks, habit: r.habit }); assert.equal(again.changes.length, 0, 'estable: no oscila'); assert.equal(JSON.stringify(again.habit), JSON.stringify(r.habit)); assert.equal(JSON.stringify(again.blocks), JSON.stringify(r.blocks));
+});
+test('deberes de otra asignatura: no tocan la rutina si hay hueco; un cambio irrelevante no altera nada', () => {
+  const r = sched({ works: [task('Física')] }); assert.equal(r.changes.length, 0); assert.ok(r.habit.every((x, i) => JSON.stringify(x) === JSON.stringify(mon[i]))); noOverlap(items(r));
+  const far = sched({ works: [task('Física', { dueDate: '2026-11-02', estMin: 60 })] }); assert.equal(far.changes.length, 0); assert.equal(JSON.stringify(far.habit), JSON.stringify(mon));
+});
+test('bloques hechos, fijados y manuales nunca se sobrescriben', () => {
+  const pinned = [hab('Historia de España', '2026-10-12', 1020, 1065, { pinned: true }), hab('Matemáticas II', '2026-10-12', 1080, 1125, { status: 'done' })], manual: Block = { id: 'm', workId: 'wFísica', date: '2026-10-12', start: 1170, end: 1230, status: 'planned', manual: true };
+  const r = sched({ habit: pinned, blocks: [manual], works: [task('Historia de España'), task('Física', { estMin: 60 })] });
+  assert.deepEqual(r.habit.map(h => [h.id, h.status, h.pinned]), pinned.map(h => [h.id, h.status, h.pinned])); assert.deepEqual(r.blocks.find(b => b.id === 'm'), manual); noOverlap(items(r));
+});
+test('si no hay tiempo: se reubica lo posible, queda pendiente lo demás con explicación y el déficit se muestra; nunca hay plan imposible', () => {
+  const r = sched({ works: [task('Historia de España', { estMin: 600, dueDate: '2026-10-13' })] }); noOverlap(items(r)); windowsOk(items(r));
+  assert.ok(r.warnings.some(w => w.type === 'deficit' && w.deficitMin! > 0), 'déficit visible');
+  for (const c of r.changes) assert.ok(['sustituido', 'reubicado', 'pendiente'].includes(c.kind) && c.reason.length > 10);
+  assert.ok(r.habit.filter(h => h.status === 'displaced').every(h => h.note && /hueco|decide/i.test(h.note)));
+});
+test('reconcile en modo soft reubica un bloque desplazado por una obligación a un hueco razonable', () => {
+  const b: Block = { id: 'x', workId: 'wFísica', date: '2026-10-12', start: 1020, end: 1100, status: 'planned', manual: true };
+  const r = reconcile({ settings: DEFAULT_SETTINGS, routine: R(), works: [task('Física')], blocks: [b], activities: [], habit: mon.map(h => ({ ...h })), now: NOW, mode: 'soft' });
+  assert.ok(r.changes.some(c => c.kind === 'reubicado' && c.subjectId === sid('Historia de España'))); noOverlap(items(r)); assert.deepEqual(r.blocks.find(x => x.id === 'x'), b, 'la obligación manual no se mueve');
+});
+test('regenerar conserva hechos, fijados, omitidos y sustituidos; es idempotente', () => {
+  const base = [hab('Historia de España', '2026-10-12', 1020, 1065, { status: 'done' }), hab('Lengua Castellana', '2026-10-12', 1080, 1125, { pinned: true }), hab('Física', '2026-10-13', 1020, 1065, { status: 'skipped' }), hab('Química', '2026-10-13', 1080, 1125, { status: 'replaced' }), hab('Inglés', '2026-10-14', 1020, 1065)];
+  const a = regenerate({ settings: DEFAULT_SETTINGS, routine: R(), subjects, works: [], blocks: [], activities: [], habit: base, now: NOW });
+  for (const k of base.slice(0, 4)) assert.deepEqual(a.habit.find(h => h.id === k.id), k); noOverlap(items({ habit: a.habit, blocks: [] }));
+  const b = regenerate({ settings: DEFAULT_SETTINGS, routine: R(), subjects, works: [], blocks: [], activities: [], habit: a.habit, now: NOW }); assert.deepEqual(b.habit.map(h => h.id), a.habit.map(h => h.id));
+});
+test('el lunes puede mezclar rutina y obligaciones sin dos actividades simultáneas (varias semanas)', () => {
+  const g = gen({ works: [task('Física', { dueDate: '2026-10-16', estMin: 120 })] }); const r = proposeSchedule({ settings: DEFAULT_SETTINGS, works: [task('Física', { dueDate: '2026-10-16', estMin: 120 })], blocks: [], activities: [], routine: R(), habit: g, now: NOW }); noOverlap(items(r)); windowsOk(items(r));
+});
