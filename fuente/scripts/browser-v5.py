@@ -50,7 +50,7 @@ try:
     ck('calendario: la semana cabe sin scroll horizontal en iPad apaisado y hay eje horario, línea de ahora y franjas', p.evaluate("(()=>{const t=document.querySelector('.tg');return t.scrollWidth<=t.clientWidth+1&&document.documentElement.scrollWidth<=innerWidth+1})()") and p.locator('.tg .nowl').count()==1 and p.locator('.tg .dc .av').count()>0)
     ck('calendario: ningún bloque se sale de su columna', p.evaluate("[...document.querySelectorAll('.tg .ev')].every(e=>{const c=e.closest('.dc').getBoundingClientRect(),r=e.getBoundingClientRect();return r.left>=c.left-1&&r.right<=c.right+1&&r.top>=c.top-1&&r.bottom<=c.bottom+1})"))
     p.set_viewport_size({'width':820,'height':1180}); p.wait_for_timeout(200); shot(p,'05b-calendario-vertical'); ck('calendario sin desbordamiento en iPad vertical', p.evaluate("document.documentElement.scrollWidth<=innerWidth+1")); p.set_viewport_size({'width':1180,'height':820}); p.wait_for_timeout(200)
-    p.click('.tg .ev[data-a=blkMenu] >> nth=0'); p.wait_for_selector('#dlg[open]'); shot(p, '06-menu-bloque'); ck('tocar un bloque ofrece Hecho / Mover', 'Hecho' in p.inner_text('#dlg') and 'Mover' in p.inner_text('#dlg'))
+    p.click('.tg .ev[data-a=blkMenu] >> nth=0'); p.wait_for_selector('#dlg[open]'); shot(p, '06-menu-bloque'); ck('tocar un bloque ofrece Hecha tal cual / Mover', 'Hecha tal cual' in p.inner_text('#dlg') and 'Mover' in p.inner_text('#dlg'))
     p.click('#dlg button:has-text("Cerrar")'); p.wait_for_timeout(150)
     # rutina con 5 clases/semana
     go(p, 'rut'); p.fill('input[name^=f_]:visible >> nth=0', '5'); p.click('#rf button.pri'); p.wait_for_timeout(200)

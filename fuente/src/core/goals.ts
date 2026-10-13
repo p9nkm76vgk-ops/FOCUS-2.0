@@ -1,4 +1,4 @@
-import { addDays, daysBetween } from './planner.ts';
+import { addDays, daysBetween, hourBucket, weekday } from './planner.ts';
 import type { Block, Work } from './types.ts';
 
 /** Objetivos, notas, proyección de nota, temario con repaso espaciado, ritmo aprendido, curso hasta la PAU y revisión semanal.
@@ -139,7 +139,8 @@ export function learnedPace(works: Work[], blocks: Block[]): Record<string, { fa
     if (w.status !== 'done' || !(w.base0 && w.base0 > 0) || w.auto === 'review') continue;
     const inv = blocks.filter(b => b.workId === w.id && b.status === 'done').reduce((a, b) => a + mins(b), 0);
     if (inv < 10) continue;
-    (bySub.get(w.subjectId) ?? bySub.set(w.subjectId, []).get(w.subjectId)!).push(clamp(inv / w.base0, 0.4, 2.5));
+    const fx = w.felt === 1 ? 1.25 : w.felt === -1 ? 0.8 : 1; // «¿tardaste más o menos de lo previsto?»
+    (bySub.get(w.subjectId) ?? bySub.set(w.subjectId, []).get(w.subjectId)!).push(clamp(inv * fx / w.base0, 0.4, 2.5));
   }
   const out: Record<string, { factor: number; n: number }> = {};
   for (const [sid, rs0] of bySub) {
@@ -184,4 +185,46 @@ export function macro(a: { goals: Goals; topics: Topic2[]; settings: { availabil
   const expected = total > 0 ? clamp(daysBetween(g.start!, a.today) / total, 0, 1) : null;
   const status = a.topics.length === 0 ? 'sin temario' : need === 0 ? 'bien' : left === 0 ? (need > 0 ? 'no llegas' : 'bien') : ratio! >= 1.3 ? 'bien' : ratio! >= 1 ? 'justo' : 'no llegas';
   return { past: false as const, days, weeks: Math.round(days / 7), weekCap, phase, phases, needMin: need, capCoverageMin: capCov, capTotalMin: capAll, maintNowWeekMin: mt.nowWeekMin, maintSteadyWeekMin: mt.steadyWeekMin, backlog, status, seenPct: seen == null ? null : Math.round(100 * seen), expectedPct: expected == null ? null : Math.round(100 * expected) };
+}
+
+// ---------- Aprender de tu cumplimiento (franjas, días, máximo diario, dominio del temario) ----------
+export const HOUR_LABELS = ['antes de las 13:00', '13:00–17:00', '17:00–20:00', 'desde las 20:00'];
+export const DOW_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+/** Sesiones ya cerradas (antes de hoy): hechas frente a omitidas o reprogramadas. Un «imprevisto» no es culpa de la franja y no cuenta. */
+const closedOf = (blocks: Block[], today: string) => blocks.filter(b => b.date < today && (b.status === 'done' || b.status === 'skipped' || b.status === 'rescheduled') && (b as any).reason !== 'imprevisto');
+export interface SlotStats { total: number; rate: number | null; hours: { n: number; miss: number }[]; days: { n: number; miss: number }[]; avoidHours: number[]; avoidDays: number[] }
+export const SLOT_MIN_TOTAL = 12, SLOT_MIN_N = 4;
+export function slotStats(blocks: Block[], today: string): SlotStats {
+  const c = closedOf(blocks, today), hours = [0, 1, 2, 3].map(() => ({ n: 0, miss: 0 })), days = [0, 1, 2, 3, 4, 5, 6].map(() => ({ n: 0, miss: 0 }));
+  for (const b of c) { const m = b.status === 'done' ? 0 : 1, h = hours[hourBucket(b.start)], d = days[weekday(b.date)]; h.n++; h.miss += m; d.n++; d.miss += m; }
+  const total = c.length, rate = total ? c.filter(b => b.status !== 'done').length / total : null;
+  const bad = (x: { n: number; miss: number }) => rate != null && total >= SLOT_MIN_TOTAL && x.n >= SLOT_MIN_N && x.miss / x.n >= 0.5 && x.miss / x.n >= rate + 0.25;
+  let avoidHours = hours.map((x, i) => bad(x) ? i : -1).filter(i => i >= 0), avoidDays = days.map((x, i) => bad(x) ? i : -1).filter(i => i >= 0);
+  if (avoidHours.length >= 4) avoidHours = []; // si todo es «malo» no hay a dónde huir
+  if (avoidDays.length >= 7) avoidDays = [];
+  return { total, rate, hours, days, avoidHours, avoidDays };
+}
+/** Sugerencia de máximo diario según los últimos 14 días: sube si cumples casi todo y lo planificado llega al tope; baja si fallas mucho. */
+export function suggestCap(blocks: Block[], today: string, maxDayMin: number): { cap: number; reason: string } | null {
+  const from = addDays(today, -14), c = closedOf(blocks, today).filter(b => b.date >= from);
+  if (c.length < 6) return null;
+  const done = c.filter(b => b.status === 'done').length, rate = done / c.length;
+  const byDay = new Map<string, number>(); for (const b of blocks) if (b.date >= from && b.date < today && b.status !== 'rescheduled') byDay.set(b.date, (byDay.get(b.date) ?? 0) + (b.end - b.start));
+  const topFull = [...byDay.values()].filter(v => v >= maxDayMin - 30).length;
+  const pc = Math.round(rate * 100);
+  if (rate >= 0.9 && topFull >= 3 && maxDayMin < 360) return { cap: maxDayMin + 30, reason: `Has hecho el ${pc} % de tus sesiones de las últimas 2 semanas y en ${topFull} días llegaste al tope. Podrías subir el máximo diario.` };
+  if (rate < 0.6 && maxDayMin > 120) return { cap: Math.max(120, maxDayMin - 30), reason: `Has hecho el ${pc} % de tus sesiones de las últimas 2 semanas. Un tope más bajo hará el plan más realista.` };
+  return null;
+}
+/** El dominio medio del temario de una asignatura ajusta sus horas de examen: poco dominio → más horas, mucho → menos. Necesita ≥3 temas. */
+export function masteryFactor(topics: Topic2[], sid: string): number | null {
+  const t = topics.filter(x => x.subjectId === sid); if (t.length < 3) return null;
+  const avg = t.reduce((a, x) => a + x.mastery, 0) / t.length; // 0..3
+  return r2(clamp(1.2 - 0.1 * avg, 0.9, 1.2));
+}
+/** Combina la brecha con el objetivo y el dominio del temario en un factor por asignatura (solo exámenes). */
+export function examBoosts(g: Goals | undefined, grades: Grade[], topics: Topic2[], subjects: { id: string; archived?: boolean }[], today: string): Record<string, number> {
+  const o: Record<string, number> = {};
+  for (const s of subjects) if (!s.archived) { const a = boostFactor(gapOf(g, grades, s.id, today)), m = masteryFactor(topics, s.id) ?? 1, f = r2(clamp(a * m, 0.85, 1.4)); if (f !== 1) o[s.id] = f; }
+  return o;
 }

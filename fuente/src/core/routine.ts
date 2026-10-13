@@ -110,9 +110,9 @@ export function reconcile(i: Ctx & { works: Work[]; mode: 'keep' | 'soft'; absor
 }
 
 /** Propone el horario completo. 1º respeta la rutina como ocupada; solo si no cabe y desplazarla reduce el déficit, propone reubicarla. */
-export function proposeSchedule(i: { settings: Settings; works: Work[]; blocks: Block[]; boost?: Record<string, number>; activities: Activity[]; routine: Routine; habit: HabitBlock[]; now: Now; quiet?: boolean; declined?: string[] }) {
+export function proposeSchedule(i: { settings: Settings; works: Work[]; blocks: Block[]; boost?: Record<string, number>; avoid?: { hours: number[]; days: number[] }; activities: Activity[]; routine: Routine; habit: HabitBlock[]; now: Now; quiet?: boolean; declined?: string[] }) {
   const fx = fixedBusy(i.routine, i.now.date, i.settings.horizonDays + 2), deficits = (w: { type: string }[]) => w.filter(x => x.type === 'deficit').length;
-  const run = (mode: 'keep' | 'soft') => { const p = plan({ settings: i.settings, works: i.works, blocks: i.blocks, boost: i.boost, activities: [...i.activities, ...fx, ...(mode === 'keep' ? habitBusy(i.habit) : [])] }, i.now);
+  const run = (mode: 'keep' | 'soft') => { const p = plan({ settings: i.settings, works: i.works, blocks: i.blocks, boost: i.boost, avoid: i.avoid, activities: [...i.activities, ...fx, ...(mode === 'keep' ? habitBusy(i.habit) : [])] }, i.now);
     return { p, r: reconcile({ settings: i.settings, routine: i.routine, works: i.works, blocks: p.blocks, activities: i.activities, habit: i.habit, now: i.now, mode, absorb: !i.quiet, declined: i.declined }) }; };
   let pick = run('keep'), mode: 'keep' | 'soft' = 'keep'; const dA = deficits(pick.p.warnings);
   if (dA > 0 && i.routine.enabled && !i.quiet) { const B = run('soft'); if (deficits(B.p.warnings) < dA) { pick = B; mode = 'soft'; } }

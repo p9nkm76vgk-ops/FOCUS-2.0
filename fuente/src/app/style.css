@@ -101,3 +101,5 @@ details.more{margin:6px 0 4px;border-top:1px solid var(--line);padding-top:6px}d
 
 .cr{margin:14px 0 2px;color:var(--muted);font-size:.875rem;text-transform:uppercase;letter-spacing:.07em}
 .row button.on{background:color-mix(in srgb,var(--accent) 22%,var(--surface));border-color:var(--accent);color:var(--text)}
+
+.tg .ev.sm{flex-direction:row;align-items:center;gap:6px;padding:1px 5px}.tg .ev.sm b{flex:0 1 auto}.tg .ev.sm span{flex:0 0 auto}.tg .ev.skipped,.tg .ev.rescheduled{filter:grayscale(.7)}

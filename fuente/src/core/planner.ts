@@ -26,6 +26,8 @@ export const weekday = (d: string) => new Date(d + 'T00:00:00Z').getUTCDay();
 export const daysBetween = (a: string, b: string) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 864e5);
 const dur = (b: { start: number; end: number }) => b.end - b.start;
 const up5 = (m: number) => Math.ceil(m / 5) * 5;
+/** Franja del día (0: antes de 13:00 · 1: 13–17 · 2: 17–20 · 3: desde las 20:00). */
+export const hourBucket = (m: number) => m < 780 ? 0 : m < 1020 ? 1 : m < 1200 ? 2 : 3;
 const cmp = (a: Block, b: Block) => a.date.localeCompare(b.date) || a.start - b.start || a.id.localeCompare(b.id);
 
 export function priority(w: Work, now: Now): number {
@@ -53,7 +55,7 @@ interface Demand { key: string; w: Work; part: 'main' | 'review'; need: number; 
 interface Day { occ: (Win & { sub?: string })[]; total: number; perWork: Map<string, number> }
 
 /** Planificador determinista e idempotente. Función pura: (estado, ahora) → nuevo estado. */
-export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]; boost?: Record<string, number>; activities?: { date: string; start: number | null; end: number | null; status: string }[] }, now: Now): PlanResult {
+export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]; boost?: Record<string, number>; avoid?: { hours: number[]; days: number[] }; activities?: { date: string; start: number | null; end: number | null; status: string }[] }, now: Now): PlanResult {
   const s = input.settings;
   const active = (w?: Work) => !!w && (w.status === 'pending' || w.status === 'in_progress');
   const byId = new Map(input.works.map(w => [w.id, w]));
@@ -120,18 +122,29 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     while (left > 0) {
       let len = Math.min(s.preferredMin, left);
       if (left - len > 0 && left - len < s.minSessionMin) len = Math.min(left, s.maxSessionMin);
-      const cands: { dt: string; start: number; L: number; key: [number, number, number, string] }[] = [];
-      for (let dt = d.from; dt <= to; dt = addDays(dt, 1)) {
-        const x = day(dt), capLeft = s.maxDayMin - x.total; if (capLeft <= 0) continue;
-        const fr = free(dt, true), easy = d.w.difficulty <= 2 && d.w.kind === 'task' && !isUndated(d.w) ? [...fr].reverse() : fr; // lo fácil, más tarde; lo difícil, a primera hora
-        for (const f of easy) {
-          const st = up5(f.start), end = Math.min(f.end, dt === d.last ? d.cutoff : 1440);
-          const L = Math.min(len, end - st, capLeft, s.maxSessionMin);
-          if (L >= Math.min(s.minSessionMin, left)) { const adj = x.occ.some(o => o.sub === d.w.subjectId && (Math.abs(st - o.end) <= s.minGapMin + 5 || Math.abs(st + L - o.start) <= s.minGapMin + 5)) ? 1 : 0; cands.push({ dt, start: st, L, key: [x.perWork.get(d.w.id) ? 1 : 0, adj, x.total, dt] }); break; }
+      const cands: { dt: string; start: number; L: number; key: [number, number, number, number, string] }[] = [];
+      const avH = new Set(input.avoid?.hours ?? []), avD = new Set(input.avoid?.days ?? []);
+      for (const strict of [true, false]) {
+        for (let dt = d.from; dt <= to; dt = addDays(dt, 1)) {
+          const x = day(dt), capLeft = s.maxDayMin - x.total; if (capLeft <= 0) continue;
+          const fr = free(dt, true), easy = d.w.difficulty <= 2 && d.w.kind === 'task' && !isUndated(d.w) ? [...fr].reverse() : fr; // lo fácil, más tarde; lo difícil, a primera hora
+          let pick: { start: number; L: number; bad: number } | null = null;
+          for (const f of easy) {
+            const st = up5(f.start), end = Math.min(f.end, dt === d.last ? d.cutoff : 1440);
+            let L = Math.min(len, end - st, capLeft, s.maxSessionMin);
+            // no dejar un resto por debajo de la sesión mínima: se acorta ésta (o se descarta en el primer intento)
+            if (L < left && left - L < s.minSessionMin) { const L2 = left - s.minSessionMin; if (L2 >= s.minSessionMin) L = L2; else if (strict) continue; }
+            if (L < Math.min(s.minSessionMin, left)) continue;
+            const bad = avH.has(hourBucket(st)) || avD.has(weekday(dt)) ? 1 : 0;
+            if (!pick || bad < pick.bad) pick = { start: st, L, bad };
+            if (!bad) break;
+          }
+          if (pick) { const adj = x.occ.some(o => o.sub === d.w.subjectId && (Math.abs(pick!.start - o.end) <= s.minGapMin + 5 || Math.abs(pick!.start + pick!.L - o.start) <= s.minGapMin + 5)) ? 1 : 0; cands.push({ dt, start: pick.start, L: pick.L, key: [x.perWork.get(d.w.id) ? 1 : 0, pick.bad, adj, x.total, dt] }); }
         }
+        if (cands.length) break;
       }
       if (!cands.length) break;
-      cands.sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.key[2] - b.key[2] || a.key[3].localeCompare(b.key[3]));
+      cands.sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.key[2] - b.key[2] || a.key[3] - b.key[3] || a.key[4].localeCompare(b.key[4]));
       const c = cands[0];
       let id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}`, k = 1; while (used.has(id)) id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}:r${k++}`; used.add(id);
       const b: Block = { id, workId: d.w.id, date: c.dt, start: c.start, end: c.start + c.L, status: 'planned', manual: false, part: d.part };

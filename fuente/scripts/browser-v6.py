@@ -53,7 +53,7 @@ try:
     p.reload(); p.wait_for_selector('#main h1'); S2 = json.loads(p.evaluate("localStorage.getItem('focusos.v1')")); ck('recargar no duplica repasos', len([w for w in S2['works'] if w.get('auto') == 'review']) == 1)
     # --- completar el repaso con Bien
     go(p, 'hoy'); go(p, 'cal'); p.click('.tg .ev[data-a=blkMenu] >> nth=0'); p.wait_for_selector('#dlg[open]'); shot(p, 'v6-05-menu-bloque')
-    p.click('#dlg button:has-text("Hecho")'); p.wait_for_selector('#dlg[open]'); ck('el registro pide la calidad y «Bien» viene preseleccionado en un repaso', 'CÓMO HA IDO LA SESIÓN' in p.inner_text('#dlg').upper() and p.evaluate("document.querySelector('#dlg input[name=quality]:checked')?.value")=='3'); shot(p, 'v6-06-registro')
+    p.click('#dlg button:has-text("Hecha, con detalle")'); p.wait_for_selector('#dlg[open]'); ck('el registro pide la calidad y «Bien» viene preseleccionado en un repaso', 'CÓMO HA IDO LA SESIÓN' in p.inner_text('#dlg').upper() and p.evaluate("document.querySelector('#dlg input[name=quality]:checked')?.value")=='3'); shot(p, 'v6-06-registro')
     p.click('#dlg button.pri'); p.wait_for_timeout(400)
     S = json.loads(p.evaluate("localStorage.getItem('focusos.v1')")); done = [bl for bl in S['blocks'] if bl['status'] == 'done']
     lim = [t for t in S['syllabus'] if t['name'] == 'Límites'][0]

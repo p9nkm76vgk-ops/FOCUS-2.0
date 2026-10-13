@@ -61,3 +61,16 @@ El historial de GitHub conserva la versión 4 (commit anterior). Tus datos no ca
 - **Media de 1.º:** solo para la nota de acceso (media de bachillerato = media de 1.º y 2.º); ya no se mezcla con las asignaturas. Quitados: brecha, tendencia y multiplicador de la pantalla (el reparto de horas por brecha sigue por dentro).
 - **Quitado:** Revisión semanal y el grupo Asignaturas del menú (se gestionan en Ajustes). Las notas antiguas sin porcentaje se conservan y avisan, pero no cuentan.
 - Pruebas: 189 en Node; Chromium 35 + 37 + 57 + 11.
+
+## v7 — arreglos tras ver la app en el iPad + aprendizaje con tu feedback
+- **Calendario**: alto mínimo legible (26 px); los bloques cortos van en una línea; los bloques que se solapan a la vista (p. ej. uno tachado y otro vigente) se reparten en carriles y los tachados van en gris.
+- **Sin fragmentos**: el planificador ya no deja restos por debajo de la sesión mínima (60 min en ventanas de 50 → 35 + 25). Si no hay otra forma de colocarlo, usa el fragmento antes que perder capacidad.
+- **«Hecha tal cual»**: un toque marca la sesión como hecha con los minutos previstos (sin formulario). «Con detalle» abre el formulario anterior. Está en Hoy, en las próximas sesiones y en el menú del calendario.
+- **«No la haré»** + motivo (cansancio, imprevisto, no cabía, otro) y, para sesiones incumplidas de los últimos 3 días, Hoy pregunta qué pasó.
+- **Aprende tus franjas**: sesiones cerradas (antes de hoy) hechas frente a omitidas por franja (<13, 13–17, 17–20, ≥20) y por día de la semana. Con ≥12 sesiones cerradas, y ≥4 en la franja, si fallas ≥50 % y ≥25 puntos por encima de tu media, las sesiones NUEVAS evitan esa franja/día cuando hay alternativa. Los «imprevistos» no cuentan. No toca sesiones ya planificadas. Visible en Seguimiento → «Lo que aprende el planificador».
+- **Máximo diario sugerido** según las últimas 2 semanas (sube 30 min si cumples ≥90 % y llegas al tope ≥3 días; baja 30 si cumples <60 %); botón «Aplicar» o «Ahora no» (14 días).
+- **«¿Tardaste más o menos?»** al completar una tarea con sesiones hechas: ajusta el ritmo aprendido (×0,8 / ×1 / ×1,25 sobre lo registrado).
+- **Dominio del temario → horas de examen**: con ≥3 temas, factor 1,2 − 0,1·dominio medio (0,9–1,2), combinado con la brecha de nota (tope 0,85–1,4).
+- **Repasos del temario** en su propia sección de Tareas (no en Estimaciones ni Prioridades). **Curso hasta la PAU** se marca «provisional» con <6 temas por asignatura y el texto de mantenimiento dice «bajará/subirá» según corresponda. **Seguimiento** muestra «pocos datos» con <5 sesiones cerradas. Copia de seguridad al final de Hoy con «Luego» (7 días). Aviso en Rutina si estudio + rutina superan el máximo diario + 1 h.
+- Se mantiene a propósito que algún día supere el máximo (no es un error).
+- Límites: verificado en Node (205 tests) y Chromium; sin probar en Safari/iPad por mi parte. Umbrales de aprendizaje son heurísticos.

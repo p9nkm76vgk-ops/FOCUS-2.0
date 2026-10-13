@@ -58,8 +58,8 @@ test('calendario sencillo: solo «Obligatorio» y «Sugerido», sin etiquetas an
   a.t.A.nav({ dataset: { r: 'cal' } }); const cal = a.t.V.cal(); assert.match(cal, /Obligatorio/); assert.match(cal, /Sugerido/); assert.match(cal, /class=lg>/); assert.match(cal, /class="ev ob planned"/); assert.match(cal, /class="ev hab planned"/);
   for (const old of ['Obligación', 'Rutina · sugerido', 'class="tag ob"', 'class="tag rt"', 'borde discontinuo']) assert.ok(!cal.includes(old), old);
   assert.doesNotMatch(cal, /data-a=doneBlk|data-a=habDone/, 'el calendario no se llena de botones'); assert.match(cal, /data-a=blkMenu data-t=ob/); assert.match(cal, /data-a=blkMenu data-t=hab/);
-  const id = a.S.blocks.find(b => b.status === 'planned').id; a.t.A.blkMenu({ dataset: { id, t: 'ob' } }); assert.match(a.h.dlg.innerHTML, />Hecho</); assert.match(a.h.dlg.innerHTML, />Mover</);
-  a.t.A.choice({ dataset: { i: '0' } }); await a.tick(); assert.match(a.h.dlg.innerHTML, /Registrar sesión/);
+  const id = a.S.blocks.find(b => b.status === 'planned').id; a.t.A.blkMenu({ dataset: { id, t: 'ob' } }); assert.match(a.h.dlg.innerHTML, />Hecha tal cual</); assert.match(a.h.dlg.innerHTML, />Mover</);
+  a.t.A.choice({ dataset: { i: '1' } }); await a.tick(); assert.match(a.h.dlg.innerHTML, /Registrar sesión/);
   const hab = a.S.habit.find(h => h.status === 'planned').id; a.t.A.blkMenu({ dataset: { id: hab, t: 'hab' } }); assert.match(a.h.dlg.innerHTML, />Fijar</); assert.match(a.h.dlg.innerHTML, />Omitir</);
   assert.match(a.t.V.hoy(), /data-a=doneBlk/, 'en Hoy las acciones siguen a la vista');
 });
@@ -90,10 +90,10 @@ test('calendario con eje horario: cada bloque en su hora real, dentro de la fran
   const cal = a.t.V.cal(); assert.match(cal, /class="tg/); assert.match(cal, /class=nowl/, 'línea de hora actual en el día de hoy');
   assert.match(cal, /data-a=slot/, 'huecos tocables');
   // cada columna: ninguna pareja de bloques con hora se solapa en pantalla salvo que ya se solapen en datos (no deben)
-  const rows = [...cal.matchAll(/class="ev [^"]*" style="--c:[^;]+;top:([\d.]+)px;height:([\d.]+)px"/g)].map(m => [+m[1], +m[2]]);
+  const rows = [...cal.matchAll(/class="ev [^"]*" style="--c:[^;]+;top:([\d.]+)px;height:([\d.]+)px[^"]*"/g)].map(m => [+m[1], +m[2]]);
   assert.ok(rows.length > 0); for (const [t, h] of rows) assert.ok(t >= 0 && h >= 18);
   const dayCols = cal.split('class="day').slice(1);
-  for (const col of dayCols) { const r = [...col.matchAll(/top:([\d.]+)px;height:([\d.]+)px" data-a=blkMenu/g)].map(m => [+m[1], +m[1] + +m[2]]).sort((x, y) => x[0] - y[0]); for (let i = 1; i < r.length; i++) assert.ok(r[i][0] >= r[i - 1][1] - 3, 'sin solapes visuales'); }
+  for (const col of dayCols) { const r = [...col.matchAll(/top:([\d.]+)px;height:([\d.]+)px;left:calc\(0% \+ 2px\)[^"]*" data-a=blkMenu/g)].map(m => [+m[1], +m[1] + +m[2]]).sort((x, y) => x[0] - y[0]); for (let i = 1; i < r.length; i++) assert.ok(r[i][0] >= r[i - 1][1] - 3, 'sin solapes visuales'); }
   const before = a.t.V.hoy(), m = before.match(/data-a=warnOff data-id="([^"]+)" data-k=(\d+)/);
   assert.ok(m, 'con una tarea imposible de cumplir aparece el aviso con «Entendido»'); assert.match(before, /No caben/); assert.match(before, /min más de estudio al día/);
   a.t.A.warnOff({ dataset: { id: m[1], k: m[2] } }); await a.tick(); assert.equal(a.S.warnOff[m[1]], +m[2]); assert.ok(!a.t.V.hoy().includes('warnOff data-id="' + m[1]), 'ese aviso ya no sale');

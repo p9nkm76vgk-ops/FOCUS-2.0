@@ -21,12 +21,12 @@ export interface Work {
   /** Opciones elegidas en el formulario (sin escribir nada): ritmo personal para esta tarea/examen y cantidad de materia del examen. */
   pace?: number; amount?: string;
   /** Tarea automática de repaso del temario (auto:'review') y estimación inicial sin ajuste aprendido (base0). */
-  auto?: 'review'; topicRef?: string; base0?: number;
+  auto?: 'review'; topicRef?: string; base0?: number; felt?: -1 | 0 | 1;
   manualEstMin?: number; corrections?: { at: number; from: number | null; to: number }[]; estimate?: Estimate;
 }
 export interface Block {
   id: string; workId: string; date: string; start: number; end: number;
-  status: BlockStatus; manual: boolean; quality?: 1 | 2 | 3; part?: 'main' | 'review'; actualMin?: number; topicId?: string; log?: SessionLog;
+  status: BlockStatus; manual: boolean; quality?: 1 | 2 | 3; reason?: 'cansancio' | 'imprevisto' | 'nocabia' | 'otro'; part?: 'main' | 'review'; actualMin?: number; topicId?: string; log?: SessionLog;
 }
 export interface Now { date: string; minute: number } // hora local del usuario
 export interface Warning { workId: string; type: 'deficit' | 'overdue'; deficitMin?: number; message: string }
