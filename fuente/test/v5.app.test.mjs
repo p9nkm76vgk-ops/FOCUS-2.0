@@ -8,7 +8,7 @@ const opts = (a, o = {}) => ({ subjectId: a.S.subjects[1].id, when: '7', learn: 
 test('crear una tarea SOLO con opciones: sin escribir nada, con nombre automático, tipo según la asignatura y estimación', async () => {
   const a = await boot(); await a.click('addTask'); const dlg = a.h.dlg.innerHTML;
   assert.match(dlg, /type=radio name=subjectId/); assert.match(dlg, /type=radio name=when/); assert.match(dlg, /Sin fecha/); assert.match(dlg, /Guardar y añadir otra/); assert.match(dlg, /<details class=more>/);
-  assert.doesNotMatch(dlg.split('<details')[0], /<input[^>]*type=(text|number)/, 'lo principal no pide escribir');
+  assert.doesNotMatch(dlg.split('<details')[0].replace(/<input name=title[^>]*>/, ''), /<input[^>]*type=(text|number)/, 'lo principal solo permite escribir el título (opcional)');
   assert.equal(await a.submit(opts(a)), ''); const w = a.S.works[0];
   assert.equal(w.title, 'Problemas de Física'); assert.equal(w.learn, 'problemas'); assert.equal(w.dueDate, '2026-10-19'); assert.ok(!w.noDate); assert.ok(w.estimate && w.estimate.totalMin > 0);
   assert.ok(a.S.blocks.some(b => b.workId === w.id && b.status === 'planned'), 'genera sesiones');
@@ -18,7 +18,7 @@ test('«Sin fecha»: la tarea se guarda como sin fecha y el calendario la sitúa
   const a = await boot(); await a.click('addTask'); assert.equal(await a.submit(opts(a, { when: 'none', importance: '5' })), ''); const w = a.S.works[0];
   assert.equal(w.noDate, true); assert.equal(w.dueDate, '9999-12-31'); assert.equal(w.dueMinute, undefined);
   const bs = a.S.blocks.filter(b => b.workId === w.id && b.status === 'planned'); assert.ok(bs.length >= 1); assert.ok(bs.every(b => b.date >= '2026-10-12' && b.date <= '2026-10-25'));
-  const tar = a.t.V.tar(); assert.match(tar, /<h2>Sin fecha<\/h2>/); assert.match(tar, /Sin fecha · /); assert.match(a.t.V.hoy(), /lunes 12 de octubre/); a.t.A.nav({ dataset: { r: 'cal' } }); assert.match(a.t.V.cal(), /sin fecha/);
+  const tar = a.t.V.tar(); assert.match(tar, /<h2 class=gh>Sin fecha<\/h2>/); assert.match(tar, /Sin fecha · /); assert.match(a.t.V.hoy(), /lunes 12 de octubre/); a.t.A.nav({ dataset: { r: 'cal' } }); assert.match(a.t.V.cal(), /sin fecha/);
   const snap = J(a.S.blocks); await a.t.commit(); await a.t.commit(); assert.equal(J(a.S.blocks), snap, 'idempotente');
   assert.match(a.t.V.hoy(), /Sin fecha · /, 'aparece entre las prioridades de hoy'); assert.doesNotMatch(a.t.V.hoy(), /Atrasadas/);
   await a.click('toggle', w.id); assert.equal(a.S.blocks.filter(b => b.workId === w.id && b.status === 'planned').length, 0); await a.click('toggle', w.id); assert.ok(a.S.blocks.some(b => b.workId === w.id && b.status === 'planned'));

@@ -20,6 +20,7 @@ def go(p, r):
     p.click(f'#nav [data-r="{r}"]'); p.wait_for_timeout(150)
     p.evaluate("document.querySelectorAll('details.more').forEach(d=>d.open=true)")
 def chip(p, name, text):  # pulsa un botón de opción por su texto
+    p.evaluate("document.querySelectorAll('#dlg details').forEach(d=>d.open=true)")
     p.locator(f'#dlg label.ch:has(input[name={name}])').filter(has_text=text).first.click()
 def shot(p, n): p.screenshot(path=f'{SHOTS}/{n}.png')
 try:

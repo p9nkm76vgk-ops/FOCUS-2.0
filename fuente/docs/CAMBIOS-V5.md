@@ -163,3 +163,8 @@ Causas halladas y corregidas:
 - Horario de clases en Ajustes (`S.timetable`) y `.ics` con evento semanal recurrente + aviso 10 min antes por clase (hasta el 15 de junio). Arreglado el escape de `;` en el `.ics`.
 - Hoy rediseñado (`src/app/hoy2.js`): tarjeta de la sesión actual con ✓ Hecho / No hecho a un toque; lista del día; exámenes cercanos; el resto plegado (estado recordado). Rutina: configuración plegada. Calendario: rejilla y bloques más suaves.
 - Sin toast de migración del ejercicio.
+
+## v13.2 (20 oct 2026)
+- Tareas y Exámenes: filas agrupadas (Atrasadas · Hoy · Mañana · Esta semana · Más adelante), cuenta atrás en exámenes, terminadas/repasos plegados.
+- Calendario: barra limpia, resto en «Más acciones». Rutina: configuración plegada. Plegables recuerdan su estado.
+- Nueva tarea: solo asignatura, fecha y título (opcional); tipo, tamaño, dificultad e importancia en «Más opciones».

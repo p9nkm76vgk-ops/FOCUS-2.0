@@ -69,7 +69,7 @@ const topicsExam = (o = {}) => ({ title: 'Parcial mates', subjectId: '', dueDate
 test('examen con temas y sin horas: estimación automática, desglose, planificación y UI', async () => {
   const a = await boot(); await a.click('addExam'); assert.equal(await a.submit(topicsExam({ subjectId: a.S.subjects[0].id })), '');
   const w = a.S.works[0]; assert.equal(w.topics.length, 3); assert.ok(w.estimate.remainingMin > 0 && w.estimate.confidence === 'inicial'); assert.ok(w.estimate.remainingMin - sum(auto(a)) >= 0 && w.estimate.remainingMin - sum(auto(a)) < 40, 'lo planificado cubre lo que falta salvo restos <20 min por tramo');
-  assert.ok(auto(a).every(b => b.topicId)); assert.match(a.t.V.exa(), /Quedan .*inicial/);
+  assert.ok(auto(a).every(b => b.topicId)); assert.match(a.t.V.exa(), /quedan ~/);
   assert.equal(await (async () => { await a.click('addExam'); return a.submit(topicsExam({ subjectId: a.S.subjects[0].id, topics: 'X; 9; 3; 0' })) })(), 'Tema «X»: dificultad 1-5, cantidad 1-5, preparación 0-3.');
 });
 // LEGADO v1 (v2 lo cubre en acceptance.v2.test.ts): con 70 % autodeclarado sube el dominio y baja lo pendiente (causa 4)
