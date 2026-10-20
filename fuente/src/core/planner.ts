@@ -31,10 +31,12 @@ export const EXAM_FIRST_DAYS = 14;  // exámenes dentro de este margen tienen pr
 /** PROTECCIÓN DE EXAMEN: los EXAM_GUARD_DAYS días previos (y el propio día) solo se estudia la asignatura del examen; las tareas de otras asignaturas
  *  esperan, salvo que venzan ese mismo día o antes (entonces es su última oportunidad). En esos días el examen recibe además GUARD_MIN_PER_DAY min/día
  *  (exámenes antiguos y repaso: la práctica de recuperación es lo que más rinde justo antes de evaluar). */
-export const EXAM_GUARD_DAYS = 3, GUARD_MIN_PER_DAY = 90;
-export const examGuard = (works: { kind: string; status: string; auto?: string; subjectId: string; dueDate: string }[], date: string): Set<string> => {
+export const EXAM_GUARD_DAYS = 3, EXAM_GUARD_DAYS_HEAVY = 5, GUARD_MIN_PER_DAY = 90;
+/** Exámenes de mucho peso (importancia ≥ 4: 80–100 % de la evaluación) protegen 5 días en lugar de 3: es la «semana de examen». */
+export const guardDays = (w: { importance?: number }) => (w.importance ?? 3) >= 4 ? EXAM_GUARD_DAYS_HEAVY : EXAM_GUARD_DAYS;
+export const examGuard = (works: { kind: string; status: string; auto?: string; subjectId: string; dueDate: string; importance?: number }[], date: string): Set<string> => {
   const g = new Set<string>();
-  for (const w of works) if (w.kind === 'exam' && w.auto !== 'review' && (w.status === 'pending' || w.status === 'in_progress')) { const d = daysBetween(date, w.dueDate); if (d >= 0 && d <= EXAM_GUARD_DAYS) g.add(w.subjectId); }
+  for (const w of works) if (w.kind === 'exam' && w.auto !== 'review' && (w.status === 'pending' || w.status === 'in_progress')) { const d = daysBetween(date, w.dueDate); if (d >= 0 && d <= guardDays(w)) g.add(w.subjectId); }
   return g;
 };
 export const EXAM_BUFFER_MIN = 60;  // margen antes de la hora del examen el mismo día
@@ -111,7 +113,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const f = w.kind === 'exam' ? (input.boost?.[w.subjectId] ?? 1) : 1; // más horas de examen donde la brecha con el objetivo es mayor
     let need = Math.max(0, (f === 1 ? totalNeed(w) : Math.round(totalNeed(w) * f / 5) * 5) - done - manual);
     if (need > 0 && need < MIN_FRAG && (done > 0 || (w.estimate?.investedMin ?? 0) > 0)) need = 0; // tras avanzar, un resto menor de 20 min no merece una sesión: se da por cubierto
-    if (w.kind === 'exam' && w.auto !== 'review' && w.readiness < 90) { const dl = daysBetween(now.date, w.dueDate); if (dl >= 0 && dl <= EXAM_GUARD_DAYS) need = Math.max(need, GUARD_MIN_PER_DAY * (dl + (w.dueMinute !== undefined && w.dueMinute < hm(12) ? 0 : 1))); }
+    if (w.kind === 'exam' && w.auto !== 'review' && w.readiness < 90) { const dl = daysBetween(now.date, w.dueDate); if (dl >= 0 && dl <= guardDays(w)) need = Math.max(need, GUARD_MIN_PER_DAY * (dl + (w.dueMinute !== undefined && w.dueMinute < hm(12) ? 0 : 1))); }
     const und = isUndated(w);
     const overdue = !und && (w.dueDate < now.date || (w.dueDate === now.date && w.dueMinute !== undefined && w.dueMinute <= now.minute));
     if (overdue) warnings.push({ workId: w.id, type: 'overdue', message: `"${w.title}" está atrasada (${w.dueDate}).` });

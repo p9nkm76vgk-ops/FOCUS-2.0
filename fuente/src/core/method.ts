@@ -87,11 +87,13 @@ const CIENCIAS = new Set(['Matemáticas II', 'Física', 'Química']), LENGUAS = 
 export const understandOf = (name?: string) => CIENCIAS.has(name ?? '') ? UNDERSTAND.ciencias : LENGUAS.has(name ?? '') ? UNDERSTAND.lenguas : name === 'Business' || name === 'Historia de España' || name === 'Historia de la Filosofía' ? UNDERSTAND.letras : UNDERSTAND.ciencias;
 /** Fase de un bloque de examen: los primeros ~30 % de sus sesiones principales (mín. 1) son de comprensión si la preparación es < 60 %; el resto, práctica. */
 export const UNDERSTAND_SHARE = 0.3, UNDERSTAND_BELOW = 60;
+export const SIMULACRO = { title: 'Simulacro cronometrado', detail: 'Haz un examen completo (de años anteriores o preparado por tu profesor) en condiciones reales: sin apuntes, con el tiempo del examen y en una sola sesión. Corrígelo con los criterios de corrección. Apunta cada fallo en el cuaderno de errores (+ Fallo) y mira cuánto tardaste en cada parte.' } as const;
 export const phaseFor = (readiness: number, idx: number, total: number): 'comprender' | 'practicar' =>
   readiness < UNDERSTAND_BELOW && idx >= 0 && idx < Math.max(1, Math.round(total * UNDERSTAND_SHARE)) ? 'comprender' : 'practicar';
 /** Línea corta de «qué hacer» para un bloque de obligación (tarea o examen). */
-export const howFor = (name: string | undefined, key: string | undefined, o: { review?: boolean; exam?: boolean; phase?: 'comprender' | 'practicar' }): string => {
+export const howFor = (name: string | undefined, key: string | undefined, o: { review?: boolean; exam?: boolean; phase?: 'comprender' | 'practicar' | 'simulacro' }): string => {
   const m = methodOf(name, key);
+  if (o.phase === 'simulacro') return `${SIMULACRO.title}: ${SIMULACRO.detail}`;
   if (o.review) return `${m.repaso.title}: ${m.repaso.detail}`;
   if (o.phase === 'comprender') { const u = understandOf(name); return `${u.title}: ${u.detail}`; }
   return `${m.tasks[0].title}: ${m.tasks[0].detail}`;

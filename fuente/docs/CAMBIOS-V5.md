@@ -168,3 +168,9 @@ Causas halladas y corregidas:
 - Tareas y Exámenes: filas agrupadas (Atrasadas · Hoy · Mañana · Esta semana · Más adelante), cuenta atrás en exámenes, terminadas/repasos plegados.
 - Calendario: barra limpia, resto en «Más acciones». Rutina: configuración plegada. Plegables recuerdan su estado.
 - Nueva tarea: solo asignatura, fecha y título (opcional); tipo, tamaño, dificultad e importancia en «Más opciones».
+
+## v14 (20 oct 2026, noche)
+- Cuaderno de errores (`src/core/errores.ts`): «+ Fallo» o campo en el registro detallado; vuelve a 2 días, 1, 3 y 5 semanas; fallar → mañana; responder 2 veces el mismo día no avanza dos etapas. En Hoy: «Rehacer hoy» (máx. 3).
+- Semana de examen: examen de peso ≥ 4 protege 5 días (3 si pesa menos); el repaso final del examen es un «Simulacro cronometrado».
+- Resumen semanal (`src/core/semana.ts`): domingo (semana en curso) y lunes (la anterior); cumplimiento con la fórmula de estadísticas; ajuste «un bloque más» a la asignatura más floja (si la rutina está activa).
+- Diseño: horario de clases plegado en Ajustes; registro detallado con lo esencial arriba; fórmula de cumplimiento plegada.

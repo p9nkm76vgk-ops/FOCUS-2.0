@@ -173,10 +173,12 @@ const EXAM_FIRST_DAYS = 14;  // exámenes dentro de este margen tienen prioridad
 /** PROTECCIÓN DE EXAMEN: los EXAM_GUARD_DAYS días previos (y el propio día) solo se estudia la asignatura del examen; las tareas de otras asignaturas
  *  esperan, salvo que venzan ese mismo día o antes (entonces es su última oportunidad). En esos días el examen recibe además GUARD_MIN_PER_DAY min/día
  *  (exámenes antiguos y repaso: la práctica de recuperación es lo que más rinde justo antes de evaluar). */
-const EXAM_GUARD_DAYS = 3, GUARD_MIN_PER_DAY = 90;
-const examGuard = (works                                                                                       , date        )              => {
+const EXAM_GUARD_DAYS = 3, EXAM_GUARD_DAYS_HEAVY = 5, GUARD_MIN_PER_DAY = 90;
+/** Exámenes de mucho peso (importancia ≥ 4: 80–100 % de la evaluación) protegen 5 días en lugar de 3: es la «semana de examen». */
+const guardDays = (w                         ) => (w.importance ?? 3) >= 4 ? EXAM_GUARD_DAYS_HEAVY : EXAM_GUARD_DAYS;
+const examGuard = (works                                                                                                            , date        )              => {
   const g = new Set        ();
-  for (const w of works) if (w.kind === 'exam' && w.auto !== 'review' && (w.status === 'pending' || w.status === 'in_progress')) { const d = daysBetween(date, w.dueDate); if (d >= 0 && d <= EXAM_GUARD_DAYS) g.add(w.subjectId); }
+  for (const w of works) if (w.kind === 'exam' && w.auto !== 'review' && (w.status === 'pending' || w.status === 'in_progress')) { const d = daysBetween(date, w.dueDate); if (d >= 0 && d <= guardDays(w)) g.add(w.subjectId); }
   return g;
 };
 const EXAM_BUFFER_MIN = 60;  // margen antes de la hora del examen el mismo día
@@ -253,7 +255,7 @@ function plan(input                                                             
     const f = w.kind === 'exam' ? (input.boost?.[w.subjectId] ?? 1) : 1; // más horas de examen donde la brecha con el objetivo es mayor
     let need = Math.max(0, (f === 1 ? totalNeed(w) : Math.round(totalNeed(w) * f / 5) * 5) - done - manual);
     if (need > 0 && need < MIN_FRAG && (done > 0 || (w.estimate?.investedMin ?? 0) > 0)) need = 0; // tras avanzar, un resto menor de 20 min no merece una sesión: se da por cubierto
-    if (w.kind === 'exam' && w.auto !== 'review' && w.readiness < 90) { const dl = daysBetween(now.date, w.dueDate); if (dl >= 0 && dl <= EXAM_GUARD_DAYS) need = Math.max(need, GUARD_MIN_PER_DAY * (dl + (w.dueMinute !== undefined && w.dueMinute < hm(12) ? 0 : 1))); }
+    if (w.kind === 'exam' && w.auto !== 'review' && w.readiness < 90) { const dl = daysBetween(now.date, w.dueDate); if (dl >= 0 && dl <= guardDays(w)) need = Math.max(need, GUARD_MIN_PER_DAY * (dl + (w.dueMinute !== undefined && w.dueMinute < hm(12) ? 0 : 1))); }
     const und = isUndated(w);
     const overdue = !und && (w.dueDate < now.date || (w.dueDate === now.date && w.dueMinute !== undefined && w.dueMinute <= now.minute));
     if (overdue) warnings.push({ workId: w.id, type: 'overdue', message: `"${w.title}" está atrasada (${w.dueDate}).` });
@@ -394,7 +396,7 @@ function capacityFor(s          , blocks         , now     , w      , acts      
   }
   return { freeMin, freeDays };
 }
-;return{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,subtract,isUndated,NO_DATE,daysBetween,hourBucket,CENA,EJERCICIO,examGuard}})();
+;return{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,subtract,isUndated,NO_DATE,daysBetween,hourBucket,CENA,EJERCICIO,examGuard,guardDays}})();
 const EST2=(()=>{/** Registro de parámetros del estimador 2.0. FASE 1: solo declaración; el estimador v1 no los usa.
  *  Etiquetas: EVIDENCIA-ESTRUCTURA (la estructura está respaldada, el valor no) · HEURÍSTICO-PREVIO (valor inicial sin respaldo,
  *  se sustituye por tus datos) · APRENDIDO (se estima de tus datos) · UMBRAL-CONFIGURABLE (decisión de producto, editable). */
@@ -622,16 +624,18 @@ const CIENCIAS = new Set(['Matemáticas II', 'Física', 'Química']), LENGUAS = 
 const understandOf = (name         ) => CIENCIAS.has(name ?? '') ? UNDERSTAND.ciencias : LENGUAS.has(name ?? '') ? UNDERSTAND.lenguas : name === 'Business' || name === 'Historia de España' || name === 'Historia de la Filosofía' ? UNDERSTAND.letras : UNDERSTAND.ciencias;
 /** Fase de un bloque de examen: los primeros ~30 % de sus sesiones principales (mín. 1) son de comprensión si la preparación es < 60 %; el resto, práctica. */
 const UNDERSTAND_SHARE = 0.3, UNDERSTAND_BELOW = 60;
+const SIMULACRO = { title: 'Simulacro cronometrado', detail: 'Haz un examen completo (de años anteriores o preparado por tu profesor) en condiciones reales: sin apuntes, con el tiempo del examen y en una sola sesión. Corrígelo con los criterios de corrección. Apunta cada fallo en el cuaderno de errores (+ Fallo) y mira cuánto tardaste en cada parte.' }         ;
 const phaseFor = (readiness        , idx        , total        )                             =>
   readiness < UNDERSTAND_BELOW && idx >= 0 && idx < Math.max(1, Math.round(total * UNDERSTAND_SHARE)) ? 'comprender' : 'practicar';
 /** Línea corta de «qué hacer» para un bloque de obligación (tarea o examen). */
-const howFor = (name                    , key                    , o                                                                          )         => {
+const howFor = (name                    , key                    , o                                                                                        )         => {
   const m = methodOf(name, key);
+  if (o.phase === 'simulacro') return `${SIMULACRO.title}: ${SIMULACRO.detail}`;
   if (o.review) return `${m.repaso.title}: ${m.repaso.detail}`;
   if (o.phase === 'comprender') { const u = understandOf(name); return `${u.title}: ${u.detail}`; }
   return `${m.tasks[0].title}: ${m.tasks[0].detail}`;
 };
-;return{METHOD,GENERIC,methodOf,SPACING,howFor,UNDERSTAND,understandOf,phaseFor,UNDERSTAND_BELOW}})();
+;return{METHOD,GENERIC,methodOf,SPACING,howFor,UNDERSTAND,understandOf,phaseFor,UNDERSTAND_BELOW,SIMULACRO}})();
 const EST=(()=>{const {estimateV2}=EST2;                                                                                                                      
 
 
@@ -1337,8 +1341,54 @@ function stats(blocks         , works        , _now     ) {
   return { plannedMin, completedMin, counts, byDay, bySubject, compliance: base ? Math.round(100 * doneSched / base) : null };
 }
 ;return{stats}})();
+const ERR=(()=>{const {addDays}=P;/** Cuaderno de errores con repaso espaciado. Cada fallo vuelve a los 2 días, luego a la semana, a las 3 semanas y a las 5 (Cepeda 2008; Roediger y Karpicke 2006:
+ *  recuperar de memoria lo que falló es lo que más consolida). Si vuelve a fallar, regresa al día siguiente y empieza de nuevo. Funciones puras e idempotentes. */
+
+                                                                                                                                                                                             
+const STAGES = [2, 7, 21, 35]         , RETRY_DAYS = 1, MAX_TEXT = 140, MAX_DUE = 3;
+const norm = (t        ) => t.trim().toLowerCase().replace(/\s+/g, ' ');
+function addFallo(list         , f                                     , today        , id        )                                  {
+  const text = f.text.trim().replace(/\s+/g, ' ').slice(0, MAX_TEXT);
+  if (!text) return { list, err: 'Escribe en una línea qué fallaste.' };
+  if (!f.subjectId) return { list, err: 'Elige la asignatura.' };
+  if (list.some(x => x.subjectId === f.subjectId && x.next !== null && norm(x.text) === norm(text))) return { list }; // repetir no duplica
+  return { list: [...list, { id, subjectId: f.subjectId, text, created: today, stage: 0, next: addDays(today, STAGES[0]), hits: 0, misses: 0 }] };
+}
+/** Los que toca rehacer hoy (los más atrasados primero), como mucho MAX_DUE para no abrumar. */
+const dueFallos = (list         , today        , limit = MAX_DUE) => list.filter(f => f.next !== null && f.next <= today).sort((a, b) => a.next .localeCompare(b.next ) || a.id.localeCompare(b.id)).slice(0, limit);
+function answerFallo(list         , id        , ok         , today        )          {
+  return list.map(f => {
+    if (f.id !== id || f.next === null || f.last === today) return f; // ya respondido hoy: tocar dos veces no avanza dos etapas
+    if (!ok) return { ...f, stage: 0, next: addDays(today, RETRY_DAYS), last: today, misses: f.misses + 1 };
+    const stage = f.stage + 1;
+    return stage >= STAGES.length ? { ...f, stage, next: null, last: today, hits: f.hits + 1, masteredAt: today } : { ...f, stage, next: addDays(today, STAGES[stage]), last: today, hits: f.hits + 1 };
+  });
+}
+const falloStats = (list         , today        ) => ({ open: list.filter(f => f.next !== null).length, due: list.filter(f => f.next !== null && f.next <= today).length, mastered: list.filter(f => f.next === null).length });
+;return{STAGES,MAX_DUE,addFallo,dueFallos,answerFallo,falloStats}})();
+const SEM=(()=>{const {addDays,weekday}=P,{stats}=ST;/** Resumen de la semana (domingo: la semana en curso; lunes: la que acaba de terminar). Usa la misma fórmula de cumplimiento que las estadísticas:
+ *  min programados de sesiones hechas / min programados de sesiones hechas + omitidas. Sin datos suficientes no se inventa nada. */
+                                              
+
+                                          
+
+const mondayOf = (d        ) => addDays(d, -((weekday(d) + 6) % 7));
+                                                                                                                                                                                                                                                                                                  
+const WEAK_BELOW = 80, MIN_SUBJECT_MIN = 60;
+function weekToReview(today        )                { const w = weekday(today); return w === 0 ? mondayOf(today) : w === 1 ? addDays(mondayOf(today), -7) : null; }
+function resumenSemana(a                                                                    )                 {
+  const from = weekToReview(a.today); if (!from) return null; const to = addDays(from, 6);
+  const wb = a.blocks.filter(b => b.date >= from && b.date <= to && b.date <= a.today), sidOf = new Map(a.works.map(w => [w.id, w.subjectId]));
+  const t = stats(wb, a.works, { date: a.today, minute: 0 }); if (t.plannedMin === 0) return null;
+  const ids = [...new Set(wb.map(b => sidOf.get(b.workId)).filter(Boolean)            )].sort();
+  const subjects = ids.map(id => { const s = stats(wb.filter(b => sidOf.get(b.workId) === id), a.works, { date: a.today, minute: 0 }); return { id, plannedMin: s.plannedMin, completedMin: s.completedMin, compliance: s.compliance }; });
+  const weak = subjects.filter(s => s.compliance !== null && s.compliance < WEAK_BELOW && s.plannedMin >= MIN_SUBJECT_MIN).sort((x, y) => x.compliance  - y.compliance  || y.plannedMin - x.plannedMin || x.id.localeCompare(y.id))[0];
+  return { from, to, plannedMin: t.plannedMin, completedMin: t.completedMin, compliance: t.compliance, subjects, weakest: weak?.id ?? null,
+    fallosNuevos: a.fallos.filter(f => f.created >= from && f.created <= to).length, fallosDominados: a.fallos.filter(f => f.masteredAt && f.masteredAt >= from && f.masteredAt <= to).length };
+}
+;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='fd74766c0a',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='597c0b9568',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -1465,13 +1515,13 @@ function workForm(kind,id,pre){const w=id?wk(id):{},E=kind==='exam',subs=S.subje
   LASTSUB=sid;S.works=id?S.works.map(x=>x.id===id?o:x):[...S.works,o];
   if(again&&!id){toast('Guardada: «'+title+'». Añade otra.');commit().then(()=>{if(!CHOOSING)workForm(kind,null,{subjectId:sid})})}else commit()},id&&(()=>{if(S.blocks.some(b=>b.workId===id&&b.status==='done'))return'Tiene sesiones completadas: márcala como Archivada para conservar el historial.';S.works=S.works.filter(x=>x.id!==id);S.blocks=S.blocks.filter(b=>b.workId!==id);commit()}),undefined,id||E?undefined:'Guardar y añadir otra')}
 function logForm(id,quick,pre){const b=S.blocks.find(x=>x.id===id),w=wk(b.workId)||{},tp=(w.topics||[]).map(x=>[x.id,x.name]);
- const FF=[{k:'actualMin',l:'Minutos reales de estudio',t:'number',min:1,v:pre||b.end-b.start},...(tp.length?[{k:'topicId',l:'Tema trabajado',t:'select',o:[['','(ninguno / varios)'],...tp],v:b.topicId||''}]:[]),{k:'goalMet',l:'¿Alcanzaste el objetivo de la sesión?',t:'select',o:[['1','Sí'],['0','No del todo']],v:'1'},{k:'quality',l:'¿Cómo ha ido la sesión?',t:'chips',o:[['','Sin valorar'],...GL.QUALITY],v:w.auto==='review'?'3':''},{k:'progress',l:'Progreso aproximado en el tema (% del trabajo que le quedaba)',t:'number',min:0,max:100,v:60},{k:'difficulty',l:'Dificultad encontrada (1-5)',t:'number',min:1,max:5,v:3},{k:'interrupted',l:'¿Interrupciones importantes?',t:'select',o:[['0','No'],['1','Sí']],v:'0'},{k:'phase',l:'Fase trabajada (opcional)',t:'select',o:[['','(no indicar)'],['aprendizaje','Aprendizaje / ejemplos'],['practica','Práctica'],['recuperacion','Recuperación sin apuntes'],['errores','Corrección de errores'],['repaso','Repaso']],v:''},{k:'units',l:'Unidades trabajadas (opcional)',t:'number',min:0,v:''},{k:'ind',l:'Ítems correctos SIN ayuda (opcional)',t:'number',min:0,v:''},{k:'asi',l:'Ítems correctos CON ayuda',t:'number',min:0,v:''},{k:'err',l:'Ítems con error',t:'number',min:0,v:''},{k:'omi',l:'Ítems omitidos',t:'number',min:0,v:''}],CB=v=>{
+ const FF=[{k:'actualMin',l:'Minutos reales de estudio',t:'number',min:1,v:pre||b.end-b.start},...(tp.length?[{k:'topicId',l:'Tema trabajado',t:'select',o:[['','(ninguno / varios)'],...tp],v:b.topicId||''}]:[]),{k:'goalMet',l:'¿Alcanzaste el objetivo de la sesión?',t:'select',o:[['1','Sí'],['0','No del todo']],v:'1'},{k:'fallo',l:'¿Algo que fallaste o te costó? Una línea (pasa al cuaderno de errores y vuelve a repasarse solo)',v:'',ph:'Opcional'},{t:'more',l:'Más detalle (opcional)'},{k:'quality',l:'¿Cómo ha ido la sesión?',t:'chips',o:[['','Sin valorar'],...GL.QUALITY],v:w.auto==='review'?'3':''},{k:'progress',l:'Progreso aproximado en el tema (% del trabajo que le quedaba)',t:'number',min:0,max:100,v:60},{k:'difficulty',l:'Dificultad encontrada (1-5)',t:'number',min:1,max:5,v:3},{k:'interrupted',l:'¿Interrupciones importantes?',t:'select',o:[['0','No'],['1','Sí']],v:'0'},{k:'phase',l:'Fase trabajada (opcional)',t:'select',o:[['','(no indicar)'],['aprendizaje','Aprendizaje / ejemplos'],['practica','Práctica'],['recuperacion','Recuperación sin apuntes'],['errores','Corrección de errores'],['repaso','Repaso']],v:''},{k:'units',l:'Unidades trabajadas (opcional)',t:'number',min:0,v:''},{k:'ind',l:'Ítems correctos SIN ayuda (opcional)',t:'number',min:0,v:''},{k:'asi',l:'Ítems correctos CON ayuda',t:'number',min:0,v:''},{k:'err',l:'Ítems con error',t:'number',min:0,v:''},{k:'omi',l:'Ítems omitidos',t:'number',min:0,v:''},{t:'end'}],CB=v=>{
   const am=+v.actualMin,pr=+(v.progress??60),df=+(v.difficulty??3);if(!(am>=1&&am<=600))return'Los minutos reales deben estar entre 1 y 600.';if(!(pr>=0&&pr<=100))return'El progreso va de 0 a 100.';if(!(df>=1&&df<=5))return'Dificultad de 1 a 5.';
   const nn=k=>v[k]===''||v[k]==null?0:+v[k],it={independent:nn('ind'),assisted:nn('asi'),wrong:nn('err'),skipped:nn('omi')},n=it.independent+it.assisted+it.wrong+it.skipped,un=nn('units');
   if([it.independent,it.assisted,it.wrong,it.skipped,un].some(x=>!(x>=0)))return'Las cantidades deben ser números no negativos.';
   const topicId=v.topicId||undefined;b.status='done';delete b.running;if(UI.timer&&UI.timer.id===b.id){UI.timer=null;saveUI()}b.actualMin=am;if(+v.quality>=1)b.quality=+v.quality;b.log={actualMin:am,topicId,progress:pr,difficulty:df,goalMet:v.goalMet!=='0',interrupted:v.interrupted==='1',valid:v.interrupted!=='1'&&am>=5,...(v.phase?{phase:v.phase}:{}),...(un>0?{units:un}:{}),...(n>0?{items:{n,...it}}:{})};
   if(n>0&&topicId&&w.topics)S.works=S.works.map(x=>x.id!==w.id?x:{...x,topics:x.topics.map(y=>y.id===topicId?{...y,evidence:[...(y.evidence||[]),{at:now().date,items:n,...it,kind:'recuperacion'}]}:y)});
-  if(topicId&&w.topics&&w.estimatorVersion!==2){S.works=S.works.map(x=>x.id!==w.id?x:{...x,topics:x.topics.map(y=>y.id===topicId?{...y,mastery:Math.min(3,Math.round((y.mastery+(3-y.mastery)*pr/100)*1000)/1000)}:y)})}if(w.auto==='review'&&w.topicRef){S.syllabus=(S.syllabus||[]).map(t=>t.id===w.topicRef?GL.reviewDone(t,v.quality==='1'?'mal':v.quality==='2'?'regular':'bien',now().date):t);w.status='done';w.updatedAt=Date.now()}commit()};
+  if(topicId&&w.topics&&w.estimatorVersion!==2){S.works=S.works.map(x=>x.id!==w.id?x:{...x,topics:x.topics.map(y=>y.id===topicId?{...y,mastery:Math.min(3,Math.round((y.mastery+(3-y.mastery)*pr/100)*1000)/1000)}:y)})}if(w.auto==='review'&&w.topicRef){S.syllabus=(S.syllabus||[]).map(t=>t.id===w.topicRef?GL.reviewDone(t,v.quality==='1'?'mal':v.quality==='2'?'regular':'bien',now().date):t);w.status='done';w.updatedAt=Date.now()}addFalloFrom(v,w);commit()};
  if(quick){const e=CB({actualMin:pre||b.end-b.start,goalMet:'1',quality:'',progress:60,difficulty:3,interrupted:'0',phase:'',units:'',ind:'',asi:'',err:'',omi:''});if(e)toast(e);return}
  openForm('Registrar sesión',FF,CB)}
 function blkForm(id,pre){const b=id?S.blocks.find(x=>x.id===id):pre||{},ws_=S.works.filter(w=>w.status==='pending'||w.status==='in_progress').map(w=>[w.id,sub(w.subjectId).name+' · '+w.title]);if(!ws_.length)return toast('No hay tareas ni exámenes activos');
@@ -1481,7 +1531,7 @@ function blkForm(id,pre){const b=id?S.blocks.find(x=>x.id===id):pre||{},ws_=S.wo
   const nb={...b,id:id||'man:'+uid(),workId:v.workId,date:v.date,start:s,end:e,status:'planned',manual:true};S.blocks=id?S.blocks.map(x=>x.id===id?nb:x):[...S.blocks,nb];commit()})}
 const wTopic=b=>((wk(b.workId)||{}).topics||[]).find(x=>x.id===b.topicId)?.name||'';
 const mnu=(c,t,id)=>c?` data-a=blkMenu data-t=${t} data-id="${esc(id)}" role=button tabindex=0`:'';
-const phaseOf=b=>{const w=wk(b.workId);if(!w||w.kind!=='exam'||b.part==='review'||w.auto==='review')return undefined;const ms=S.blocks.filter(x=>x.workId===w.id&&x.part!=='review'&&(x.status==='planned'||x.status==='done')).sort((x,y)=>x.date.localeCompare(y.date)||x.start-y.start);return MET.phaseFor(w.readiness??0,ms.findIndex(x=>x.id===b.id),ms.length)};
+const phaseOf=b=>{const w=wk(b.workId);if(!w||w.kind!=='exam'||w.auto==='review')return undefined;if(b.part==='review')return 'simulacro';const ms=S.blocks.filter(x=>x.workId===w.id&&x.part!=='review'&&(x.status==='planned'||x.status==='done')).sort((x,y)=>x.date.localeCompare(y.date)||x.start-y.start);return MET.phaseFor(w.readiness??0,ms.findIndex(x=>x.id===b.id),ms.length)};
 const blk=(b,c)=>{const w=wk(b.workId)||{},s=sub(w.subjectId),st={done:'Completada',skipped:'Omitida',rescheduled:'Reprogramada'}[b.status];return`<div class="blk ob ${b.status} ${b.manual?'manual':''}" style="--c:${s.color}"${mnu(c&&b.status==='planned','ob',b.id)}><div class=bh><b>${fm(b.start)}–${fm(b.end)}</b><span class=who>${esc(s.name)}</span><span class=kind>Obligatorio</span></div><small>${esc(w.title||'')}${b.part==='review'?' · repaso':''}${b.topicId?' · '+esc(wTopic(b)):''}${isUndated(w)?' · sin fecha':''}${b.manual?' · manual':''}</small>${b.status==='planned'&&!c?`<small class=how>${esc(MET.howFor(s.name,s.colorKey,{review:b.part==='review',phase:phaseOf(b)}))}</small>`:''}${b.status==='planned'?c?'':`<div class=acts>${b.date===now().date&&!UI.timer?`<button data-a=timerStart data-id="${b.id}">▶ Empezar</button>`:''}<button class=pri data-a=quickDone data-id="${b.id}">✓ Hecha tal cual</button><button data-a=doneBlk data-id="${b.id}">Con detalle</button><button data-a=skipBlk data-id="${b.id}">No la haré</button><button data-a=editBlk data-id="${b.id}">Mover</button>${b.manual?`<button class=danger data-a=delBlk data-id="${b.id}">Quitar</button>`:''}</div>`:`<em>${st}</em>`}</div>`};
 const act=()=>S.works.filter(w=>w.status==='pending'||w.status==='in_progress');
 const prio=w=>{const p=priority(w,now());return p>=17?['Alta','hi']:p>=12?['Media','']:['Baja','']};
@@ -1851,13 +1901,14 @@ const TT={
   return{list:out}},
  text:day=>(S.timetable||[]).filter(c=>c.day===day).sort((a,b)=>a.start-b.start).map(c=>`${fm(c.start)}-${fm(c.end)} ${c.name}`).join('\n'),
  next(n){const t=S.timetable||[];if(!t.length)return null;for(let k=0;k<8;k++){const d=addDays(n.date,k),wdn=weekday(d);const c=t.filter(x=>x.day===wdn&&(k>0||x.start>n.minute)).sort((a,b)=>a.start-b.start)[0];if(c)return{...c,date:d,k}}return null},
- card(){const days=[1,2,3,4,5];return`<div class=card><h3>Horario de clases</h3><p class=m>Una clase por línea, por ejemplo <b>08:00-08:55 Matemáticas II</b>. Con tu horario guardado, el archivo del Calendario incluye cada clase con un aviso <b>10 min antes</b>, así no tienes que mirar el horario.</p>${days.map(d=>`<label class=m for=tt${d}>${['','Lunes','Martes','Miércoles','Jueves','Viernes'][d]}</label><textarea id=tt${d} rows=${Math.max(3,TT.text(d).split('\n').length+1)} style="width:100%;margin-bottom:8px" placeholder="08:00-08:55 Matemáticas II">${esc(TT.text(d))}</textarea>`).join('')}<div class=row style="justify-content:flex-start"><button class=pri data-a=ttSave>Guardar horario</button><button data-a=icsAsk>Descargar avisos para el Calendario</button></div><p class=m id=ttMsg></p></div>`}};
+ card(){const days=[1,2,3,4,5];return`<details class=more data-k=ttc${typeof HY!=='undefined'&&HY.open.ttc?' open':''}><summary>Horario de clases y avisos 10 min antes${(S.timetable||[]).length?` · ${(S.timetable||[]).length} clases`:''}</summary><div class=card><p class=m>Una clase por línea, por ejemplo <b>08:00-08:55 Matemáticas II</b>. Con tu horario guardado, el archivo del Calendario incluye cada clase con un aviso <b>10 min antes</b>, así no tienes que mirar el horario.</p>${days.map(d=>`<label class=m for=tt${d}>${['','Lunes','Martes','Miércoles','Jueves','Viernes'][d]}</label><textarea id=tt${d} rows=${Math.max(2,TT.text(d).split('\n').length+1)} style="width:100%;margin-bottom:8px" placeholder="08:00-08:55 Matemáticas II">${esc(TT.text(d))}</textarea>`).join('')}<div class=row style="justify-content:flex-start"><button class=pri data-a=ttSave>Guardar horario</button><button data-a=icsAsk>Descargar avisos para el Calendario</button></div><p class=m id=ttMsg></p></div></details>`}};
 {const aj3=V.aj;V.aj=a=>aj3(a).replace('<h1>Ajustes</h1>','<h1>Ajustes</h1>'+TT.card())}
 Object.assign(A,{ttSave:()=>{const all=[];for(const d of [1,2,3,4,5]){const el=document.getElementById('tt'+d),r=TT.parse(el?el.value:'',d);if(r.err){const m=document.getElementById('ttMsg');if(m)m.textContent=r.err;return toast(r.err)}all.push(...r.list)}
  S.timetable=all;commit({quiet:true});toast(all.length?`Horario guardado: ${all.length} clases`:'Horario vacío')}});
 
 /* Hoy, versión sin ruido: lo que toca AHORA (con Hecho / No hecho a un toque), el resto del día en una línea cada sesión, exámenes cercanos
    y, plegado, todo lo demás (estadísticas, prioridades, sugerencias). Sin avisos ni paneles de estado. */
+const PHL={comprender:'Comprender',practicar:'Practicar',simulacro:'Simulacro'};
 const HY={open:{},
  items(n){const o=S.blocks.filter(b=>b.date===n.date&&b.status!=='rescheduled').map(b=>({t:'ob',id:b.id,start:b.start,end:b.end,st:b.status,b})),
   h=(S.habit||[]).filter(x=>x.date===n.date&&(x.status==='planned'||x.status==='done')).map(x=>({t:'hab',id:x.id,start:x.start,end:x.end,st:x.status,h:x}));return[...o,...h].sort((a,b)=>a.start-b.start||a.end-b.end)},
@@ -1865,18 +1916,33 @@ const HY={open:{},
   const s=sub(it.h.subjectId);return{s,title:it.h.title.replace(s.name+': ',''),ph:undefined,how:it.h.detail?it.h.title.replace(s.name+': ','')+': '+it.h.detail:''}},
  btns(it,big){const id=esc(it.id),c=big?' big':'';return it.t==='ob'?`<button class="pri${c}" data-a=quickDone data-id="${id}">✓ Hecho</button><button class="${c.trim()}" data-a=noHecho data-id="${id}">No hecho</button>`:`<button class="pri${c}" data-a=habQuick data-id="${id}">✓ Hecho</button><button class="${c.trim()}" data-a=habSkip data-id="${id}">No hecho</button>`},
  hero(n,it){const i=HY.info(it),now_=it.start<=n.minute,dur=it.end-it.start,sp=i.how.indexOf(': '),ht=sp>0?i.how.slice(0,sp):'',hd=sp>0?i.how.slice(sp+2):i.how;
-  return`<div class=hero style="--c:${i.s.color}"><small class=lab>${now_?'Ahora':'Siguiente'} · ${fm(it.start)}–${fm(it.end)} · ${dur} min</small><h2 class=hn>${esc(i.s.name)}</h2><p class=hs>${esc(i.title)}${i.ph?` <span class=chip>${i.ph==='comprender'?'Comprender':'Practicar'}</span>`:''}</p>${hd?`<details class=how2><summary>${esc(ht||'Qué hacer')}</summary><p>${esc(hd)}</p></details>`:''}<div class=hb>${it.t==='ob'&&it.b.date===n.date&&!UI.timer?`<button class="big" data-a=timerStart data-id="${esc(it.id)}">▶ Empezar</button>`:''}${HY.btns(it,true)}</div></div>`},
- row(it){const i=HY.info(it),done=it.st==='done';return`<div class="tr ${it.st}" style="--c:${i.s.color}"><span class=t>${fm(it.start)}</span><i class=dot></i><div class=m1><b>${esc(i.s.name)}</b><small>${esc(i.title)}${i.ph?' · '+(i.ph==='comprender'?'comprender':'practicar'):''}</small></div><div class=ra>${done?'<span class=okm>✓</span>':HY.btns(it,false)}</div></div>`},
+  return`<div class=hero style="--c:${i.s.color}"><small class=lab>${now_?'Ahora':'Siguiente'} · ${fm(it.start)}–${fm(it.end)} · ${dur} min</small><h2 class=hn>${esc(i.s.name)}</h2><p class=hs>${esc(i.title)}${i.ph?` <span class=chip>${PHL[i.ph]}</span>`:''}</p>${hd?`<details class=how2><summary>${esc(ht||'Qué hacer')}</summary><p>${esc(hd)}</p></details>`:''}<div class=hb>${it.t==='ob'&&it.b.date===n.date&&!UI.timer?`<button class="big" data-a=timerStart data-id="${esc(it.id)}">▶ Empezar</button>`:''}${HY.btns(it,true)}</div></div>`},
+ row(it){const i=HY.info(it),done=it.st==='done';return`<div class="tr ${it.st}" style="--c:${i.s.color}"><span class=t>${fm(it.start)}</span><i class=dot></i><div class=m1><b>${esc(i.s.name)}</b><small>${esc(i.title)}${i.ph?' · '+PHL[i.ph].toLowerCase():''}</small></div><div class=ra>${done?'<span class=okm>✓</span>':HY.btns(it,false)}</div></div>`},
  exams(n){const l=act().filter(w=>w.kind==='exam'&&w.dueDate>=n.date&&w.auto!=='review').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,3);
-  return l.length?`<div class=chips>${l.map(w=>{const d=P.daysBetween(n.date,w.dueDate);return`<span class="chip${d<=3?' hot':''}">${esc(sub(w.subjectId).name)} · ${d===0?'hoy':d===1?'mañana':'en '+d+' días'}</span>`}).join('')}</div>`:''},
+  return l.length?`<div class=chips>${l.map(w=>{const d=P.daysBetween(n.date,w.dueDate);return`<span class="chip${d<=P.guardDays(w)?' hot':''}">${esc(sub(w.subjectId).name)} · ${d===0?'hoy':d===1?'mañana':'en '+d+' días'}</span>`}).join('')}</div>`:''},
  cls(n){const c=TT.next(n);return c?`<p class=m>Próxima clase: <b>${esc(c.name)}</b> · ${c.k===0?'hoy':c.k===1?'mañana':DOW[weekday(c.date)]} ${fm(c.start)}</p>`:''}
 };
+
+/* Cuaderno de errores y resumen semanal. Los datos viven en el estado (S.errors); «visto» del resumen, solo en este dispositivo. */
+const errs=()=>Array.isArray(S.errors)?S.errors:(S.errors=[]);
+function addFalloFrom(v,w){const t=(v&&v.fallo||'').trim();if(!t||!w||!w.subjectId)return;const r=ERR.addFallo(errs(),{subjectId:w.subjectId,text:t},now().date,uid());if(!r.err)S.errors=r.list}
+const WSK='focusos.weekseen',weekSeen=()=>{try{return localStorage.getItem(WSK)||''}catch{return''}},setWeekSeen=k=>{try{localStorage.setItem(WSK,k)}catch{}};
+Object.assign(HY,{
+ fallos(n){const d=ERR.dueFallos(errs(),n.date);if(!d.length)return'';const st=['2 días','1 semana','3 semanas','5 semanas'];
+  return`<h2 class=gh>Rehacer hoy · tus fallos</h2><div class=wlist>${d.map(f=>{const s=sub(f.subjectId);return`<div class=wr style="--c:${s.color}"><i class=dot></i><div class=m1><b>${esc(f.text)}</b><small>${esc(s.name)} · rehazlo sin mirar la solución</small></div><div class=ra><button class=pri data-a=errOk data-id="${esc(f.id)}">Ya lo sé</button><button data-a=errNo data-id="${esc(f.id)}">Aún falla</button></div></div>`}).join('')}</div>`},
+ semana(n){const r=SEM.resumenSemana({blocks:S.blocks,works:S.works,fallos:errs(),today:n.date});if(!r||weekSeen()===r.from)return'';const wk_=r.weakest&&sub(r.weakest),can=wk_&&S.routine&&S.routine.enabled;
+  return`<div class=card><h3>Tu semana · ${+r.from.slice(8)}–${+r.to.slice(8)} ${MON[+r.to.slice(5,7)-1]}</h3><p><b>${hr(r.completedMin)}</b> hechas de ${hr(r.plannedMin)} programadas${r.compliance!=null?` · cumplimiento <b>${r.compliance}%</b>`:''}.</p>${wk_?`<p class=m>Lo más flojo: <b>${esc(wk_.name)}</b> (${r.subjects.find(x=>x.id===r.weakest).compliance}%).</p>`:'<p class=m>Ninguna asignatura quedó floja.</p>'}${r.fallosNuevos||r.fallosDominados?`<p class=m>Cuaderno de errores: ${r.fallosNuevos} nuevos · ${r.fallosDominados} dominados.</p>`:''}<div class=row style="justify-content:flex-start">${can?`<button class=pri data-a=semApply data-id="${esc(r.weakest)}">Un bloque más de ${esc(wk_.name)} cada semana</button>`:''}<button data-a=semOk data-id="${esc(r.from)}">Entendido</button></div></div>`}});
+Object.assign(A,{
+ addErr:()=>{const subs=S.subjects.filter(s=>!s.archived).map(s=>[s.id,s.name,sub(s.id).color]);openForm('Anotar un fallo',[{t:'note',v:'Una línea. Volverá a los 2 días, a la semana, a las 3 y a las 5 semanas, hasta que lo domines.'},{k:'subjectId',l:'Asignatura',t:'chips',o:subs,v:subs[0]?subs[0][0]:''},{k:'text',l:'¿Qué fallaste?',v:'',ph:'p. ej. Me olvidé del signo al derivar e^(-x)'}],(v,again)=>{const r=ERR.addFallo(errs(),v,now().date,uid());if(r.err)return r.err;S.errors=r.list;toast('Anotado: vuelve en 2 días');commit({quiet:true}).then(()=>{if(again)A.addErr()})},undefined,'Anotar','Anotar y añadir otro')},
+ errOk:t=>{S.errors=ERR.answerFallo(errs(),t.dataset.id,true,now().date);commit({quiet:true})},errNo:t=>{S.errors=ERR.answerFallo(errs(),t.dataset.id,false,now().date);commit({quiet:true})},
+ semOk:t=>{setWeekSeen(t.dataset.id);render()},
+ semApply:t=>{const sid=t.dataset.id,R=S.routine,q=Math.max(0,R.perWeek[sid]??RTN.INTENSITY[R.intensity].perWeek)+1;S.routine={...R,perWeek:{...R.perWeek,[sid]:Math.min(7,q)}};regenAll();setWeekSeen(S.blocks.length?SEM.weekToReview(now().date):'');commit({quiet:true})}});
 {const full=V.hoy;V.hoy=a=>{const n=now(),all=full(a),its=HY.items(n),pend=its.filter(x=>x.st==='planned'&&x.end>n.minute),first=pend[0],tc=timerCard(),doneN=its.filter(x=>x.st==='done').length,
   head=`<h1>Hoy</h1><p class=m>${fdl(n.date)}${its.length?` · ${doneN} de ${its.length} sesiones`:''}</p>`;
   const rest=its.filter(x=>x!==first&&!(tc&&UI.timer&&x.id===UI.timer.id)),
    hero=tc||(first?HY.hero(n,first):`<div class=hero><h2 class=hn>${its.length?'Hecho por hoy':'Nada que estudiar hoy'}</h2><p class=hs>${its.length?'Has cerrado todas las sesiones de hoy.':'Disfruta del descanso.'}</p></div>`);
   const body=all.replace(/<h1>Hoy<\/h1><p class=m>[^<]*<\/p>/,'').replace(tc,'');
-  return head+hero+HY.exams(n)+HY.cls(n)+(rest.length?`<div class=tl>${rest.map(HY.row).join('')}</div>`:'')+`<div class=quick><button data-a=addTask>+ Tarea</button><button data-a=addExam>+ Examen</button><button data-a=addBlk>+ Sesión</button></div><details class=more data-k=hoy${HY.open.hoy?' open':''}><summary>Más: estadísticas, prioridades y sugerencias</summary>${body}</details>`}}
+  return head+hero+HY.exams(n)+HY.semana(n)+HY.fallos(n)+HY.cls(n)+(rest.length?`<div class=tl>${rest.map(HY.row).join('')}</div>`:'')+`<div class=quick><button data-a=addTask>+ Tarea</button><button data-a=addExam>+ Examen</button><button data-a=addBlk>+ Sesión</button><button data-a=addErr>+ Fallo</button></div><details class=more data-k=hoy${HY.open.hoy?' open':''}><summary>Más: estadísticas, prioridades y sugerencias</summary>${body}</details>`}}
 Object.assign(A,{noHecho:t=>{const b=S.blocks.find(x=>x.id===t.dataset.id);if(!b||b.status!=='planned')return;const n=now();b.status='skipped';if(b.date>n.date||b.end>n.minute)b.reason='otro';commit({quiet:true})},
  habQuick:t=>{S.habit=S.habit.map(x=>x.id===t.dataset.id?{...x,status:'done',actualMin:x.end-x.start}:x);commit({quiet:true})}});
 /* Rutina: la configuración y las actividades fijas quedan plegadas; arriba, el estado y «Regenerar». */
@@ -1900,6 +1966,9 @@ V.exa=a=>{const old=exOld(a),tm=/<h2>Próximas semanas<\/h2>[\s\S]*?(?=<h2>Exám
 /* Calendario: barra limpia (navegar, día/semana, + Sesión); lo demás en «Más acciones». */
 {const c0=V.cal;V.cal=a=>{let o=c0(a);const m=/<button data-a=addAct>\+ Ejercicio<\/button>(<button data-a=replan>Regenerar futuro<\/button>)(<button data-a=icsAsk>Avisos en el Calendario<\/button>)?<\/div>(<p class=lg>[\s\S]*?<\/p>)/.exec(o);if(!m)return o;
   return o.replace(m[0],`</div><details class=more data-k=calm${HY.open.calm?' open':''}><summary>Más acciones y leyenda</summary><div class=row style="justify-content:flex-start;margin:0 0 8px"><button data-a=addAct>+ Ejercicio</button>${m[1]}${m[2]||''}</div>${m[3]}</details>`)}}
+
+/* Progreso: la explicación de la fórmula, plegada. */
+{const s0=V.seg;if(s0)V.seg=a=>s0(a).replace(/<p class=m>(Cumplimiento = [^<]*)<\/p>/,(m,t)=>`<details class=more data-k=fml${HY.open.fml?' open':''}><summary>Cómo se calcula el cumplimiento</summary><p class=m>${t}</p></details>`)}
 
 boot();
 </script></body></html>

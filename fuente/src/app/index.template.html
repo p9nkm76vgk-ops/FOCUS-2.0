@@ -3,9 +3,9 @@
 <aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
 <main id=main class=main>Cargando…</main><dialog id=dlg></dialog><div id=toast role=status></div>
 <script>
-const P=(()=>{/*PLANNER*/;return{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,subtract,isUndated,NO_DATE,daysBetween,hourBucket,CENA,EJERCICIO,examGuard}})();
+const P=(()=>{/*PLANNER*/;return{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,subtract,isUndated,NO_DATE,daysBetween,hourBucket,CENA,EJERCICIO,examGuard,guardDays}})();
 const EST2=(()=>{/*CONFIG*/;/*ESTIMATOR2*/;return{estimateV2,recordPrediction,closePrediction}})();
-const MET=(()=>{/*METHOD*/;return{METHOD,GENERIC,methodOf,SPACING,howFor,UNDERSTAND,understandOf,phaseFor,UNDERSTAND_BELOW}})();
+const MET=(()=>{/*METHOD*/;return{METHOD,GENERIC,methodOf,SPACING,howFor,UNDERSTAND,understandOf,phaseFor,UNDERSTAND_BELOW,SIMULACRO}})();
 const EST=(()=>{const {estimateV2}=EST2;/*ESTIMATOR*/;return{reestimate,assignTopics,PARAMS}})();
 const RTN=(()=>{const {addDays,weekday,subtract,plan,examGuard}=P,{METHOD,methodOf}=MET;/*ROUTINE*/;return{DEFAULT_ROUTINE,INTENSITY,HORIZON_DAYS,activityFor,fixedBusy,habitBusy,generate,proposeSchedule,regenerate,mondayOf}})();
 const PAL=(()=>{/*PALETTE*/;return{DEFAULT_SUBJECT_COLORS,SPARE_COLORS,effectiveColor,nextSpare,colorConflict,resetColors}})();
@@ -14,5 +14,7 @@ const MIG=(()=>{const {DEFAULT_SUBJECT_COLORS}=PAL,{DEFAULT_ROUTINE}=RTN;/*MIGRA
 const ICS=(()=>{/*ICS*/;return{buildIcs,schoolEnd}})();
 const GL=(()=>{const {addDays,daysBetween,hourBucket,weekday,NO_DATE}=P;/*GOALS*/;return{DEFAULT_GOALS,evalOfDate,gradeEval,evalSummary,projected,subjectTarget,gapOf,boostFactor,boosts,overall,accessInfo,INTERVALS,LEVELS,newTopic,setMastery,reviewDone,syncReviews,coverage,coverageByCourse,maintenance,TOPIC_NEED,stampBase,learnedPace,QUALITY,bestHours,macro,slotStats,suggestCap,masteryFactor,examBoosts,HOUR_LABELS,DOW_NAMES,failedTopic,weekLoads}})();
 const ST=(()=>{/*STATS*/;return{stats}})();
+const ERR=(()=>{const {addDays}=P;/*ERRORES*/;return{STAGES,MAX_DUE,addFallo,dueFallos,answerFallo,falloStats}})();
+const SEM=(()=>{const {addDays,weekday}=P,{stats}=ST;/*SEMANA*/;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 /*APP*/
 </script></body></html>

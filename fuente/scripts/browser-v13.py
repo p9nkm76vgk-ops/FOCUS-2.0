@@ -6,6 +6,7 @@ PORT = 8779; RES = []
 def ck(n, c, x=''): RES.append(bool(c)); print(('OK   ' if c else 'FALLO'), n, x if not c else '', flush=True)
 srv = subprocess.Popen(['python3', '-m', 'http.server', str(PORT), '--bind', '127.0.0.1'], cwd='dist', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(1)
 FIX = json.load(open('test/fixtures/export-v2.json')); [FIX.pop(k) for k in ('app', 'schema', 'exportedAt')]
+OPEN = "document.querySelectorAll('details.more').forEach(d=>d.open=true)"
 ls = lambda p: json.loads(p.evaluate("localStorage.getItem('focusos.v1')") or 'null')
 try:
   with sync_playwright() as pw:
@@ -22,12 +23,12 @@ try:
     S = ls(p); bl = [x for x in S['blocks'] if x['id'] == id0]
     ck('No hecho: un solo toque, sesión omitida y sin diálogo', bl and bl[0]['status'] == 'skipped' and not p.evaluate("document.querySelector('#dlg')?.open"), str(bl))
     ck('No hecho: el trabajo se reprograma solo', any(x['status'] == 'planned' and x['workId'] == bl[0]['workId'] for x in S['blocks']))
-    p.click('#nav [data-r="aj"]'); p.wait_for_selector('#tt1')
+    p.click('#nav [data-r="aj"]'); p.evaluate(OPEN); p.wait_for_selector('#tt1')
     p.fill('#tt1', '08:00-08:55 Matemáticas II\n09:05-10:00 Física'); p.fill('#tt3', '08:00-08:55 Química'); p.click('button[data-a=ttSave]'); p.wait_for_timeout(400)
     ck('Horario de clases guardado en el estado', len(ls(p).get('timetable', [])) == 3, str(ls(p).get('timetable')))
-    p.fill('#tt2', '10:00-09:00 Mal'); p.click('button[data-a=ttSave]'); p.wait_for_timeout(300)
+    p.evaluate(OPEN); p.fill('#tt2', '10:00-09:00 Mal'); p.click('button[data-a=ttSave]'); p.wait_for_timeout(300)
     ck('Horario inválido: rechaza y no guarda', 'posterior' in p.inner_text('#ttMsg') and len(ls(p).get('timetable', [])) == 3)
-    p.fill('#tt2', ''); p.click('button[data-a=icsAsk]'); p.wait_for_selector('#dlg[open]')
+    p.evaluate(OPEN); p.fill('#tt2', ''); p.click('button[data-a=icsAsk]'); p.wait_for_selector('#dlg[open]')
     with p.expect_download() as d: p.click('#dlg button:has-text("Descargar")')
     txt = open(d.value.path(), encoding='utf-8').read()
     ck('.ics: 3 clases semanales con aviso 10 min antes', txt.count('SUMMARY:Clase') == 3 and txt.count('RRULE:FREQ=WEEKLY') == 3 and 'TRIGGER:-PT10M' in txt, txt[:200])
@@ -37,6 +38,9 @@ try:
     ck('Nueva tarea: solo se ve asignatura, fecha y título', p.locator('#f [name=title]').is_visible() and p.locator('#f [name=dueDate]').is_visible() and p.locator('#f [name=time]').is_hidden() and p.locator('#f [name=notes]').is_hidden() and p.locator('#f input[name=size]').first.is_hidden())
     p.fill('#f [name=title]', 'Ejercicios tema 3'); p.click('#f button.pri'); p.wait_for_timeout(500)
     ck('Nueva tarea rápida: se guarda y aparece en la lista', 'Ejercicios tema 3' in p.inner_text('#main'))
+    p.click('#nav [data-r="hoy"]'); p.click('.quick button[data-a=addErr]'); p.wait_for_selector('#f [name=text]')
+    p.fill('#f [name=text]', 'Signo al derivar e^(-x)'); p.click('#f button.pri'); p.wait_for_timeout(500)
+    E = ls(p).get('errors', []); ck('Cuaderno de errores: «+ Fallo» guarda un fallo para dentro de 2 días', len(E) == 1 and E[0]['next'] == '2026-10-15' and E[0]['stage'] == 0, str(E))
     ck('Sin errores de consola', not errs, str(errs))
 finally: srv.kill()
 print(f'{sum(RES)}/{len(RES)}'); sys.exit(0 if all(RES) else 1)

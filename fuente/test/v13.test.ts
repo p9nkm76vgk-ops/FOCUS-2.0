@@ -42,7 +42,8 @@ test('protección de examen: con examen en 2 días, hoy y mañana solo se estudi
   assert.equal(onGuard.length, 0, 'catalán no ocupa los días previos al examen');
   assert.ok(mins(r.blocks, 'cat') >= 120, 'pero se hace después del examen (23–24)');
   assert.ok(mins(r.blocks, 'qui') >= 180);
-  assert.deepEqual([...examGuard(works, '2026-10-20')], ['s3']); assert.equal(examGuard(works, '2026-10-17').size, 0); assert.equal(examGuard(works, '2026-10-23').size, 0);
+  assert.deepEqual([...examGuard(works, '2026-10-20')], ['s3']); assert.equal(examGuard(works, '2026-10-17').size, 1, 'peso 5: protege 5 días (semana de examen)'); assert.equal(examGuard(works, '2026-10-16').size, 0);
+  assert.equal(examGuard([{ ...works[1], importance: 3 }], '2026-10-18').size, 0, 'peso normal: solo 3 días'); assert.equal(examGuard([{ ...works[1], importance: 3 }], '2026-10-19').size, 1); assert.equal(examGuard(works, '2026-10-23').size, 0);
 });
 test('protección de examen: una entrega que vence mañana sí puede usar su último día', () => {
   const works = [w('cat', { subjectId: 's2', dueDate: '2026-10-21', estMin: 60 }), w('qui', { kind: 'exam', subjectId: 's3', dueDate: '2026-10-22', dueMinute: 9 * 60, estMin: 240, importance: 5 })];
