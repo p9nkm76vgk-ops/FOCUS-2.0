@@ -27,3 +27,15 @@ test('examen con poca preparación: primeras sesiones de «comprender», luego p
   assert.equal(a.t.MET.phaseFor(20, 0, 5), 'comprender'); assert.equal(a.t.MET.phaseFor(20, 4, 5), 'practicar'); assert.equal(a.t.MET.phaseFor(80, 0, 5), 'practicar', 'con buena preparación no hay fase de comprensión');
   const met = a.t.V.met(); assert.match(met, /¿Te está funcionando\?/); assert.match(met, /aún sin datos/); assert.match(met, /Primero comprender, luego practicar/);
 });
+
+test('horario de clases: se valida, se guarda en el estado y el .ics lleva cada clase con aviso 10 min antes', async () => {
+  const a = await boot(); const TT = a.t.TT;
+  assert.match(TT.parse('08:00-09:00', 1).err, /usa «08:00-08:55/); assert.match(TT.parse('09:00-08:00 Mates', 1).err, /posterior/);
+  assert.match(TT.parse('08:00-09:00 Mates\n08:30-09:30 Física', 1).err, /se solapan/);
+  const ok = TT.parse('08:00-08:55 Matemáticas II\n09:05–10:00 Física', 1); assert.equal(ok.list.length, 2); assert.equal(ok.list[1].start, 545);
+  a.S.timetable = [...ok.list, ...TT.parse('08:00-08:55 Química', 3).list];
+  const r = a.t.ICS.buildIcs({ blocks: [], works: [], subjects: [], classes: a.S.timetable, today: '2026-10-12', stampUtc: '20261012T060000Z' });
+  assert.equal(r.count, 3); assert.match(r.text, /SUMMARY:Clase · Matemáticas II/); assert.match(r.text, /RRULE:FREQ=WEEKLY;BYDAY=MO;UNTIL=20270615T235959/);
+  assert.match(r.text, /TRIGGER:-PT10M/); assert.match(r.text, /DTSTART:20261012T080000/, 'primer lunes = hoy'); assert.match(r.text, /DTSTART:20261014T080000/, 'primer miércoles');
+  assert.deepEqual(TT.next({ date: '2026-10-12', minute: 8 * 60 + 56 }) && { n: TT.next({ date: '2026-10-12', minute: 8 * 60 + 56 }).name }, { n: 'Física' });
+});

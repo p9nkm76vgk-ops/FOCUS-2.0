@@ -18,6 +18,7 @@ def go(p, r):
     g = {'cal': 'plan', 'tar': 'plan', 'exa': 'plan', 'rut': 'plan', 'est': 'plan', 'obj': 'goal', 'tem': 'goal', 'cur': 'goal'}.get(r)
     if g and p.get_attribute(f'#nav [data-g={g}]', 'aria-expanded') == 'false': p.click(f'#nav [data-g={g}]')
     p.click(f'#nav [data-r="{r}"]'); p.wait_for_timeout(150)
+    p.evaluate("document.querySelectorAll('details.more').forEach(d=>d.open=true)")
 def chip(p, name, text):  # pulsa un botón de opción por su texto
     p.locator(f'#dlg label.ch:has(input[name={name}])').filter(has_text=text).first.click()
 def shot(p, n): p.screenshot(path=f'{SHOTS}/{n}.png')

@@ -5,11 +5,18 @@ import type { Block, Work } from './types.ts';
 const p2 = (n: number) => String(n).padStart(2, '0');
 const ymd = (d: string) => d.replace(/-/g, '');
 const stamp = (d: string, m: number) => `${ymd(d)}T${p2(Math.floor(m / 60))}${p2(m % 60)}00`;
-const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 const nextDay = (d: string) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + 1); return t.toISOString().slice(0, 10).replace(/-/g, ''); };
 const fold = (l: string) => { const out: string[] = []; let s = l; while (s.length > 72) { out.push(s.slice(0, 72)); s = ' ' + s.slice(72); } out.push(s); return out.join('\r\n'); };
 
-export function buildIcs(a: { blocks: Block[]; works: Work[]; subjects: { id: string; name: string }[]; today: string; stampUtc: string; alarmMin?: number }): { text: string; count: number } {
+export interface Class { id: string; day: number; start: number; end: number; name: string }
+const wd = (d: string) => new Date(d + 'T00:00:00Z').getUTCDay();
+const addD = (d: string, n: number) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+/** Fin del curso por defecto: 15 de junio del curso en marcha. */
+export const schoolEnd = (today: string) => { const y = +today.slice(0, 4), m = +today.slice(5, 7); return `${m >= 7 ? y + 1 : y}-06-15`; };
+
+export function buildIcs(a: { blocks: Block[]; works: Work[]; subjects: { id: string; name: string }[]; today: string; stampUtc: string; alarmMin?: number; classes?: Class[]; until?: string }): { text: string; count: number } {
   const sn = (id: string) => a.subjects.find(s => s.id === id)?.name ?? 'Estudio', wk = (id: string) => a.works.find(w => w.id === id);
   const alarm = a.alarmMin ?? 10, ev: string[][] = [];
   const base = (uid: string) => ['BEGIN:VEVENT', `UID:${uid}@focusos`, `DTSTAMP:${a.stampUtc}`];
@@ -21,6 +28,11 @@ export function buildIcs(a: { blocks: Block[]; works: Work[]; subjects: { id: st
     const ex = w.kind === 'exam', title = `${ex ? 'EXAMEN' : 'Entrega'} · ${sn(w.subjectId)} · ${w.title}`;
     if (ex && w.dueMinute != null) ev.push([...base(w.id), `DTSTART:${stamp(w.dueDate, w.dueMinute)}`, `DTEND:${stamp(w.dueDate, Math.min(1439, w.dueMinute + 60))}`, `SUMMARY:${esc(title)}`, 'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc('Examen mañana')}`, 'TRIGGER:-P1D', 'END:VALARM', 'END:VEVENT']);
     else ev.push([...base(w.id), `DTSTART;VALUE=DATE:${ymd(w.dueDate)}`, `DTEND;VALUE=DATE:${nextDay(w.dueDate)}`, `SUMMARY:${esc(title)}`, ...(ex ? ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc('Examen mañana')}`, 'TRIGGER:-PT15H', 'END:VALARM'] : []), 'END:VEVENT']);
+  }
+  // Clases semanales: un evento recurrente por clase con aviso 10 min antes (UID estable: reimportar actualiza, no duplica). Sin festivos: bórralos en Calendario.
+  for (const c of [...(a.classes ?? [])].sort((x, y) => x.day - y.day || x.start - y.start || x.id.localeCompare(y.id))) {
+    const first = addD(a.today, (c.day - wd(a.today) + 7) % 7), until = (a.until ?? schoolEnd(a.today)).replace(/-/g, '');
+    ev.push([...base('clase-' + c.id), `DTSTART:${stamp(first, c.start)}`, `DTEND:${stamp(first, c.end)}`, `RRULE:FREQ=WEEKLY;BYDAY=${BYDAY[c.day]};UNTIL=${until}T235959`, `SUMMARY:${esc('Clase · ' + c.name)}`, 'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(`En ${alarm} min: ${c.name}`)}`, `TRIGGER:-PT${alarm}M`, 'END:VALARM', 'END:VEVENT']);
   }
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Focus OS//ES', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Focus OS', ...ev.flat(), 'END:VCALENDAR'];
   return { text: lines.map(fold).join('\r\n') + '\r\n', count: ev.length };

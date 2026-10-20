@@ -107,3 +107,25 @@ details.more{margin:6px 0 4px;border-top:1px solid var(--line);padding-top:6px}d
 .timer{border-color:var(--accent)}.timer .tm{font-size:2rem;font-weight:700;font-variant-numeric:tabular-nums;margin:4px 0}
 .blk .how{display:block;margin-top:6px;color:var(--muted);line-height:1.4}
 .ev.fixed{background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(255,255,255,.04) 6px 12px);border-style:dashed;pointer-events:none}
+
+/* ===== v13: Hoy sin ruido y calendario más limpio ===== */
+.hero{background:linear-gradient(160deg,color-mix(in srgb,var(--c,var(--accent)) 22%,var(--surface)),var(--surface) 70%);border:1px solid color-mix(in srgb,var(--c,var(--accent)) 45%,var(--line));border-radius:22px;padding:22px 24px;margin:0 0 14px;box-shadow:var(--shadow)}
+.hero .lab{display:block;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-size:.875rem}.hero .hn{font-size:2.1rem;line-height:1.1;margin:6px 0 4px;letter-spacing:-.02em;text-transform:none;color:var(--text)}.hero .hs{margin:0 0 10px;color:var(--muted)}
+.hero .how2{margin:6px 0 14px}.hero .how2 summary{cursor:pointer;color:var(--accent);min-height:44px}.hero .how2 p{margin:6px 0 0;line-height:1.5;color:var(--muted)}
+.hb{display:flex;gap:10px;flex-wrap:wrap}.hb button.big{min-height:52px;padding:8px 22px;font-size:1.05rem;border-radius:14px}
+.chip{display:inline-block;font-size:.875rem;padding:2px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted);vertical-align:middle}.chip.hot{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.tl{margin:6px 0 12px}.tr{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+.tr .t{width:48px;color:var(--muted);font-variant-numeric:tabular-nums}.tr .dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}.tr .m1{flex:1;min-width:0;display:flex;flex-direction:column}.tr .m1 b{font-weight:600}.tr .m1 small{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr .ra{display:flex;gap:6px}.tr .ra button{min-height:44px;padding:4px 14px}.tr.done,.tr.skipped{opacity:.55}.tr .okm{color:var(--ok);font-size:1.2rem;padding:0 12px}
+.quick{display:flex;gap:8px;margin:4px 0 14px}.quick button{background:transparent;color:var(--muted);border:1px dashed var(--line)}
+details.more{margin:8px 0 24px}details.more>summary{cursor:pointer;color:var(--muted);padding:10px 0;min-height:44px}
+/* calendario: sin rejilla pesada, bloques suaves, ejercicio discreto */
+.tg{border-radius:20px;border-color:transparent;background:transparent}.tg .day{border-left-color:transparent}.tg .dh{background:var(--bg)}
+.tg .dc{background-image:repeating-linear-gradient(to bottom,color-mix(in srgb,var(--line) 55%,transparent) 0,color-mix(in srgb,var(--line) 55%,transparent) 1px,transparent 1px,transparent 90px)}
+.tg .dc .av{background:color-mix(in srgb,var(--accent) 3.5%,transparent)}
+.tg .ev{border-radius:12px;border-left-width:3px;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 34%,var(--surface)),color-mix(in srgb,var(--c) 14%,var(--surface)));box-shadow:0 2px 8px #0000002e;padding:4px 7px}
+.tg .ev.hab{background:transparent;box-shadow:none;border:1.5px dashed color-mix(in srgb,var(--c) 55%,transparent);border-left-width:3px}
+.ev.fixed{background:none!important;border:0!important;box-shadow:none!important;opacity:.55}.tg .ev.fixed b{color:var(--muted);font-weight:500}
+.tg .day.today{background:color-mix(in srgb,var(--accent) 4%,transparent)}
+@media(max-width:700px){.hero{padding:18px}.hero .hn{font-size:1.7rem}.tr .ra button{padding:4px 10px}}

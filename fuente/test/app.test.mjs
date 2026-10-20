@@ -27,7 +27,7 @@ test('editar tarea recalcula solo lo necesario; completar/reabrir ajusta sesione
 test('examen: genera sesiones y al cambiar la fecha no queda nada después', async () => {
   const a = await boot(); await a.click('addExam'); assert.equal(await a.submit(exam(a)), ''); assert.equal(sum(auto(a)), 300);
   await a.click('editExam', a.S.works[0].id); await a.submit(exam(a, { dueDate: '2026-10-15' }));
-  assert.ok(auto(a).every(b => b.date <= '2026-10-15')); assert.equal(sum(auto(a)), 300);
+  assert.ok(auto(a).every(b => b.date <= '2026-10-15')); assert.ok(sum(auto(a)) >= 300 && sum(auto(a)) <= 360, 'a 3 días del examen se sube a 90 min/día (protección de examen)');
 });
 test('manual + completada se conservan; regenerar repetido no duplica; estadísticas separan planificado/completado', async () => {
   const a = await boot(); await a.click('addTask'); await a.submit(task(a, { dueDate: '2026-10-19' })); const wid = a.S.works[0].id;

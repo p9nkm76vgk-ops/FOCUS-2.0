@@ -82,3 +82,10 @@ test('reparto semanal justo: en una semana «equilibrada» (21 bloques) todas la
   for (const n of names) { assert.ok(cnt(n) >= 2 && cnt(n) <= 3, `${n}: ${cnt(n)} bloques`); assert.ok(cnt(n, 'repaso') <= 2, `${n}: repasos ${cnt(n, 'repaso')}`); }
   assert.ok(cnt('Historia de España') >= 2 && cnt('Historia de la Filosofía') >= 2, 'las Historias no quedan fuera');
 });
+
+test('protección de examen: los días previos al examen la rutina solo pone la asignatura del examen', () => {
+  const ex: Work = { id: 'ex', kind: 'exam', subjectId: sid('Química'), title: 'Parcial', dueDate: '2026-10-14', dueMinute: 540, estMin: 240, difficulty: 3, importance: 5, readiness: 20, status: 'pending' };
+  const g = gen({ works: [ex], from: '2026-10-12', to: '2026-10-14' });
+  assert.ok(g.every(h => h.subjectId === sid('Química')), 'solo Química en 12–14: ' + g.map(h => h.title).join('|'));
+  const after = gen({ works: [ex], from: '2026-10-15', to: '2026-10-16' }); assert.ok(new Set(after.map(h => h.subjectId)).size > 1, 'pasado el examen vuelve la rotación normal');
+});

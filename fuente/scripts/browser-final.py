@@ -21,6 +21,7 @@ def newpage(c, fixed='2026-10-13T17:00:00'):
 def go(p, r):
     if p.evaluate("innerWidth<1000") and p.evaluate("!document.body.classList.contains('open')"): p.click('#menuBtn')
     p.click(f'#nav [data-r="{r}"]'); p.wait_for_timeout(150)
+    p.evaluate("document.querySelectorAll('details.more').forEach(d=>d.open=true)")
 ls = lambda p, k='focusos.v1': json.loads(p.evaluate(f"localStorage.getItem('{k}')") or 'null')
 def fill_form(p, **kw):
     p.evaluate("document.querySelectorAll('#f details').forEach(d=>d.open=true)")
@@ -35,7 +36,7 @@ try:
     b = pw.chromium.launch()
     # ---- A: datos nuevos y aislados ----
     c = newctx(b); p = newpage(c)
-    hoy = p.inner_text('#main').lower(); ck('Hoy sin trabajo: muestra sugerencias opcionales etiquetadas', 'tiempo libre' in hoy and 'opcional' in hoy and 0 < p.locator('button[data-a=suggStart]').count() <= 3)
+    p.evaluate("document.querySelectorAll('details.more').forEach(d=>d.open=true)"); hoy = p.inner_text('#main').lower(); ck('Hoy sin trabajo: muestra sugerencias opcionales etiquetadas', 'tiempo libre' in hoy and 'opcional' in hoy and 0 < p.locator('button[data-a=suggStart]').count() <= 3)
     ck('Aviso de descanso, sin obligar', 'no hace falta ocupar cada minuto' in hoy)
     go(p, 'tar'); ck('Estado vacío de tareas comprensible', p.locator('#main .empty, #main p.m').count() > 0 and 'Aún no hay tareas' in p.inner_text('#main'))
     go(p, 'hoy'); first = p.locator('button[data-a=suggStart]').first; first.click(); p.wait_for_timeout(250); ck('Iniciar → «En curso» (no completada)', 'En curso' in p.inner_text('#main'))

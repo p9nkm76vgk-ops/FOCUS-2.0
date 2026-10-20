@@ -28,6 +28,15 @@ export const MIN_HOLE = 5;        // hueco mínimo que se compacta
 export const MIN_FRAG = 20;       // si ya se colocó parte, un resto menor no se planifica
 export const MIN_WORTH = 10;      // restos por debajo de esto no se planifican
 export const EXAM_FIRST_DAYS = 14;  // exámenes dentro de este margen tienen prioridad absoluta sobre las entregas
+/** PROTECCIÓN DE EXAMEN: los EXAM_GUARD_DAYS días previos (y el propio día) solo se estudia la asignatura del examen; las tareas de otras asignaturas
+ *  esperan, salvo que venzan ese mismo día o antes (entonces es su última oportunidad). En esos días el examen recibe además GUARD_MIN_PER_DAY min/día
+ *  (exámenes antiguos y repaso: la práctica de recuperación es lo que más rinde justo antes de evaluar). */
+export const EXAM_GUARD_DAYS = 3, GUARD_MIN_PER_DAY = 90;
+export const examGuard = (works: { kind: string; status: string; auto?: string; subjectId: string; dueDate: string }[], date: string): Set<string> => {
+  const g = new Set<string>();
+  for (const w of works) if (w.kind === 'exam' && w.auto !== 'review' && (w.status === 'pending' || w.status === 'in_progress')) { const d = daysBetween(date, w.dueDate); if (d >= 0 && d <= EXAM_GUARD_DAYS) g.add(w.subjectId); }
+  return g;
+};
 export const EXAM_BUFFER_MIN = 60;  // margen antes de la hora del examen el mismo día
 
 export const addDays = (d: string, n: number) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
@@ -102,6 +111,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const f = w.kind === 'exam' ? (input.boost?.[w.subjectId] ?? 1) : 1; // más horas de examen donde la brecha con el objetivo es mayor
     let need = Math.max(0, (f === 1 ? totalNeed(w) : Math.round(totalNeed(w) * f / 5) * 5) - done - manual);
     if (need > 0 && need < MIN_FRAG && (done > 0 || (w.estimate?.investedMin ?? 0) > 0)) need = 0; // tras avanzar, un resto menor de 20 min no merece una sesión: se da por cubierto
+    if (w.kind === 'exam' && w.auto !== 'review' && w.readiness < 90) { const dl = daysBetween(now.date, w.dueDate); if (dl >= 0 && dl <= EXAM_GUARD_DAYS) need = Math.max(need, GUARD_MIN_PER_DAY * (dl + (w.dueMinute !== undefined && w.dueMinute < hm(12) ? 0 : 1))); }
     const und = isUndated(w);
     const overdue = !und && (w.dueDate < now.date || (w.dueDate === now.date && w.dueMinute !== undefined && w.dueMinute <= now.minute));
     if (overdue) warnings.push({ workId: w.id, type: 'overdue', message: `"${w.title}" está atrasada (${w.dueDate}).` });
@@ -146,6 +156,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       for (const strict of [true, false]) {
         for (let dt = d.from; dt <= to; dt = addDays(dt, 1)) {
           const x = day(dt), capLeft = s.maxDayMin - x.total; if (capLeft <= 0) continue;
+          if (d.w.kind !== 'exam') { const gd = examGuard(input.works, dt); if (gd.size && !gd.has(d.w.subjectId) && !(dt >= d.w.dueDate && !isUndated(d.w))) continue; } // protección de examen
           const fr = free(dt, true), ord = d.w.difficulty <= 2 && d.w.kind === 'task' && !isUndated(d.w) ? [...fr].reverse() : fr; // lo fácil, más tarde; lo difícil, a primera hora
           const opts: { start: number; L: number; bad: number; sec: number; packed: number; adj: number }[] = [];
           for (const f of ord) {

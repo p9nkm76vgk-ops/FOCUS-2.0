@@ -33,3 +33,20 @@ test('sesión con cronómetro en marcha: pasada su hora NO se cierra como omitid
   const stopped = plan({ settings: DEFAULT_SETTINGS, works, blocks: [{ ...run, running: undefined }] }, NOW);
   assert.notEqual(stopped.blocks.find(x => x.id === 'run')!.status, 'planned', 'sin cronómetro, la sesión pasada sí se cierra');
 });
+
+test('protección de examen: con examen en 2 días, hoy y mañana solo se estudia esa asignatura; una entrega posterior espera', async () => {
+  const { examGuard } = await import('../src/core/planner.ts');
+  const works = [w('cat', { subjectId: 's2', dueDate: '2026-10-24', estMin: 120 }), w('qui', { kind: 'exam', subjectId: 's3', dueDate: '2026-10-22', dueMinute: 9 * 60, estMin: 240, importance: 5 })];
+  const r = plan({ settings: DEFAULT_SETTINGS, works, blocks: [] }, NOW);
+  const onGuard = r.blocks.filter(b => b.workId === 'cat' && b.status === 'planned' && b.date <= '2026-10-22');
+  assert.equal(onGuard.length, 0, 'catalán no ocupa los días previos al examen');
+  assert.ok(mins(r.blocks, 'cat') >= 120, 'pero se hace después del examen (23–24)');
+  assert.ok(mins(r.blocks, 'qui') >= 180);
+  assert.deepEqual([...examGuard(works, '2026-10-20')], ['s3']); assert.equal(examGuard(works, '2026-10-17').size, 0); assert.equal(examGuard(works, '2026-10-23').size, 0);
+});
+test('protección de examen: una entrega que vence mañana sí puede usar su último día', () => {
+  const works = [w('cat', { subjectId: 's2', dueDate: '2026-10-21', estMin: 60 }), w('qui', { kind: 'exam', subjectId: 's3', dueDate: '2026-10-22', dueMinute: 9 * 60, estMin: 240, importance: 5 })];
+  const r = plan({ settings: DEFAULT_SETTINGS, works, blocks: [] }, NOW);
+  assert.equal(r.blocks.filter(b => b.workId === 'cat' && b.date === '2026-10-20').length, 0, 'hoy no');
+  assert.ok(mins(r.blocks, 'cat') > 0, 'mañana sí, es su último día');
+});

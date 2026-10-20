@@ -1,7 +1,7 @@
 /** Rutina semanal habitual. AMPLÍA el planificador existente (plan/capacityFor); no es otro motor.
  *  Tres tipos separados: obligaciones (works+blocks, prioridad), bloques de rutina (esto: sugeridos) y actividades opcionales. Determinista. */
 import type { Activity, Block, HabitBlock, Now, Routine, Settings, Win, Work } from './types.ts';
-import { addDays, weekday, subtract, plan } from './planner.ts';
+import { addDays, weekday, subtract, plan, examGuard } from './planner.ts';
 import { METHOD, methodOf } from './method.ts';
 
 export const DEFAULT_ROUTINE: Routine = { enabled: false, intensity: 'equilibrado', blockMin: 45, perWeek: {}, activeDays: [1, 2, 3, 4, 5, 6, 0], fixed: [], lastTopic: {}, quiet: [], generatedThrough: null };
@@ -59,7 +59,8 @@ export function generate(i: { settings: Settings; routine: Routine; subjects: Su
     let dl = 0; for (let e = d; e <= addDays(mon, 6); e = addDays(e, 1)) if (e >= i.now.date && R.activeDays.includes(weekday(e))) dl++;
     // «Más antigua primero» cuenta también lo ya planificado (no solo lo hecho): así las asignaturas rotan en vez de ganar siempre las primeras de la lista.
     const seen = (sid: string) => all.reduce((m, h) => h.subjectId === sid && h.status !== 'displaced' && h.date < d && h.date > m ? h.date : m, last[sid] ?? '');
-    const cand = subs.filter(s => quota(s.id) - have(s.id) > 0 && !used.has(s.id)).map(s => ({ s, k: [quota(s.id) - have(s.id) >= dl ? 0 : prev.has(s.id) ? 1 : 0, -quota(s.id), -(quota(s.id) - have(s.id)), seen(s.id), subs.indexOf(s)] as const }))
+    const gd = examGuard(i.works, d); // protección de examen: esos días solo la asignatura del examen
+    const cand = subs.filter(s => (!gd.size || gd.has(s.id)) && quota(s.id) - have(s.id) > 0 && !used.has(s.id)).map(s => ({ s, k: [quota(s.id) - have(s.id) >= dl ? 0 : prev.has(s.id) ? 1 : 0, -quota(s.id), -(quota(s.id) - have(s.id)), seen(s.id), subs.indexOf(s)] as const }))
       .sort((a, b) => a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.k[2] - b.k[2] || a.k[3].localeCompare(b.k[3]) || a.k[4] - b.k[4]);
     // Duración flexible para no dejar huecos: si tras colocar el bloque sobraría un trozo demasiado pequeño para otro bloque (≤ ABSORB min), el bloque lo absorbe (hasta +ABSORB);
     // si no cabe el bloque entero en ningún hueco, se admite uno más corto (≥ SHORT_MIN) antes que dejar el hueco vacío.
@@ -76,7 +77,7 @@ export function generate(i: { settings: Settings; routine: Routine; subjects: Su
     for (const x of cand) { if (cap <= 0) break; if (!place(x.s, R.blockMin, 'estudio')) break; cap--; used.add(x.s.id); }
     if (I.review && !all.some(h => h.date === d && h.kind === 'repaso')) {
       const cnt = (sid: string) => all.filter(h => h.subjectId === sid && h.status !== 'displaced' && mondayOf(h.date) === mon).length + oblig(sid, mon);
-      const r = subs.filter(s => !used.has(s.id) && quota(s.id) > 0).sort((a, b) => cnt(a.id) - cnt(b.id) || seen(a.id).localeCompare(seen(b.id)) || subs.indexOf(a) - subs.indexOf(b))[0];
+      const r = subs.filter(s => (!gd.size || gd.has(s.id)) && !used.has(s.id) && quota(s.id) > 0).sort((a, b) => cnt(a.id) - cnt(b.id) || seen(a.id).localeCompare(seen(b.id)) || subs.indexOf(a) - subs.indexOf(b))[0];
       if (r && all.filter(h => h.date === d && h.status !== 'displaced').length < I.daily + 1) place(r, REVIEW_MIN, 'repaso');
     }
   }

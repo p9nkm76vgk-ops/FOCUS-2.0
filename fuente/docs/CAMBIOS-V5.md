@@ -157,3 +157,9 @@ Causas halladas y corregidas:
 - Cronómetro: `Block.running` protege la sesión; pasada la hora sigue contando («llevas N min de más»).
 - Fase «comprender antes de practicar» (examen con preparación < 60 %: ~30 % de sesiones) y tarjeta «¿Te está funcionando?» con tus datos reales.
 - `src/app/fotos.js` (tarjeta «Mi porqué», fotos solo en el dispositivo) existe pero NO está en la compilación: sin verificar.
+
+## v13.1 (20 oct 2026, tarde)
+- Protección de examen (`examGuard`, `EXAM_GUARD_DAYS`=3, `GUARD_MIN_PER_DAY`=90): los 3 días previos solo se estudia la asignatura del examen (planificador y rutina); las entregas de otras asignaturas esperan salvo que venzan ese día.
+- Horario de clases en Ajustes (`S.timetable`) y `.ics` con evento semanal recurrente + aviso 10 min antes por clase (hasta el 15 de junio). Arreglado el escape de `;` en el `.ics`.
+- Hoy rediseñado (`src/app/hoy2.js`): tarjeta de la sesión actual con ✓ Hecho / No hecho a un toque; lista del día; exámenes cercanos; el resto plegado (estado recordado). Rutina: configuración plegada. Calendario: rejilla y bloques más suaves.
+- Sin toast de migración del ejercicio.

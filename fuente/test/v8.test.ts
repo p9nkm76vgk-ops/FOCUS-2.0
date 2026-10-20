@@ -11,13 +11,13 @@ const b = (id: string, date: string, start: number, status: Block['status'] = 'p
 const A = { subjects: subs, today: '2026-10-13', stampUtc: '20261013T100000Z' };
 
 test('ics: solo sesiones planificadas futuras + exámenes y entregas con fecha; formato válido, escapado y UID estable', () => {
-  const works = [w('a'), w('e', { kind: 'exam', subjectId: 's2', title: 'Parcial; tema 1, 2', dueDate: '2026-10-22', dueMinute: 540 }), w('x', { kind: 'exam', dueDate: '2026-10-25' }), w('u', { noDate: true }), w('d', { status: 'done' }), w('r', { auto: 'review' })];
+  const works = [w('a'), w('e', { kind: 'exam', subjectId: 's2', title: 'Parcial\; tema 1, 2', dueDate: '2026-10-22', dueMinute: 540 }), w('x', { kind: 'exam', dueDate: '2026-10-25' }), w('u', { noDate: true }), w('d', { status: 'done' }), w('r', { auto: 'review' })];
   const blocks = [b('b1', '2026-10-14', 1000), b('b2', '2026-10-14', 1100, 'done'), b('b3', '2026-10-10', 1000), b('b4', '2026-10-15', 1000, 'skipped')];
   const r = buildIcs({ ...A, blocks, works }); const t = r.text;
   assert.equal(r.count, 4, 'b1 + examen con hora + examen sin hora + entrega a'); assert.ok(t.startsWith('BEGIN:VCALENDAR\r\n') && t.endsWith('END:VCALENDAR\r\n'));
   assert.ok(!/\n(?<!\r\n)/.test(t.replace(/\r\n/g, '')), 'solo CRLF'); assert.match(t, /UID:b1@focusos/); assert.ok(!/UID:b2@|UID:b3@|UID:b4@|UID:u@|UID:d@|UID:r@/.test(t));
   assert.match(t, /DTSTART:20261014T164000/); assert.match(t, /DTEND:20261014T173000/); assert.match(t, /TRIGGER:-PT10M/);
-  assert.match(t, /DTSTART:20261022T090000/); assert.match(t, /TRIGGER:-P1D/); assert.match(t, /SUMMARY:EXAMEN · Química\\, orgánica · Parcial\; tema 1\\, 2/);
+  assert.match(t, /DTSTART:20261022T090000/); assert.match(t, /TRIGGER:-P1D/); assert.match(t, /SUMMARY:EXAMEN · Química\\, orgánica · Parcial\\; tema 1\\, 2/);
   assert.match(t, /DTSTART;VALUE=DATE:20261025/); assert.match(t, /DTEND;VALUE=DATE:20261026/);
   for (const l of t.split('\r\n')) assert.ok(l.length <= 75, 'líneas plegadas: ' + l.length);
   assert.equal(buildIcs({ ...A, blocks, works }).text, t, 'determinista: mismo resultado');
