@@ -141,6 +141,7 @@ const LATE_FROM = 20 * 60 + 30;
 const MIN_HOLE = 5;        // hueco mínimo que se compacta
 const MIN_FRAG = 20;       // si ya se colocó parte, un resto menor no se planifica
 const MIN_WORTH = 10;      // restos por debajo de esto no se planifican
+const EXAM_FIRST_DAYS = 14;  // exámenes dentro de este margen tienen prioridad absoluta sobre las entregas
 const EXAM_BUFFER_MIN = 60;  // margen antes de la hora del examen el mismo día
 
 const addDays = (d        , n        ) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
@@ -186,6 +187,7 @@ function plan(input                                                             
   const history          = [], manualF          = [], autoF          = [], missed          = [];
   for (const b of input.blocks) {
     if (b.status !== 'planned') history.push(b);
+    else if (b.running) manualF.push(b); // cronómetro en marcha: nunca se cierra ni se mueve aunque pase su hora
     else if (isPast(b)) missed.push({ ...b });
     else if (b.manual) manualF.push(b); else autoF.push(b);
   }
@@ -229,7 +231,9 @@ function plan(input                                                             
     } else demands.push({ ...base, part: 'main', need, to: last });
   }
   // Los repasos del temario (cortos) se colocan DESPUÉS de lo grande, para pegarse a los días que ya tienen estudio en vez de abrir días por su cuenta.
-  demands.sort((a, b) => +(a.w.auto === 'review') - +(b.w.auto === 'review') || a.key.localeCompare(b.key) || b.prio - a.prio || a.w.id.localeCompare(b.w.id) || a.part.localeCompare(b.part));
+  /** Los exámenes próximos (≤ EXAM_FIRST_DAYS) se colocan SIEMPRE antes que cualquier entrega: puntúan más que una tarea. Una entrega solo ocupa lo que el examen deja libre. */
+  const tier = (d        ) => d.w.auto === 'review' ? 2 : d.w.kind === 'exam' && daysBetween(now.date, d.w.dueDate) <= EXAM_FIRST_DAYS ? 0 : 1;
+  demands.sort((a, b) => tier(a) - tier(b) || a.key.localeCompare(b.key) || b.prio - a.prio || a.w.id.localeCompare(b.w.id) || a.part.localeCompare(b.part));
 
   // 2) Conservar sesiones automáticas aún válidas (evita cambios innecesarios)
   const used = new Set(input.blocks.map(b => b.id));
@@ -567,13 +571,28 @@ const GENERIC                = {
 const methodOf = (name         , key         )                => METHOD[key ?? ''] ?? METHOD[name ?? ''] ?? GENERIC;
 /** Calendario de repasos por recuperación (Cepeda 2008): +1–2 días, +1 semana, +3 semanas y luego cada 3–5 semanas. */
 const SPACING = [2, 7, 21, 35]         ;
+/** FASE «comprender» (antes de practicar). Base: efecto del ejemplo resuelto en principiantes y reversión por pericia (Sweller; Kalyuga 2003),
+ *  autoexplicación (Chi 1994; Dunlosky 2013: efecto moderado) y desarrollo iterativo concepto↔procedimiento (Rittle-Johnson 2017).
+ *  Idea: si no entiendes el porqué, practicar es repetir a ciegas; con 30 min de comprensión la práctica posterior rinde mucho más. */
+const UNDERSTAND = {
+  ciencias: { title: 'Comprender antes de practicar (25–30 min)', detail: 'Sin hacer problemas todavía: lee la teoría del tema y explícate con tus palabras el porqué de cada fórmula y cada paso (de dónde sale, cuándo se usa y cuándo no). Estudia 2 ejemplos resueltos explicando cada línea. Salida: sin mirar, explica el tema en 2 minutos y resuelve en voz alta un ejemplo. Si no puedes, repite; si puedes, pasa a practicar.' },
+  letras: { title: 'Comprender antes de memorizar (25–30 min)', detail: 'Lee el tema buscando el hilo: causas, consecuencias y relaciones entre ideas. Haz un esquema de una cara con flechas de «porque» y explícalo en voz alta sin mirarlo. Salida: cuenta el tema como una historia coherente; solo después memoriza fechas, autores y datos.' },
+  lenguas: { title: 'Comprender el criterio antes de producir (25 min)', detail: 'Analiza un modelo bueno (texto, comentario o redacción): qué hace cada párrafo y qué pide la rúbrica. Salida: di con tus palabras qué lo hace bueno y escribe después tu versión.' },
+}         ;
+const CIENCIAS = new Set(['Matemáticas II', 'Física', 'Química']), LENGUAS = new Set(['Lengua Castellana', 'Catalán', 'Inglés']);
+const understandOf = (name         ) => CIENCIAS.has(name ?? '') ? UNDERSTAND.ciencias : LENGUAS.has(name ?? '') ? UNDERSTAND.lenguas : name === 'Business' || name === 'Historia de España' || name === 'Historia de la Filosofía' ? UNDERSTAND.letras : UNDERSTAND.ciencias;
+/** Fase de un bloque de examen: los primeros ~30 % de sus sesiones principales (mín. 1) son de comprensión si la preparación es < 60 %; el resto, práctica. */
+const UNDERSTAND_SHARE = 0.3, UNDERSTAND_BELOW = 60;
+const phaseFor = (readiness        , idx        , total        )                             =>
+  readiness < UNDERSTAND_BELOW && idx >= 0 && idx < Math.max(1, Math.round(total * UNDERSTAND_SHARE)) ? 'comprender' : 'practicar';
 /** Línea corta de «qué hacer» para un bloque de obligación (tarea o examen). */
-const howFor = (name                    , key                    , o                                      )         => {
+const howFor = (name                    , key                    , o                                                                          )         => {
   const m = methodOf(name, key);
   if (o.review) return `${m.repaso.title}: ${m.repaso.detail}`;
+  if (o.phase === 'comprender') { const u = understandOf(name); return `${u.title}: ${u.detail}`; }
   return `${m.tasks[0].title}: ${m.tasks[0].detail}`;
 };
-;return{METHOD,GENERIC,methodOf,SPACING,howFor}})();
+;return{METHOD,GENERIC,methodOf,SPACING,howFor,UNDERSTAND,understandOf,phaseFor,UNDERSTAND_BELOW}})();
 const EST=(()=>{const {estimateV2}=EST2;                                                                                                                      
 
 
@@ -1267,7 +1286,7 @@ function stats(blocks         , works        , _now     ) {
 }
 ;return{stats}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='0f67aba8c9',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='2f329b3ad5',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -1398,7 +1417,7 @@ function logForm(id,quick,pre){const b=S.blocks.find(x=>x.id===id),w=wk(b.workId
   const am=+v.actualMin,pr=+(v.progress??60),df=+(v.difficulty??3);if(!(am>=1&&am<=600))return'Los minutos reales deben estar entre 1 y 600.';if(!(pr>=0&&pr<=100))return'El progreso va de 0 a 100.';if(!(df>=1&&df<=5))return'Dificultad de 1 a 5.';
   const nn=k=>v[k]===''||v[k]==null?0:+v[k],it={independent:nn('ind'),assisted:nn('asi'),wrong:nn('err'),skipped:nn('omi')},n=it.independent+it.assisted+it.wrong+it.skipped,un=nn('units');
   if([it.independent,it.assisted,it.wrong,it.skipped,un].some(x=>!(x>=0)))return'Las cantidades deben ser números no negativos.';
-  const topicId=v.topicId||undefined;b.status='done';if(UI.timer&&UI.timer.id===b.id){UI.timer=null;saveUI()}b.actualMin=am;if(+v.quality>=1)b.quality=+v.quality;b.log={actualMin:am,topicId,progress:pr,difficulty:df,goalMet:v.goalMet!=='0',interrupted:v.interrupted==='1',valid:v.interrupted!=='1'&&am>=5,...(v.phase?{phase:v.phase}:{}),...(un>0?{units:un}:{}),...(n>0?{items:{n,...it}}:{})};
+  const topicId=v.topicId||undefined;b.status='done';delete b.running;if(UI.timer&&UI.timer.id===b.id){UI.timer=null;saveUI()}b.actualMin=am;if(+v.quality>=1)b.quality=+v.quality;b.log={actualMin:am,topicId,progress:pr,difficulty:df,goalMet:v.goalMet!=='0',interrupted:v.interrupted==='1',valid:v.interrupted!=='1'&&am>=5,...(v.phase?{phase:v.phase}:{}),...(un>0?{units:un}:{}),...(n>0?{items:{n,...it}}:{})};
   if(n>0&&topicId&&w.topics)S.works=S.works.map(x=>x.id!==w.id?x:{...x,topics:x.topics.map(y=>y.id===topicId?{...y,evidence:[...(y.evidence||[]),{at:now().date,items:n,...it,kind:'recuperacion'}]}:y)});
   if(topicId&&w.topics&&w.estimatorVersion!==2){S.works=S.works.map(x=>x.id!==w.id?x:{...x,topics:x.topics.map(y=>y.id===topicId?{...y,mastery:Math.min(3,Math.round((y.mastery+(3-y.mastery)*pr/100)*1000)/1000)}:y)})}if(w.auto==='review'&&w.topicRef){S.syllabus=(S.syllabus||[]).map(t=>t.id===w.topicRef?GL.reviewDone(t,v.quality==='1'?'mal':v.quality==='2'?'regular':'bien',now().date):t);w.status='done';w.updatedAt=Date.now()}commit()};
  if(quick){const e=CB({actualMin:pre||b.end-b.start,goalMet:'1',quality:'',progress:60,difficulty:3,interrupted:'0',phase:'',units:'',ind:'',asi:'',err:'',omi:''});if(e)toast(e);return}
@@ -1410,12 +1429,13 @@ function blkForm(id,pre){const b=id?S.blocks.find(x=>x.id===id):pre||{},ws_=S.wo
   const nb={...b,id:id||'man:'+uid(),workId:v.workId,date:v.date,start:s,end:e,status:'planned',manual:true};S.blocks=id?S.blocks.map(x=>x.id===id?nb:x):[...S.blocks,nb];commit()})}
 const wTopic=b=>((wk(b.workId)||{}).topics||[]).find(x=>x.id===b.topicId)?.name||'';
 const mnu=(c,t,id)=>c?` data-a=blkMenu data-t=${t} data-id="${esc(id)}" role=button tabindex=0`:'';
-const blk=(b,c)=>{const w=wk(b.workId)||{},s=sub(w.subjectId),st={done:'Completada',skipped:'Omitida',rescheduled:'Reprogramada'}[b.status];return`<div class="blk ob ${b.status} ${b.manual?'manual':''}" style="--c:${s.color}"${mnu(c&&b.status==='planned','ob',b.id)}><div class=bh><b>${fm(b.start)}–${fm(b.end)}</b><span class=who>${esc(s.name)}</span><span class=kind>Obligatorio</span></div><small>${esc(w.title||'')}${b.part==='review'?' · repaso':''}${b.topicId?' · '+esc(wTopic(b)):''}${isUndated(w)?' · sin fecha':''}${b.manual?' · manual':''}</small>${b.status==='planned'&&!c?`<small class=how>${esc(MET.howFor(s.name,s.colorKey,{review:b.part==='review'}))}</small>`:''}${b.status==='planned'?c?'':`<div class=acts>${b.date===now().date&&!UI.timer?`<button data-a=timerStart data-id="${b.id}">▶ Empezar</button>`:''}<button class=pri data-a=quickDone data-id="${b.id}">✓ Hecha tal cual</button><button data-a=doneBlk data-id="${b.id}">Con detalle</button><button data-a=skipBlk data-id="${b.id}">No la haré</button><button data-a=editBlk data-id="${b.id}">Mover</button>${b.manual?`<button class=danger data-a=delBlk data-id="${b.id}">Quitar</button>`:''}</div>`:`<em>${st}</em>`}</div>`};
+const phaseOf=b=>{const w=wk(b.workId);if(!w||w.kind!=='exam'||b.part==='review'||w.auto==='review')return undefined;const ms=S.blocks.filter(x=>x.workId===w.id&&x.part!=='review'&&(x.status==='planned'||x.status==='done')).sort((x,y)=>x.date.localeCompare(y.date)||x.start-y.start);return MET.phaseFor(w.readiness??0,ms.findIndex(x=>x.id===b.id),ms.length)};
+const blk=(b,c)=>{const w=wk(b.workId)||{},s=sub(w.subjectId),st={done:'Completada',skipped:'Omitida',rescheduled:'Reprogramada'}[b.status];return`<div class="blk ob ${b.status} ${b.manual?'manual':''}" style="--c:${s.color}"${mnu(c&&b.status==='planned','ob',b.id)}><div class=bh><b>${fm(b.start)}–${fm(b.end)}</b><span class=who>${esc(s.name)}</span><span class=kind>Obligatorio</span></div><small>${esc(w.title||'')}${b.part==='review'?' · repaso':''}${b.topicId?' · '+esc(wTopic(b)):''}${isUndated(w)?' · sin fecha':''}${b.manual?' · manual':''}</small>${b.status==='planned'&&!c?`<small class=how>${esc(MET.howFor(s.name,s.colorKey,{review:b.part==='review',phase:phaseOf(b)}))}</small>`:''}${b.status==='planned'?c?'':`<div class=acts>${b.date===now().date&&!UI.timer?`<button data-a=timerStart data-id="${b.id}">▶ Empezar</button>`:''}<button class=pri data-a=quickDone data-id="${b.id}">✓ Hecha tal cual</button><button data-a=doneBlk data-id="${b.id}">Con detalle</button><button data-a=skipBlk data-id="${b.id}">No la haré</button><button data-a=editBlk data-id="${b.id}">Mover</button>${b.manual?`<button class=danger data-a=delBlk data-id="${b.id}">Quitar</button>`:''}</div>`:`<em>${st}</em>`}</div>`};
 const act=()=>S.works.filter(w=>w.status==='pending'||w.status==='in_progress');
 const prio=w=>{const p=priority(w,now());return p>=17?['Alta','hi']:p>=12?['Media','']:['Baja','']};
-const estLine=w=>{const e=w.estimate;if(!e||w.status==='done'||w.status==='archived')return'';const d=W.find(x=>x.workId===w.id&&x.type==='deficit');return`<small>Quedan ~${hr(e.remainingMin)} (entre ${hr(e.lowMin)} y ${hr(e.highMin)})${e.investedMin?' · '+hr(e.investedMin)+' hechas':''} · ${e.confidence==='inicial'?'estimación inicial'+(e.provisional?' aproximada':''):'ajustada a tu historial'} · ${d?'<span style="color:var(--warn)">déficit '+hr(d.deficitMin)+'</span>':'cabe en el calendario'}</small>`};
+const estLine=w=>{const e=w.estimate;if(!e||w.status==='done'||w.status==='archived')return'';const d=W.find(x=>x.workId===w.id&&x.type==='deficit');return`<small>Quedan ~${hr(e.remainingMin)} (entre ${hr(e.lowMin)} y ${hr(e.highMin)})${e.investedMin?' · '+hr(e.investedMin)+' hechas':''} · ${e.confidence==='inicial'?'estimación inicial'+(e.provisional?' aproximada':''):'ajustada a tu historial'} · ${d?'prioriza exámenes: parte se recoloca sola':'cabe en el calendario'}</small>`};
 /** Avisos de la pantalla Hoy. El déficit de una tarea SIN fecha no es una alarma (se ve en su fila); el de las demás se puede dar por visto y solo vuelve si el déficit aumenta. */
-const shownWarnings=()=>W.filter(w=>{if(w.type!=='deficit')return true;const x=wk(w.workId);return x&&!isUndated(x)&&!((S.warnOff||{})[w.workId]>=w.deficitMin)});
+const shownWarnings=()=>W.filter(w=>{if(w.type==='deficit')return false;const x=wk(w.workId);return x&&!isUndated(x)&&!((S.warnOff||{})[w.workId]>=w.deficitMin)});
 const dueTxt=w=>isUndated(w)?'Sin fecha':fd(w.dueDate)+(w.dueMinute!=null?' '+fm(w.dueMinute):'');
 const wrow=w=>{const s=sub(w.subjectId),[p,c]=prio(w);return`<div class="card item" style="--c:${s.color}" data-a=${w.kind==='exam'?'editExam':'editTask'} data-id="${w.id}">${w.kind==='task'?`<button class=chk2 data-a=toggle data-id="${w.id}" aria-label="${w.status==='done'?'Reabrir':'Completar'}">${w.status==='done'?'↺':'✓'}</button>`:''}<span class=dot></span><div><b${w.status==='done'?' style="text-decoration:line-through"':''}>${esc(w.title)}</b><small>${esc(s.name)} · ${dueTxt(w)} · ${hr(w.estMin)}${w.kind==='exam'?' · prep. '+w.readiness+'%':''}</small>${estLine(w)}</div>${w.status==='pending'||w.status==='in_progress'?`<span class="tag ${c}">${p}</span>`:`<em>${STS.find(x=>x[0]===w.status)[1]}</em>`}</div>`};
 
@@ -1672,10 +1692,11 @@ Object.assign(A,{quickDone:t=>logForm(t.dataset.id,true),skipBlk:t=>skipBlk(t.da
  return r0(a).replace('<h1>Rutina semanal</h1>','<h1>Rutina semanal</h1>'+(c?`<div class="card warn wrn"><span>⚠ ${c} de los próximos 7 días suman más de ${hr(cap)} entre estudio obligatorio y rutina. Si te agobia, baja la intensidad o quita días.</span></div>`:''))}}
 
 // ===== v8: avisos en el Calendario (.ics), nota baja → temas, temporizador de sesión, semanas críticas =====
+const overTxt=b=>{const e=elapsedMin(),p=b.end-b.start;return e>p?`Previstos ${p} min · llevas ${e-p} min de más. El contador sigue: termina cuando quieras.`:`Previstos ${p} min · faltan ${p-e}. El contador sigue aunque cierres la app.`};
 const elapsedMin=()=>UI.timer?Math.max(1,Math.min(600,Math.round((Date.now()-UI.timer.at)/60000))):0;
 function timerCard(){const t=UI.timer;if(!t)return'';const b=S.blocks.find(x=>x.id===t.id&&x.status==='planned');if(!b){UI.timer=null;saveUI();return''}const w=wk(b.workId)||{};
- return`<div class="card timer"><b>▶ En marcha · ${esc(sub(w.subjectId).name)} · ${esc(w.title||'')}</b><div class=tm data-timer>${elapsedMin()} min</div><small class=m>Previstos ${b.end-b.start} min. El tiempo sigue contando aunque cierres la app.</small><div class=row style="justify-content:flex-start;margin-top:8px"><button class=pri data-a=timerEnd>Terminar y guardar</button><button data-a=timerDetail>Terminar con detalle</button><button data-a=timerCancel>Cancelar</button></div></div>`}
-try{setInterval(()=>{document.querySelectorAll('[data-timer]').forEach(e=>{e.textContent=elapsedMin()+' min'})},15000)}catch{}
+ return`<div class="card timer"><b>▶ En marcha · ${esc(sub(w.subjectId).name)} · ${esc(w.title||'')}</b><div class=tm data-timer>${elapsedMin()} min</div><small class=m data-over>${overTxt(b)}</small><div class=row style="justify-content:flex-start;margin-top:8px"><button class=pri data-a=timerEnd>Terminar y guardar</button><button data-a=timerDetail>Terminar con detalle</button><button data-a=timerCancel>Cancelar</button></div></div>`}
+try{setInterval(()=>{document.querySelectorAll('[data-timer]').forEach(e=>{e.textContent=elapsedMin()+' min'});document.querySelectorAll('[data-over]').forEach(e=>{const b=UI.timer&&S.blocks.find(x=>x.id===UI.timer.id);if(b)e.textContent=overTxt(b)})},15000)}catch{}
 function weakForm(id){const g=S.grades.find(x=>x.id===id);if(!g)return;const ts=S.syllabus.filter(t=>t.subjectId===g.subjectId).sort((x,y)=>x.createdAt-y.createdAt||x.name.localeCompare(y.name));
  openForm('¿Qué temas fallaste? · '+sub(g.subjectId).name,[{t:'note',v:'Marca los temas en los que perdiste puntos. Pasarán a «Visto» y se programará su repaso para mañana. Si no sabes cuáles, pulsa Guardar sin marcar nada.'},...ts.map(t=>({k:'t_'+t.id,l:t.name,t:'check',v:false}))],v=>{
   const pick=new Set(ts.filter(t=>v['t_'+t.id]).map(t=>t.id));S.syllabus=S.syllabus.map(t=>pick.has(t.id)?GL.failedTopic(t,now().date):t);S.grades=S.grades.map(x=>x.id===id?{...x,weakDone:true}:x);commit({quiet:true});toast(pick.size?pick.size+(pick.size===1?' tema vuelve':' temas vuelven')+' a repaso':'Hecho')})}
@@ -1685,8 +1706,8 @@ const wLbl=d=>`${+d.slice(8)} ${MON[+d.slice(5,7)-1]}`;
  return ex0(a).replace('<br><br>',m=>m+tb+'<h2>Exámenes</h2>')}}
 {const cv0=V.cal;V.cal=a=>cv0(a).replace('<button data-a=replan>Regenerar futuro</button>','<button data-a=replan>Regenerar futuro</button><button data-a=icsAsk>Avisos en el Calendario</button>')}
 Object.assign(A,{
- timerStart:t=>{const b=S.blocks.find(x=>x.id===t.dataset.id);if(!b||b.status!=='planned')return;if(b.date!==now().date)return toast('Solo puedes empezar sesiones de hoy');if(UI.timer&&UI.timer.id!==b.id)return toast('Ya hay una sesión en marcha');UI.timer={id:b.id,at:Date.now()};saveUI();render();toast('Cuenta empezada')},
- timerEnd:()=>{if(!UI.timer)return;logForm(UI.timer.id,true,elapsedMin())},timerDetail:()=>{if(!UI.timer)return;logForm(UI.timer.id,false,elapsedMin())},timerCancel:()=>{UI.timer=null;saveUI();render()},
+ timerStart:t=>{const b=S.blocks.find(x=>x.id===t.dataset.id);if(!b||b.status!=='planned')return;if(b.date!==now().date)return toast('Solo puedes empezar sesiones de hoy');if(UI.timer&&UI.timer.id!==b.id)return toast('Ya hay una sesión en marcha');UI.timer={id:b.id,at:Date.now()};b.running=UI.timer.at;saveUI();commit({quiet:true});toast('Cuenta empezada')},
+ timerEnd:()=>{if(!UI.timer)return;logForm(UI.timer.id,true,elapsedMin())},timerDetail:()=>{if(!UI.timer)return;logForm(UI.timer.id,false,elapsedMin())},timerCancel:()=>{const b=UI.timer&&S.blocks.find(x=>x.id===UI.timer.id);if(b)delete b.running;UI.timer=null;saveUI();commit({quiet:true})},
  weakTopics:t=>weakForm(t.dataset.id),
  icsAsk:()=>{const r=ICS.buildIcs({blocks:S.blocks,works:S.works,subjects:S.subjects,today:now().date,stampUtc:new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z'});choose('Avisos en el Calendario del iPad',`<p>Se descargará un archivo con <b>${r.count}</b> eventos: tus sesiones futuras (aviso 10 min antes), tus exámenes y tus entregas.</p><p>Ábrelo desde Descargas y elige <b>Añadir todo</b> (mejor en un calendario nuevo llamado «Focus OS»). Si lo vuelves a importar más adelante, normalmente actualiza los mismos eventos; los que quites o muevas aquí puedes borrarlos allí a mano.</p>`,[{l:'Descargar',c:'pri',fn:()=>A.icsGo()},{l:'Cerrar',fn:()=>{}}])},
  icsGo:()=>{const r=ICS.buildIcs({blocks:S.blocks,works:S.works,subjects:S.subjects,today:now().date,stampUtc:new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z'});dl(r.text,`focus-os-${now().date}.ics`,'text/calendar')}});
@@ -1701,9 +1722,12 @@ Object.assign(A,{pause:t=>{const k=+t.dataset.k,n=now().date,keep=(S.settings.bl
  resume:()=>{S.settings={...S.settings,blockedDates:(S.settings.blockedDates||[]).filter(b=>!b.pausa)};commit();toast('Plan reanudado')}});
 
 /* Método de estudio por asignatura (docs/METODO-ESTUDIO.md): texto de referencia, no calcula nada. */
+const fasesCard=()=>{const rows={comprender:[0,0,0],practicar:[0,0,0]};for(const b of S.blocks){if(b.status!=='done'||!b.log||b.log.valid===false)continue;const ph=phaseOf(b);if(!ph)continue;const r=rows[ph];r[0]++;if(b.log.goalMet)r[1]++;r[2]+=b.log.progress??0}
+ const n=rows.comprender[0]+rows.practicar[0];const f=ph=>{const r=rows[ph];return r[0]?`${r[0]} sesiones · objetivo cumplido ${Math.round(100*r[1]/r[0])} % · progreso medio ${Math.round(r[2]/r[0])} %`:'aún sin datos'};
+ return`<div class=card><h3>¿Te está funcionando?</h3><p class=m>Se mide con tus propias sesiones registradas (solo cuentan las válidas: ≥ 5 min y sin interrupción). No se inventa nada: hasta que registres sesiones verás «aún sin datos».</p><ul><li><b>Comprender:</b> ${f('comprender')}</li><li><b>Practicar:</b> ${f('practicar')}</li></ul>${n<6?'<p class=m>Con menos de 6 sesiones registradas no se puede sacar conclusión; registra el objetivo (¿lo cumpliste?) y el progreso en cada sesión.</p>':'<p class=m>Si «comprender» cumple más objetivos que «practicar» pero tu nota no sube, avisa y ajusto el reparto.</p>'}</div>`};
 V.met=()=>{const subs=S.subjects.filter(s=>!s.archived),rows=subs.map(s=>{const m=MET.methodOf(s.name,s.colorKey);return`<div class=card style="border-left:4px solid ${s.color||'var(--gold)'}"><h3>${esc(s.name)}</h3><p class=m>Bloque ideal: ${esc(m.ideal)} · Evidencia: ${m.evidence}</p><ul>${m.tasks.map(t=>`<li><b>${esc(t.title)}.</b> ${esc(t.detail)}</li>`).join('')}<li><b>${esc(m.repaso.title)} (repaso corto).</b> ${esc(m.repaso.detail)}</li></ul><p class=m>Por qué: ${esc(m.why)}</p></div>`}).join('');
  return`<h1>Método de estudio</h1><p class=m>Qué hacer en cada sesión, según la literatura (Dunlosky 2013, Roediger y Karpicke 2006, Cepeda 2008, Rohrer 2020, Graham y Perin 2007). Los bloques del calendario usan estos textos.</p>
- <div class=card><h3>Reglas que valen para todas</h3><ul><li>Cada sesión debe producir algo: recordar sin mirar, resolver sin ver la solución o escribir. Releer y subrayar rinden poco.</li><li>Repasa lo aprendido a +1–2 días, a la semana, a las 3 semanas y después cada 3–5 semanas.</li><li>Desde marzo, un simulacro de PAU (90 min, sin apuntes, corregido con los criterios) por semana en cada materia de peso; en las últimas semanas, 2–3.</li><li>No recortes sueño para estudiar más; los descansos programados ayudan a mantener la concentración.</li><li>El examen de la PAU 2026 dura 90 min en todas las materias: entrena con ese formato.</li></ul></div>${rows}`};
+ ${fasesCard()}<div class=card><h3>Primero comprender, luego practicar</h3><p>Si un tema no lo entiendes, practicarlo 5 horas es repetir a ciegas: te sientes ocupado pero no avanzas. Por eso, en los exámenes con preparación menor del ${MET.UNDERSTAND_BELOW} %, las primeras sesiones (≈ 30 %) son de <b>comprensión</b>: teoría explicada con tus palabras y ejemplos resueltos. Pasas a practicar cuando puedes explicar el tema sin mirar. Base: ejemplo resuelto para principiantes (Sweller), autoexplicación (Chi 1994; Dunlosky 2013) y ciclo concepto↔procedimiento (Rittle-Johnson 2017). Ojo: cuando ya domines el tema, lo eficaz es lo contrario (menos teoría, más problemas): por eso solo se aplica con preparación baja.</p></div><div class=card><h3>Reglas que valen para todas</h3><ul><li>Cada sesión debe producir algo: recordar sin mirar, resolver sin ver la solución o escribir. Releer y subrayar rinden poco.</li><li>Repasa lo aprendido a +1–2 días, a la semana, a las 3 semanas y después cada 3–5 semanas.</li><li>Desde marzo, un simulacro de PAU (90 min, sin apuntes, corregido con los criterios) por semana en cada materia de peso; en las últimas semanas, 2–3.</li><li>No recortes sueño para estudiar más; los descansos programados ayudan a mantener la concentración.</li><li>El examen de la PAU 2026 dura 90 min en todas las materias: entrena con ese formato.</li></ul></div>${rows}`};
 
 /* Sincronización entre dispositivos (Supabase: inicio de sesión + una fila por usuario con RLS).
    Instantánea completa con versión: se sube con control de concurrencia (focus_push) y, si otro dispositivo cambió antes, se pregunta. Sin dependencias.

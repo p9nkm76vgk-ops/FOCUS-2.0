@@ -49,7 +49,7 @@ try:
     ck('Calendario: bloque con el color de Matemáticas II (#4A7BA3) y su nombre', blk and blk[0] == 'rgb(74, 123, 163)' and 'Matemáticas II' in blk[1], str(blk))
     go(p, 'exa'); p.click('button[data-a=addExam]'); fill_form(p, title='Parcial prueba', dueDate='2026-10-14', topics='Límites; 5; 5; 0; 12\nDerivadas; 5; 5; 0'); 
     go(p, 'hoy'); h = p.inner_text('#main').lower(); ck('Trabajo urgente sin cubrir: «Trabajo real primero» y sin botones de sugerencia', 'trabajo real primero' in h and p.locator('button[data-a=suggStart]').count() == 0)
-    ck('Aviso de déficit visible (no finge que cabe)', 'no caben' in h)
+    ck('Sin avisos de déficit en Hoy (decisión del usuario v13)', 'no caben' not in h and 'déficit' not in h)
     go(p, 'exa'); p.click('.item[data-a=editExam]'); p.wait_for_selector('#dlg button[data-a=upgradeV2]'); p.click('#dlg button[data-a=upgradeV2]'); p.wait_for_timeout(200)
     t = p.inner_text('#dlg'); ck('Comparación v1/v2 visible antes de aplicar', 'v1 (actual)' in t and 'v2' in t and 'copia de seguridad' in t)
     p.click('#dlg button[data-a=close]'); ck('Cancelar no cambia el estimador', (ls(p)['works'][1].get('estimatorVersion') or 1) != 2 and ls(p, 'focusos.v1.preupgrade') is None)

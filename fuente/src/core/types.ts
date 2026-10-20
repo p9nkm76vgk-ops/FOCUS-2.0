@@ -26,7 +26,7 @@ export interface Work {
 }
 export interface Block {
   id: string; workId: string; date: string; start: number; end: number;
-  status: BlockStatus; manual: boolean; quality?: 1 | 2 | 3; reason?: 'cansancio' | 'imprevisto' | 'nocabia' | 'otro'; part?: 'main' | 'review'; actualMin?: number; topicId?: string; log?: SessionLog;
+  status: BlockStatus; manual: boolean; quality?: 1 | 2 | 3; reason?: 'cansancio' | 'imprevisto' | 'nocabia' | 'otro'; part?: 'main' | 'review'; actualMin?: number; running?: number; topicId?: string; log?: SessionLog;
 }
 export interface Now { date: string; minute: number } // hora local del usuario
 export interface Warning { workId: string; type: 'deficit' | 'overdue'; deficitMin?: number; message: string }

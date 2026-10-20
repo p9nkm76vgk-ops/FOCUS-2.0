@@ -27,6 +27,7 @@ export const LATE_FROM = 20 * 60 + 30;
 export const MIN_HOLE = 5;        // hueco mínimo que se compacta
 export const MIN_FRAG = 20;       // si ya se colocó parte, un resto menor no se planifica
 export const MIN_WORTH = 10;      // restos por debajo de esto no se planifican
+export const EXAM_FIRST_DAYS = 14;  // exámenes dentro de este margen tienen prioridad absoluta sobre las entregas
 export const EXAM_BUFFER_MIN = 60;  // margen antes de la hora del examen el mismo día
 
 export const addDays = (d: string, n: number) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
@@ -72,6 +73,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   const history: Block[] = [], manualF: Block[] = [], autoF: Block[] = [], missed: Block[] = [];
   for (const b of input.blocks) {
     if (b.status !== 'planned') history.push(b);
+    else if (b.running) manualF.push(b); // cronómetro en marcha: nunca se cierra ni se mueve aunque pase su hora
     else if (isPast(b)) missed.push({ ...b });
     else if (b.manual) manualF.push(b); else autoF.push(b);
   }
@@ -115,7 +117,9 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     } else demands.push({ ...base, part: 'main', need, to: last });
   }
   // Los repasos del temario (cortos) se colocan DESPUÉS de lo grande, para pegarse a los días que ya tienen estudio en vez de abrir días por su cuenta.
-  demands.sort((a, b) => +(a.w.auto === 'review') - +(b.w.auto === 'review') || a.key.localeCompare(b.key) || b.prio - a.prio || a.w.id.localeCompare(b.w.id) || a.part.localeCompare(b.part));
+  /** Los exámenes próximos (≤ EXAM_FIRST_DAYS) se colocan SIEMPRE antes que cualquier entrega: puntúan más que una tarea. Una entrega solo ocupa lo que el examen deja libre. */
+  const tier = (d: Demand) => d.w.auto === 'review' ? 2 : d.w.kind === 'exam' && daysBetween(now.date, d.w.dueDate) <= EXAM_FIRST_DAYS ? 0 : 1;
+  demands.sort((a, b) => tier(a) - tier(b) || a.key.localeCompare(b.key) || b.prio - a.prio || a.w.id.localeCompare(b.w.id) || a.part.localeCompare(b.part));
 
   // 2) Conservar sesiones automáticas aún válidas (evita cambios innecesarios)
   const used = new Set(input.blocks.map(b => b.id));

@@ -9,7 +9,7 @@
   "scripts": {
     "build": "node --no-warnings build.mjs",
     "sim": "node --no-warnings scripts/simulacion.mjs",
-    "test": "node --test test/planner.test.ts test/estimator.test.ts test/migration.test.ts test/acceptance.v2.test.ts test/smoke.test.mjs test/app.test.mjs test/migration.app.test.mjs test/v2.integration.test.ts test/v2.app.test.mjs test/lifestyle.test.ts test/pwa.test.mjs test/ui2.app.test.mjs test/routine.test.ts test/ui3.app.test.mjs test/v5.test.ts test/v5.app.test.mjs test/v6.test.ts test/v6.app.test.mjs test/v7.test.ts test/v7.app.test.mjs test/v8.test.ts test/v8.app.test.mjs test/sync.app.test.mjs",
+    "test": "node --test test/planner.test.ts test/estimator.test.ts test/migration.test.ts test/acceptance.v2.test.ts test/smoke.test.mjs test/app.test.mjs test/migration.app.test.mjs test/v2.integration.test.ts test/v2.app.test.mjs test/lifestyle.test.ts test/v13.test.ts test/v13.app.test.mjs test/pwa.test.mjs test/ui2.app.test.mjs test/routine.test.ts test/ui3.app.test.mjs test/v5.test.ts test/v5.app.test.mjs test/v6.test.ts test/v6.app.test.mjs test/v7.test.ts test/v7.app.test.mjs test/v8.test.ts test/v8.app.test.mjs test/sync.app.test.mjs",
     "test:acceptance": "ACCEPT=1 node --test test/acceptance.v2.test.ts",
     "estres": "node --no-warnings scripts/estres-rutina.ts 150"
   }

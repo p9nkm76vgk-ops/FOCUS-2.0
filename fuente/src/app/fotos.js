@@ -1,0 +1,18 @@
+/* «Mi porqué»: fotos personales en Hoy. Se eligen desde el dispositivo y se guardan SOLO aquí (IndexedDB propio),
+   reducidas a 1200 px. No viajan en el estado, ni en la copia, ni en la sincronización, ni al repositorio público. */
+const FT={list:[],i:0,ok:typeof indexedDB!=='undefined',err:'',
+ db(){return new Promise((res,rej)=>{const r=indexedDB.open('focusos-fotos',1);r.onupgradeneeded=()=>r.result.createObjectStore('f',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
+ async load(){if(!FT.ok)return;try{const d=await FT.db();FT.list=await new Promise((res,rej)=>{const q=d.transaction('f').objectStore('f').getAll();q.onsuccess=()=>res(q.result.sort((a,b)=>a.t-b.t));q.onerror=()=>rej(q.error)});FT.i=Math.min(FT.i,Math.max(0,FT.list.length-1))}catch(e){FT.ok=false;FT.err='No se pueden guardar fotos en este navegador.'}},
+ async put(f){const d=await FT.db();await new Promise((res,rej)=>{const tx=d.transaction('f','readwrite');tx.objectStore('f').put(f);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})},
+ async del(id){const d=await FT.db();await new Promise((res,rej)=>{const tx=d.transaction('f','readwrite');tx.objectStore('f').delete(id);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})},
+ shrink(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const k=Math.min(1,1200/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',.82))};im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('Imagen no válida'))};im.src=u})},
+ card(){if(!FT.ok)return'';const f=FT.list[FT.i],n=FT.list.length;
+  if(!n)return`<div class="card item"><div><b>Mi porqué</b><small>Añade fotos de las personas y los sitios por los que haces esto. Se guardan solo en este dispositivo.</small></div><label class="btn" style="cursor:pointer">Añadir fotos<input id=fotoIn type=file accept="image/*" multiple hidden></label></div>`;
+  return`<div class="card"><div class=row style="justify-content:space-between;align-items:center"><b>Mi porqué</b><span><button class=btn data-a=fotoPrev aria-label="Anterior">‹</button> <small>${FT.i+1}/${n}</small> <button class=btn data-a=fotoNext aria-label="Siguiente">›</button></span></div><img src="${f.src}" alt="Foto personal" style="width:100%;max-height:340px;object-fit:cover;border-radius:12px;margin:10px 0"><div class=row><label class="btn" style="cursor:pointer">Añadir<input id=fotoIn type=file accept="image/*" multiple hidden></label> <button class=btn data-a=fotoDel data-id="${f.id}">Quitar esta</button></div></div>`}};
+{const h1=V.hoy;V.hoy=a=>h1(a).replace(/(<h1>Hoy<\/h1><p class=m>[^<]*<\/p>)/,m=>m+FT.card())}
+Object.assign(A,{fotoNext:()=>{FT.i=(FT.i+1)%FT.list.length;render()},fotoPrev:()=>{FT.i=(FT.i-1+FT.list.length)%FT.list.length;render()},
+ fotoDel:t=>choose('¿Quitar esta foto?','<p>Se borra solo de este dispositivo.</p>',[{l:'Cancelar'},{l:'Quitar',c:'danger',fn:async()=>{try{await FT.del(t.dataset.id);await FT.load();render()}catch(e){toast('No se pudo quitar la foto.')}}}])});
+document.addEventListener('change',async e=>{if(e.target.id!=='fotoIn')return;const fs=[...e.target.files];e.target.value='';let bad=0;
+ for(const file of fs){try{await FT.put({id:uid(),t:Date.now()+FT.list.length,src:await FT.shrink(file)});await FT.load()}catch(x){bad++}}
+ if(fs.length){FT.i=Math.max(0,FT.list.length-1);render();toast(bad?`${fs.length-bad} añadidas, ${bad} no válidas.`:'Fotos añadidas a este dispositivo.')}});
+FT.load().then(()=>{if(FT.list.length&&typeof route!=='undefined'&&route==='hoy')render()});

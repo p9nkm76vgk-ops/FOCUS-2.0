@@ -75,9 +75,24 @@ export const GENERIC: SubjectMethod = {
 export const methodOf = (name?: string, key?: string): SubjectMethod => METHOD[key ?? ''] ?? METHOD[name ?? ''] ?? GENERIC;
 /** Calendario de repasos por recuperación (Cepeda 2008): +1–2 días, +1 semana, +3 semanas y luego cada 3–5 semanas. */
 export const SPACING = [2, 7, 21, 35] as const;
+/** FASE «comprender» (antes de practicar). Base: efecto del ejemplo resuelto en principiantes y reversión por pericia (Sweller; Kalyuga 2003),
+ *  autoexplicación (Chi 1994; Dunlosky 2013: efecto moderado) y desarrollo iterativo concepto↔procedimiento (Rittle-Johnson 2017).
+ *  Idea: si no entiendes el porqué, practicar es repetir a ciegas; con 30 min de comprensión la práctica posterior rinde mucho más. */
+export const UNDERSTAND = {
+  ciencias: { title: 'Comprender antes de practicar (25–30 min)', detail: 'Sin hacer problemas todavía: lee la teoría del tema y explícate con tus palabras el porqué de cada fórmula y cada paso (de dónde sale, cuándo se usa y cuándo no). Estudia 2 ejemplos resueltos explicando cada línea. Salida: sin mirar, explica el tema en 2 minutos y resuelve en voz alta un ejemplo. Si no puedes, repite; si puedes, pasa a practicar.' },
+  letras: { title: 'Comprender antes de memorizar (25–30 min)', detail: 'Lee el tema buscando el hilo: causas, consecuencias y relaciones entre ideas. Haz un esquema de una cara con flechas de «porque» y explícalo en voz alta sin mirarlo. Salida: cuenta el tema como una historia coherente; solo después memoriza fechas, autores y datos.' },
+  lenguas: { title: 'Comprender el criterio antes de producir (25 min)', detail: 'Analiza un modelo bueno (texto, comentario o redacción): qué hace cada párrafo y qué pide la rúbrica. Salida: di con tus palabras qué lo hace bueno y escribe después tu versión.' },
+} as const;
+const CIENCIAS = new Set(['Matemáticas II', 'Física', 'Química']), LENGUAS = new Set(['Lengua Castellana', 'Catalán', 'Inglés']);
+export const understandOf = (name?: string) => CIENCIAS.has(name ?? '') ? UNDERSTAND.ciencias : LENGUAS.has(name ?? '') ? UNDERSTAND.lenguas : name === 'Business' || name === 'Historia de España' || name === 'Historia de la Filosofía' ? UNDERSTAND.letras : UNDERSTAND.ciencias;
+/** Fase de un bloque de examen: los primeros ~30 % de sus sesiones principales (mín. 1) son de comprensión si la preparación es < 60 %; el resto, práctica. */
+export const UNDERSTAND_SHARE = 0.3, UNDERSTAND_BELOW = 60;
+export const phaseFor = (readiness: number, idx: number, total: number): 'comprender' | 'practicar' =>
+  readiness < UNDERSTAND_BELOW && idx >= 0 && idx < Math.max(1, Math.round(total * UNDERSTAND_SHARE)) ? 'comprender' : 'practicar';
 /** Línea corta de «qué hacer» para un bloque de obligación (tarea o examen). */
-export const howFor = (name: string | undefined, key: string | undefined, o: { review?: boolean; exam?: boolean }): string => {
+export const howFor = (name: string | undefined, key: string | undefined, o: { review?: boolean; exam?: boolean; phase?: 'comprender' | 'practicar' }): string => {
   const m = methodOf(name, key);
   if (o.review) return `${m.repaso.title}: ${m.repaso.detail}`;
+  if (o.phase === 'comprender') { const u = understandOf(name); return `${u.title}: ${u.detail}`; }
   return `${m.tasks[0].title}: ${m.tasks[0].detail}`;
 };

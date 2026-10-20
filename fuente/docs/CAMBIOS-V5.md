@@ -150,3 +150,10 @@ Causas halladas y corregidas:
 - Se eliminan `reconcile`, `describe` y el diálogo de cambios; se conservan lo hecho, omitido, fijado y pasado.
 - Nueva prueba de estrés `npm run estres` (150 secuencias aleatorias × 40 acciones, invariantes tras cada acción: sin tachados, sin solapes, dentro de disponibilidad, nunca en ejercicio/cena, estable, rutina sin déficit, sin huecos >24 min). Resultado: 6000 estados, 0 fallos.
 - Tests: 233 Node; Chromium 136 (v5 35, v6 35, final 51, pages 11, sync 4).
+
+## v13 (20 oct 2026)
+- Exámenes a ≤ 14 días se planifican SIEMPRE antes que las entregas (`EXAM_FIRST_DAYS`); una entrega solo usa lo que el examen deja libre.
+- Sin avisos de déficit en Hoy; lo que no cabe se recoloca por prioridad (los exámenes ganan). Sesiones no registradas se reprograman solas al abrir/pasar el tiempo.
+- Cronómetro: `Block.running` protege la sesión; pasada la hora sigue contando («llevas N min de más»).
+- Fase «comprender antes de practicar» (examen con preparación < 60 %: ~30 % de sesiones) y tarjeta «¿Te está funcionando?» con tus datos reales.
+- `src/app/fotos.js` (tarjeta «Mi porqué», fotos solo en el dispositivo) existe pero NO está en la compilación: sin verificar.
