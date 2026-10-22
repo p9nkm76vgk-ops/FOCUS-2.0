@@ -255,3 +255,11 @@ html{scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
 .fcs .fsub{margin:0;color:#c9c4b8;font-size:1.15rem}.fbar{width:min(520px,80vw);height:8px;border-radius:99px;background:#ffffff1a;overflow:hidden}.fbar i{display:block;height:100%;width:0;background:var(--c);box-shadow:0 0 14px var(--c);transition:width 1s linear}
 .fcs .fhow{margin:6px 0 10px;max-width:56ch;color:#d9d4c8;line-height:1.55;font-size:1.05rem}.fx{position:absolute;top:max(16px,env(safe-area-inset-top));right:16px;min-width:48px;min-height:48px;border-radius:50%}
 body.focusing{overflow:hidden}
+/* v19 */
+.rweek{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))}
+.rday{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px;display:grid;gap:8px;align-content:start}
+.rday.today{border-color:var(--accent);box-shadow:var(--glow)}
+.rdh{display:flex;align-items:baseline;gap:8px}.rdh b{font-size:1rem}.rdh span{color:var(--muted);font-size:.875rem}.rdh em{margin-left:auto;font-style:normal;font-size:.875rem;color:var(--accent)}
+.rday .m{margin:0}
+.card.hero{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-soft),var(--surface) 80%)}
+.rday .kind{display:none}.rday .bh{flex-wrap:wrap}

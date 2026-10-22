@@ -255,6 +255,14 @@ html{scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
 .fcs .fsub{margin:0;color:#c9c4b8;font-size:1.15rem}.fbar{width:min(520px,80vw);height:8px;border-radius:99px;background:#ffffff1a;overflow:hidden}.fbar i{display:block;height:100%;width:0;background:var(--c);box-shadow:0 0 14px var(--c);transition:width 1s linear}
 .fcs .fhow{margin:6px 0 10px;max-width:56ch;color:#d9d4c8;line-height:1.55;font-size:1.05rem}.fx{position:absolute;top:max(16px,env(safe-area-inset-top));right:16px;min-width:48px;min-height:48px;border-radius:50%}
 body.focusing{overflow:hidden}
+/* v19 */
+.rweek{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))}
+.rday{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px;display:grid;gap:8px;align-content:start}
+.rday.today{border-color:var(--accent);box-shadow:var(--glow)}
+.rdh{display:flex;align-items:baseline;gap:8px}.rdh b{font-size:1rem}.rdh span{color:var(--muted);font-size:.875rem}.rdh em{margin-left:auto;font-style:normal;font-size:.875rem;color:var(--accent)}
+.rday .m{margin:0}
+.card.hero{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-soft),var(--surface) 80%)}
+.rday .kind{display:none}.rday .bh{flex-wrap:wrap}
 </style></head><body>
 <div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b><button id=topSearch data-a=search aria-label="Buscar"><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button></div>
 <nav id=tabs aria-label="Secciones principales"></nav><aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
@@ -1663,7 +1671,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='92303af5ea',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='9773e3c5c5',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2338,6 +2346,14 @@ Object.assign(A,{jump:t=>{const el=document.querySelector(`[data-sec="${t.datase
 {const aj=V.aj;V.aj=a=>jumpWrap(aj(a),[['cuenta','Cuenta','Cuenta y sincron'],['horario','Horario y límites','Disponibilidad'],['look','Apariencia','Apariencia'],['bien','Bienestar','Bienestar'],['colores','Colores','Colores'],['datos','Datos y copia','Datos'],['asig','Asignaturas','Asignaturas'],['pausa','Pausar','Pausar']])}
 {const me=V.met;V.met=a=>jumpWrap(me(a),[['auto','Autopsia','Autopsia de'],...S.subjects.filter(s=>!s.archived).map(s=>['s'+s.id,s.name,esc(s.name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')])])}
 {const te=V.tem;V.tem=a=>jumpWrap(te(a),S.subjects.filter(s=>!s.archived).map(s=>['s'+s.id,s.name,esc(s.name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')]))}
+
+/* v19 · Rutina por días con total, Objetivos sin tabla vacía, Curso con estado vacío cuidado */
+{const r=V.rut;if(r)V.rut=a=>{const h=r(a),k='<h2>Próximos 7 días</h2>',i=h.indexOf(k);if(i<0)return h;const n=now(),days=[...Array(7)].map((_,j)=>addDays(n.date,j));
+ const tot=d=>S.blocks.filter(b=>b.date===d&&(b.status==='planned'||b.status==='done')).reduce((x,b)=>x+b.end-b.start,0)+(S.habit||[]).filter(x=>x.date===d&&(x.status==='planned'||x.status==='done')).reduce((x,b)=>x+b.end-b.start,0);
+ const col=days.map(d=>`<section class="rday${d===n.date?' today':''}"><header class=rdh><b>${DOW[weekday(d)]}</b><span>${d.slice(8)}/${d.slice(5,7)}</span><em>${tot(d)?hr(tot(d)):'Libre'}</em></header>${dayItems(d)||'<p class=m>Sin sesiones.</p>'}</section>`).join('');
+ return h.slice(0,i)+k+`<div class=rweek>${col}</div>`}}
+{const o=V.obj;if(o)V.obj=a=>{ensureG(S);let h=o(a);if(S.goals.target==null&&!(S.grades||[]).length){h=h.replace(/<h2>[^<]*C[oó]mo vas[^<]*<\/h2>[\s\S]*?(?=<h2>Notas de esta|$)/i,'')}return h}}
+{const c=V.cur;if(c)V.cur=a=>c(a).replace('<div class=card><h3>Falta la fecha de la PAU</h3>','<div class="card hero"><h3>Falta la fecha de la PAU</h3>')}
 
 /* Progreso: anillo de cumplimiento, racha, semana, evolución de 6 semanas y reparto por asignatura. Todo sale de S.blocks (nada inventado). */
 const segCalc=n=>{const subj=new Map(S.works.map(w=>[w.id,w.subjectId])),dur=b=>b.end-b.start,mon=mondayOf(n.date),

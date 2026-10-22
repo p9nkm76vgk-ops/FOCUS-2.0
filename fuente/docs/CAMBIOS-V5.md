@@ -204,3 +204,9 @@ Causas halladas y corregidas:
 - **Temporizador**: tarjeta con anillo de progreso, fase y «Qué hacer»; **modo concentración** a pantalla completa (reloj hh:mm:ss, barra, instrucción; Esc o ✕ sale, el contador sigue; «Terminar y guardar» cierra la sesión).
 - Menú: «Progreso y estadísticas» pasa a «Progreso».
 - Pendiente: Safari/iPad real (pantalla completa y wake lock no verificados); gestos de deslizar sobre sesiones (no hechos).
+
+## v19
+- Rutina semanal: los próximos 7 días en tarjetas por día con total de horas (hoy resaltado). Se oculta la etiqueta «Obligatorio» repetida.
+- Objetivos y notas: sin objetivo ni notas ya no se pinta la tabla vacía de guiones.
+- Curso hasta la PAU: estado vacío destacado.
+- Verificado: npm test 276/276; Chromium v16 20/20, final 51/51. Pendiente: Safari/iPad real; Temario con temas (fixture sin temario).
