@@ -174,3 +174,11 @@ Causas halladas y corregidas:
 - Semana de examen: examen de peso ≥ 4 protege 5 días (3 si pesa menos); el repaso final del examen es un «Simulacro cronometrado».
 - Resumen semanal (`src/core/semana.ts`): domingo (semana en curso) y lunes (la anterior); cumplimiento con la fórmula de estadísticas; ajuste «un bloque más» a la asignatura más floja (si la rutina está activa).
 - Diseño: horario de clases plegado en Ajustes; registro detallado con lo esencial arriba; fórmula de cumplimiento plegada.
+
+## v15 — fases por asignatura, método editable, autopsia del examen
+- **Fases secuenciales** (`src/core/fases.ts`): guion (Filosofía, Historia, Lengua, Catalán) 35/50/15 = escribir → memorizar → prueba en frío; Business 100 % memorizar o 70/30 con cálculo (campo «¿Lleva cálculo?» del examen); Inglés 25/75; Física y Química 25/75; Mates 10/90. La última fase recibe siempre ≥ 2 sesiones (o su porcentaje). Las instrucciones ya no llevan cantidades fijas. Los repartos son hipótesis, no valores medidos.
+- **Método editable**: nombre, porcentaje y texto de cada fase por asignatura (`S.methodCfg`, se sincroniza); valida suma 100; «Restaurar».
+- **Autopsia** (`src/core/autopsia.ts`, `S.autopsies`): el día del examen desde las 14:30 (o hasta 7 días después) aparece en Hoy; causas, tiempo, temas flojos (al cuaderno de errores), qué ayudó, y en asignaturas de guion si usaste el método y cuántos comentarios practicaste. Una por examen (guardar de nuevo no duplica). Resumen por reglas en Método con ajustes que solo se aplican al confirmar (causa en ≥ 2 autopsias y ≥ 50 %).
+- **Confianza previa** (1–5) el día antes (`Work.confidence`), comparada con la nota real cuando hay ≥ 3 exámenes.
+- **Guion por tema** en Temario (sin guion → escrito → memorizado → dominado) en asignaturas de guion.
+- Pendiente: revisar visualmente Temario con datos (la captura de prueba no cargó temas), probar en Safari/iPad.

@@ -135,3 +135,13 @@ details.more{margin:8px 0 24px}details.more>summary{cursor:pointer;color:var(--m
 .wr{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);cursor:pointer;min-height:56px}.wr:last-child{border-bottom:0}.wr:hover{background:color-mix(in srgb,var(--c) 8%,var(--surface))}
 .wr .dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}.wr .m1{flex:1;min-width:0;display:flex;flex-direction:column}.wr .m1 b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wr .m1 small{color:var(--muted)}
 .wr.fin b{text-decoration:line-through;opacity:.6}.cd{font-weight:650;color:var(--muted);white-space:nowrap}.cd.hot{color:var(--accent)}
+/* Fases del método, estados de guion */
+.phs{display:grid;gap:10px;margin:8px 0}
+.phr{padding:10px 12px;border:1px solid var(--line,#2a2a2a);border-radius:12px;background:rgba(255,255,255,.02)}
+.phh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:15px}
+.phr .pc{color:var(--accent);font-variant-numeric:tabular-nums;font-weight:600}
+.phr .bar{height:4px;border-radius:2px;background:rgba(255,255,255,.08);margin:6px 0 8px;overflow:hidden}
+.phr .bar i{display:block;height:100%;background:var(--c,var(--accent));opacity:.85}
+.phr small{display:block;font-size:14px;line-height:1.45;opacity:.8}
+.gs{min-height:44px;padding:0 12px;border-radius:999px;font-size:14px;border:1px solid var(--line,#333);background:transparent;color:inherit}
+.gs.gs1{border-color:#8a6d3b}.gs.gs2{border-color:var(--accent);color:var(--accent)}.gs.gs3{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}

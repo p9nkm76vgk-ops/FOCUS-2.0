@@ -7,6 +7,8 @@ const P=(()=>{/*PLANNER*/;return{plan,priority,DEFAULT_SETTINGS,addDays,weekday,
 const EST2=(()=>{/*CONFIG*/;/*ESTIMATOR2*/;return{estimateV2,recordPrediction,closePrediction}})();
 const MET=(()=>{/*METHOD*/;return{METHOD,GENERIC,methodOf,SPACING,howFor,UNDERSTAND,understandOf,phaseFor,UNDERSTAND_BELOW,SIMULACRO}})();
 const EST=(()=>{const {estimateV2}=EST2;/*ESTIMATOR*/;return{reestimate,assignTopics,PARAMS}})();
+const FAS=(()=>{/*FASES*/;return{PLANS,defaultPlan,planFor,assignPhases,validatePcts,sumPcts,phaseHow}})();
+const AUT=(()=>{/*AUTOPSIA*/;return{CAUSES,HELPED,makeAutopsy,saveAutopsy,causeFreq,calibration,confidenceInsight,shift,suggestions}})();
 const RTN=(()=>{const {addDays,weekday,subtract,plan,examGuard}=P,{METHOD,methodOf}=MET;/*ROUTINE*/;return{DEFAULT_ROUTINE,INTENSITY,HORIZON_DAYS,activityFor,fixedBusy,habitBusy,generate,proposeSchedule,regenerate,mondayOf}})();
 const PAL=(()=>{/*PALETTE*/;return{DEFAULT_SUBJECT_COLORS,SPARE_COLORS,effectiveColor,nextSpare,colorConflict,resetColors}})();
 const LIFE=(()=>{const {addDays,weekday,subtract}=P;/*LIFESTYLE*/;return{EXERCISE_TYPES,LIMITS,mondayOf,freeWindows,findSlot,conflictOf,validateActivity,weekMinutes,suggest}})();

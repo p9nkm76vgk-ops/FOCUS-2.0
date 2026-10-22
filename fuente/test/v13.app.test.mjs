@@ -18,14 +18,14 @@ test('Hoy nunca muestra avisos de déficit aunque haya más trabajo del que cabe
   const a = await boot(); for (let i = 0; i < 4; i++) { await a.click('addTask'); await a.submit(opts(a, { when: '0', size: '5', subjectId: a.S.subjects[i].id })); }
   const h = a.t.V.hoy(); assert.ok(!/No caben|warnOff|déficit/i.test(h));
 });
-test('examen con poca preparación: primeras sesiones de «comprender», luego práctica; tarjeta de medición sin datos inventados', async () => {
+test('examen con poca preparación: primeras sesiones de la fase 1, luego las siguientes (fases por asignatura); tarjeta de medición sin datos inventados', async () => {
   const a = await boot(); await a.click('addExam'); await a.submit({ subjectId: a.S.subjects[0].id, when: '14', learn: 'auto', amount: 'normal', prep: '0', difficulty: '3', importance: '3', goal: 'notable' });
   const w = a.S.works.at(-1), ms = a.S.blocks.filter(x => x.workId === w.id && x.part !== 'review' && x.status === 'planned').sort((x, y) => x.date.localeCompare(y.date) || x.start - y.start);
   assert.ok(ms.length >= 3, 'varias sesiones principales: ' + ms.length);
   const html = a.t.V.cal ? a.t.V.hoy() + a.t.V.cal({}) : '';
   assert.ok(a.t.MET.howFor('Física', undefined, { phase: 'comprender' }).startsWith('Comprender antes de practicar'));
   assert.equal(a.t.MET.phaseFor(20, 0, 5), 'comprender'); assert.equal(a.t.MET.phaseFor(20, 4, 5), 'practicar'); assert.equal(a.t.MET.phaseFor(80, 0, 5), 'practicar', 'con buena preparación no hay fase de comprensión');
-  const met = a.t.V.met(); assert.match(met, /¿Te está funcionando\?/); assert.match(met, /aún sin datos/); assert.match(met, /Primero comprender, luego practicar/);
+  const met = a.t.V.met(); assert.match(met, /¿Te está funcionando\?/); assert.match(met, /aún sin datos/); assert.match(met, /Fases de la preparación del examen/); assert.match(met, /Autopsia de exámenes/);
 });
 
 test('horario de clases: se valida, se guarda en el estado y el .ics lleva cada clase con aviso 10 min antes', async () => {
