@@ -218,3 +218,7 @@ Causas halladas y corregidas:
 - Paleta de asignaturas: vuelve la apagada de antes (la saturada de v17 se ve mal). Test y scripts Chromium actualizados.
 - Hoy: las filas de sesión ya no llevan Hecho/No hecho (ocupaban media fila); se toca la fila y se abre el menú (Hecho, Mover, No la haré…). La tarjeta «Siguiente» conserva Hecho / No hecho. Más separación entre botones.
 - Verificado: npm test 276/276; Chromium v16 20/20, v18 12/12, final 51/51.
+
+## v20
+- Horas realmente estudiadas por examen (solo sesiones hechas; si hay tiempo real, ese): en la lista de Exámenes («2h20 estudiadas»), en Hoy la mañana del examen («Te has preparado 2h20 en 2 sesiones · te quedan … previstas») y al acabar, junto a «¿Qué tal ha ido?» y «¿Qué nota sacaste?».
+- Omitidas, reprogramadas y previstas no cuentan como estudiadas. Test v20.
