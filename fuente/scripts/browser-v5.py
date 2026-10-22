@@ -16,7 +16,7 @@ def newpage(b, w=1180, h=820, fixed='2026-10-13T17:00:00'):
 def go(p, r):
     if p.evaluate("innerWidth<1000") and p.evaluate("!document.body.classList.contains('open')"): p.click('#menuBtn')
     g = {'cal': 'plan', 'tar': 'plan', 'exa': 'plan', 'rut': 'plan', 'est': 'plan', 'obj': 'goal', 'tem': 'goal', 'cur': 'goal'}.get(r)
-    if g and p.get_attribute(f'#nav [data-g={g}]', 'aria-expanded') == 'false': p.click(f'#nav [data-g={g}]')
+    pass
     p.click(f'#nav [data-r="{r}"]'); p.wait_for_timeout(150)
     p.evaluate("document.querySelectorAll('details.more').forEach(d=>d.open=true)")
 def chip(p, name, text):  # pulsa un botón de opción por su texto

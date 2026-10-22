@@ -182,3 +182,12 @@ Causas halladas y corregidas:
 - **Confianza previa** (1–5) el día antes (`Work.confidence`), comparada con la nota real cuando hay ≥ 3 exámenes.
 - **Guion por tema** en Temario (sin guion → escrito → memorizado → dominado) en asignaturas de guion.
 - Pendiente: revisar visualmente Temario con datos (la captura de prueba no cargó temas), probar en Safari/iPad.
+
+## v16 — diseño: navegación, búsqueda, calendario compacto
+- **Menú plano**: los 12 destinos a un toque (Hoy, Calendario, Tareas, Exámenes · Estudio · Más), sin grupos desplegables.
+- **Búsqueda global** (botón, tecla «/» o Ctrl/⌘+K): pantallas, acciones, asignaturas, tareas, exámenes y temas; sin acentos ni mayúsculas, Intro abre la primera coincidencia, Esc cierra.
+- **Barra de pestañas inferior** en iPad vertical y móvil (Hoy · Calendario · Tareas · Exámenes · Más) y lupa en la barra superior.
+- **Barras de saltos** (chips fijos arriba) en Ajustes, Método y Temario.
+- **Calendario**: rango horario ajustado a lo que hay (antes siempre 07:00–22:30), 17 % menos alto por hora y nombres abreviados en la vista semanal (el nombre completo sigue en el aria-label y en la vista de día).
+- **Hoy**: barra de progreso del día (minutos hechos/planificados) y tira de la semana (planificado frente a completado por día).
+- Pendiente: Safari/iPad real; revisión visual de Tareas, Rutina y Progreso tras estos cambios (solo se revisaron Hoy, Calendario, Ajustes, buscador, Método).

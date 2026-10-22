@@ -5,6 +5,9 @@ const isGuion=s=>FAS.planFor(s.name,false,(S.methodCfg||{})[s.id]).some(p=>p.id=
 const CONF=[['1','Nada'],['2','Poco'],['3','Regular'],['4','Bastante'],['5','Mucho']];
 const gradeOf=w=>S.grades.find(x=>x.workId===w.id);
 Object.assign(HY,{
+ week(n){const mon=addDays(n.date,-((weekday(n.date)+6)%7)),L=['L','M','X','J','V','S','D'],ds=[...Array(7)].map((_,i)=>addDays(mon,i)),mm=ds.map(d=>{const bs=S.blocks.filter(b=>b.date===d&&(b.status==='planned'||b.status==='done'));return{d,p:bs.reduce((a,b)=>a+b.end-b.start,0),h:bs.filter(b=>b.status==='done').reduce((a,b)=>a+b.end-b.start,0)}}),mx=Math.max(60,...mm.map(x=>x.p));
+  if(!mm.some(x=>x.p))return'';
+  return`<button class=wstrip data-a=nav data-r=cal aria-label="Ver la semana en el calendario">${mm.map((x,i)=>`<span class="wd${x.d===n.date?' now':''}${x.d<n.date?' past':''}"><span class=bars><i class=pl style="height:${Math.round(100*x.p/mx)}%"></i><i class=dn style="height:${Math.round(100*x.h/mx)}%"></i></span><b>${L[i]}</b></span>`).join('')}</button>`},
  post(n){const ex=S.works.filter(w=>w.kind==='exam'&&w.status!=='archived'&&w.auto!=='review'),d=n.date;
   const au=ex.find(w=>!autos().some(a=>a.workId===w.id)&&!w.autSkip&&((w.dueDate===d&&n.minute>=870)||(w.dueDate<d&&w.dueDate>=addDays(d,-7))));
   if(au){const s=sub(au.subjectId);return`<div class=card style="--c:${s.color}"><h3>¿Qué tal ha ido ${esc(s.name)}?</h3><p class=m>Un minuto para saber si lo que estudiaste funcionó y qué ajustar.</p><div class=row style="justify-content:flex-start"><button class=pri data-a=autopsia data-id="${au.id}">Contarlo</button><button data-a=autSkip data-id="${au.id}">Ahora no</button></div></div>`}

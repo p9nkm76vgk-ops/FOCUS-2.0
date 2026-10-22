@@ -1,0 +1,7 @@
+/* Barra de saltos (para encontrar cada sección sin desplazarse): Ajustes, Método y Temario. */
+const jumpWrap=(html,items)=>{let out=html,used=[];for(const [key,label,re] of items){const rx=new RegExp('(<(?:div|form)[^>]*class="?card[^>]*)>(\\s*<h3[^>]*>(?:<span class=dot></span>\\s*)?)('+re+')','i');if(rx.test(out)){out=out.replace(rx,(m,a,b,c)=>`${a} data-sec="${key}">${b}${c}`);used.push([key,label])}}
+ return used.length<3?html:out.replace(/(<h1>[^<]*<\/h1>)/,`$1<div class=jump role=group aria-label="Ir a una sección">${used.map(([k,l])=>`<button type=button data-a=jump data-k="${esc(k)}">${esc(l)}</button>`).join('')}</div>`)};
+Object.assign(A,{jump:t=>{const el=document.querySelector(`[data-sec="${t.dataset.k}"]`);el&&el.scrollIntoView&&el.scrollIntoView({behavior:'smooth',block:'start'})}});
+{const aj=V.aj;V.aj=a=>jumpWrap(aj(a),[['cuenta','Cuenta','Cuenta y sincron'],['horario','Horario y límites','Disponibilidad'],['look','Apariencia','Apariencia'],['bien','Bienestar','Bienestar'],['colores','Colores','Colores'],['datos','Datos y copia','Datos'],['asig','Asignaturas','Asignaturas'],['pausa','Pausar','Pausar']])}
+{const me=V.met;V.met=a=>jumpWrap(me(a),[['auto','Autopsia','Autopsia de'],...S.subjects.filter(s=>!s.archived).map(s=>['s'+s.id,s.name,esc(s.name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')])])}
+{const te=V.tem;V.tem=a=>jumpWrap(te(a),S.subjects.filter(s=>!s.archived).map(s=>['s'+s.id,s.name,esc(s.name).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')]))}

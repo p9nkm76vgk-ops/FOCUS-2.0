@@ -87,7 +87,7 @@ test('compatibilidad hacia atrás: la versión 4 abre datos con tareas sin fecha
 
 test('calendario con eje horario: cada bloque en su hora real, dentro de la franja, sin solaparse; sin avisos de déficit', async () => {
   const a = await boot(); for (let i = 0; i < 6; i++) { await a.click('addTask'); await a.submit(opts(a, { subjectId: a.S.subjects[i].id, when: '1', size: '5', difficulty: '5', importance: '5' })); }
-  const cal = a.t.V.cal(); assert.match(cal, /class="tg/); assert.match(cal, /class=nowl/, 'línea de hora actual en el día de hoy');
+  clock.t = new Date(2026, 9, 12, 16, 0).getTime(); const cal = a.t.V.cal(); assert.match(cal, /class="tg/); assert.match(cal, /class=nowl/, 'línea de hora actual en el día de hoy');
   assert.match(cal, /data-a=slot/, 'huecos tocables');
   // cada columna: ninguna pareja de bloques con hora se solapa en pantalla salvo que ya se solapen en datos (no deben)
   const rows = [...cal.matchAll(/class="ev [^"]*" style="--c:[^;]+;top:([\d.]+)px;height:([\d.]+)px[^"]*"/g)].map(m => [+m[1], +m[2]]);

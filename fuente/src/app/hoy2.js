@@ -30,11 +30,12 @@ Object.assign(A,{
  semOk:t=>{setWeekSeen(t.dataset.id);render()},
  semApply:t=>{const sid=t.dataset.id,R=S.routine,q=Math.max(0,R.perWeek[sid]??RTN.INTENSITY[R.intensity].perWeek)+1;S.routine={...R,perWeek:{...R.perWeek,[sid]:Math.min(7,q)}};regenAll();setWeekSeen(S.blocks.length?SEM.weekToReview(now().date):'');commit({quiet:true})}});
 {const full=V.hoy;V.hoy=a=>{const n=now(),all=full(a),its=HY.items(n),pend=its.filter(x=>x.st==='planned'&&x.end>n.minute),first=pend[0],tc=timerCard(),doneN=its.filter(x=>x.st==='done').length,
-  head=`<h1>Hoy</h1><p class=m>${fdl(n.date)}${its.length?` · ${doneN} de ${its.length} sesiones`:''}</p>`;
+  tot=its.reduce((a,x)=>a+(x.end-x.start),0),dn=its.filter(x=>x.st==='done').reduce((a,x)=>a+(x.end-x.start),0),pc=tot?Math.round(100*dn/tot):0,
+  head=`<h1>Hoy</h1><p class=m>${fdl(n.date)}${its.length?` · ${doneN} de ${its.length} sesiones · ${hr(dn)} de ${hr(tot)}`:''}</p>${its.length?`<div class=dprog role=progressbar aria-valuenow=${pc} aria-valuemin=0 aria-valuemax=100 aria-label="Progreso de hoy"><i style="width:${pc}%"></i></div>`:''}`;
   const rest=its.filter(x=>x!==first&&!(tc&&UI.timer&&x.id===UI.timer.id)),
    hero=tc||(first?HY.hero(n,first):`<div class=hero><h2 class=hn>${its.length?'Hecho por hoy':'Nada que estudiar hoy'}</h2><p class=hs>${its.length?'Has cerrado todas las sesiones de hoy.':'Disfruta del descanso.'}</p></div>`);
   const body=all.replace(/<h1>Hoy<\/h1><p class=m>[^<]*<\/p>/,'').replace(tc,'');
-  return head+hero+HY.post(n)+HY.exams(n)+HY.semana(n)+HY.fallos(n)+HY.cls(n)+(rest.length?`<div class=tl>${rest.map(HY.row).join('')}</div>`:'')+`<div class=quick><button data-a=addTask>+ Tarea</button><button data-a=addExam>+ Examen</button><button data-a=addBlk>+ Sesión</button><button data-a=addErr>+ Fallo</button></div><details class=more data-k=hoy${HY.open.hoy?' open':''}><summary>Más: estadísticas, prioridades y sugerencias</summary>${body}</details>`}}
+  return head+hero+HY.week(n)+HY.post(n)+HY.exams(n)+HY.semana(n)+HY.fallos(n)+HY.cls(n)+(rest.length?`<div class=tl>${rest.map(HY.row).join('')}</div>`:'')+`<div class=quick><button data-a=addTask>+ Tarea</button><button data-a=addExam>+ Examen</button><button data-a=addBlk>+ Sesión</button><button data-a=addErr>+ Fallo</button></div><details class=more data-k=hoy${HY.open.hoy?' open':''}><summary>Más: estadísticas, prioridades y sugerencias</summary>${body}</details>`}}
 Object.assign(A,{noHecho:t=>{const b=S.blocks.find(x=>x.id===t.dataset.id);if(!b||b.status!=='planned')return;const n=now();b.status='skipped';if(b.date>n.date||b.end>n.minute)b.reason='otro';commit({quiet:true})},
  habQuick:t=>{S.habit=S.habit.map(x=>x.id===t.dataset.id?{...x,status:'done',actualMin:x.end-x.start}:x);commit({quiet:true})}});
 /* Rutina: la configuración y las actividades fijas quedan plegadas; arriba, el estado y «Regenerar». */

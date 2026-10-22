@@ -145,3 +145,36 @@ details.more{margin:8px 0 24px}details.more>summary{cursor:pointer;color:var(--m
 .phr small{display:block;font-size:14px;line-height:1.45;opacity:.8}
 .gs{min-height:44px;padding:0 12px;border-radius:999px;font-size:14px;border:1px solid var(--line,#333);background:transparent;color:inherit}
 .gs.gs1{border-color:#8a6d3b}.gs.gs2{border-color:var(--accent);color:var(--accent)}.gs.gs3{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+/* Navegación v16: secciones planas, buscador y barra de pestañas */
+.nsec{font-size:.875rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);opacity:.8;padding:16px 14px 4px;font-weight:650}
+.nv.srch{border:1px solid var(--line);background:var(--surface2);margin:6px 0 10px;color:var(--muted)}
+.nv.srch kbd{margin-left:auto;font:inherit;font-size:.875rem;padding:1px 8px;border:1px solid var(--line);border-radius:6px;color:var(--muted)}
+body.rail .nsec,body.rail .nv.srch kbd{display:none}
+#tabs{display:none}
+#topSearch{margin-left:auto;min-width:44px;min-height:44px;border:0;border-radius:12px;background:transparent;color:var(--text);display:grid;place-items:center}
+@media(max-width:999px){
+ #tabs{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--surface) 92%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-top:1px solid var(--line);padding:6px 6px max(8px,env(safe-area-inset-bottom))}
+ #tabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:52px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:.875rem;border-radius:12px;font-weight:550}
+ #tabs button .ic{width:24px;height:24px}
+ #tabs button[aria-current=page]{color:var(--accent);background:var(--accent-soft)}
+ .main,body.rail .main{padding-bottom:100px}
+}
+.srchbox{display:grid;gap:10px;min-width:min(560px,86vw)}
+.srchbox input{font-size:1.1rem;padding:14px 16px;border-radius:14px;width:100%}
+#sr{display:grid;gap:2px;max-height:min(60vh,520px);overflow:auto}
+.sri{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 12px;border:0;border-radius:12px;background:transparent;color:var(--text);font:inherit;text-align:left}
+.sri.on,.sri:hover{background:var(--accent-soft)}
+.sri .sit{display:grid;gap:1px;flex:1;min-width:0}.sri .sit b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sri .sit small{color:var(--muted);font-size:.875rem}
+.sri .sk{font-size:.875rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.jump{display:flex;gap:8px;overflow-x:auto;position:sticky;top:var(--stick,0);z-index:15;margin:0 -4px 14px;padding:8px 4px;background:color-mix(in srgb,var(--bg) 92%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);scrollbar-width:none}
+.jump::-webkit-scrollbar{display:none}
+.jump button{flex:none;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:.9375rem;white-space:nowrap}
+.jump button:active{background:var(--accent-soft);border-color:var(--accent)}
+[data-sec]{scroll-margin-top:calc(var(--stick,0px) + 64px)}
+.dprog{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden;margin:2px 0 16px}.dprog i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
+.wstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;width:100%;padding:12px 14px 8px;margin:0 0 14px;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--muted);font:inherit;cursor:pointer}
+.wstrip .wd{display:grid;gap:6px;justify-items:center}.wstrip .bars{position:relative;width:100%;max-width:34px;height:44px;border-radius:8px;background:var(--surface2);overflow:hidden}
+.wstrip .bars i{position:absolute;left:0;right:0;bottom:0;display:block}.wstrip .pl{background:color-mix(in srgb,var(--accent) 30%,transparent)}.wstrip .dn{background:var(--accent)}
+.wstrip .wd.now b{color:var(--accent)}.wstrip .wd.now .bars{outline:2px solid var(--accent);outline-offset:1px}.wstrip .wd.past{opacity:.7}.wstrip b{font-size:.875rem;font-weight:650}
+.ev b i{font-style:normal}.ev .sn{display:none}
+.tg:not(.one) .ev .fn{display:none}.tg:not(.one) .ev .sn{display:inline}

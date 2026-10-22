@@ -47,7 +47,7 @@ try:
     go(p, 'hoy'); p.click('button[data-a=addTask]'); fill_form(p, title='Prueba aislada', dueDate='2026-10-20', estOverride='120'); st = ls(p)
     ck('Tarea creada con sesiones planificadas', len(st['works']) == 1 and len(st['blocks']) > 0)
     go(p, 'cal'); blk = p.evaluate("(()=>{const e=document.querySelector('#main .tg .ev.planned');return e?[getComputedStyle(e).borderLeftColor,e.closest('.tg')?e.innerText:'']:null})()")
-    ck('Calendario: bloque con el color de Matemáticas II (#4A7BA3) y su nombre', blk and blk[0] == 'rgb(74, 123, 163)' and 'Matemáticas II' in blk[1], str(blk))
+    ck('Calendario: bloque con el color de Matemáticas II (#4A7BA3) y su nombre', blk and blk[0] == 'rgb(74, 123, 163)' and ('Matemáticas II' in blk[1] or 'Mates II' in blk[1]), str(blk))
     go(p, 'exa'); p.click('button[data-a=addExam]'); fill_form(p, title='Parcial prueba', dueDate='2026-10-14', topics='Límites; 5; 5; 0; 12\nDerivadas; 5; 5; 0'); 
     go(p, 'hoy'); h = p.inner_text('#main').lower(); ck('Trabajo urgente sin cubrir: «Trabajo real primero» y sin botones de sugerencia', 'trabajo real primero' in h and p.locator('button[data-a=suggStart]').count() == 0)
     ck('Sin avisos de déficit en Hoy (decisión del usuario v13)', 'no caben' not in h and 'déficit' not in h)
