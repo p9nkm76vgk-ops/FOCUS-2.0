@@ -47,7 +47,7 @@ try:
     go(p, 'hoy'); p.click('button[data-a=addTask]'); fill_form(p, title='Prueba aislada', dueDate='2026-10-20', estOverride='120'); st = ls(p)
     ck('Tarea creada con sesiones planificadas', len(st['works']) == 1 and len(st['blocks']) > 0)
     go(p, 'cal'); blk = p.evaluate("(()=>{const e=document.querySelector('#main .tg .ev.planned');return e?[getComputedStyle(e).borderLeftColor,e.closest('.tg')?e.innerText:'']:null})()")
-    ck('Calendario: bloque con el color de Matemáticas II (#4A7BA3) y su nombre', blk and blk[0] == 'rgb(74, 123, 163)' and ('Matemáticas II' in blk[1] or 'Mates II' in blk[1]), str(blk))
+    ck('Calendario: bloque con el color de Matemáticas II (#0597FD) y su nombre', blk and blk[0] == 'rgb(5, 151, 253)' and ('Matemáticas II' in blk[1] or 'Mates II' in blk[1]), str(blk))
     go(p, 'exa'); p.click('button[data-a=addExam]'); fill_form(p, title='Parcial prueba', dueDate='2026-10-14', topics='Límites; 5; 5; 0; 12\nDerivadas; 5; 5; 0'); 
     go(p, 'hoy'); h = p.inner_text('#main').lower(); ck('Trabajo urgente sin cubrir: «Trabajo real primero» y sin botones de sugerencia', 'trabajo real primero' in h and p.locator('button[data-a=suggStart]').count() == 0)
     ck('Sin avisos de déficit en Hoy (decisión del usuario v13)', 'no caben' not in h and 'déficit' not in h)
@@ -61,7 +61,7 @@ try:
     go(p, 'aj'); p.fill('input[name=maxDayMin]', '200'); p.click('#sf button.pri'); p.wait_for_timeout(300); ck('Ajustes guardados y replanificación', ls(p)['settings']['maxDayMin'] == 200)
     p.locator('input.subc').first.fill('#112233'); p.wait_for_timeout(250); ck('Color personalizado y persistido', ls(p)['subjects'][0].get('userColor') == '#112233')
     p.locator('input.subc').nth(1).fill('#112233'); p.wait_for_timeout(250); ck('Color duplicado rechazado', ls(p)['subjects'][1].get('userColor') is None)
-    p.click('button[data-a=resetColors]'); p.wait_for_timeout(250); ck('Restablecer paleta', ls(p)['subjects'][0].get('userColor') is None and ls(p)['subjects'][0]['color'] == '#4A7BA3')
+    p.click('button[data-a=resetColors]'); p.wait_for_timeout(250); ck('Restablecer paleta', ls(p)['subjects'][0].get('userColor') is None and ls(p)['subjects'][0]['color'] == '#0597FD')
     go(p, 'seg'); ck('Progreso: leyenda con nombres de las nueve asignaturas', all(n in p.inner_text('#main') for n in ['Matemáticas II', 'Física', 'Química', 'Business', 'Lengua Castellana', 'Catalán', 'Inglés', 'Historia de España', 'Historia de la Filosofía']))
     go(p, 'aj'); before = ls(p)
     with p.expect_download() as dl: p.click('button[data-a=export]')

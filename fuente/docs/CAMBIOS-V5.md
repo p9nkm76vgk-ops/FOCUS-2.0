@@ -191,3 +191,9 @@ Causas halladas y corregidas:
 - **Calendario**: rango horario ajustado a lo que hay (antes siempre 07:00–22:30), 17 % menos alto por hora y nombres abreviados en la vista semanal (el nombre completo sigue en el aria-label y en la vista de día).
 - **Hoy**: barra de progreso del día (minutos hechos/planificados) y tira de la semana (planificado frente a completado por día).
 - Pendiente: Safari/iPad real; revisión visual de Tareas, Rutina y Progreso tras estos cambios (solo se revisaron Hoy, Calendario, Ajustes, buscador, Método).
+
+## v17 — sistema visual y colores
+- **Paleta de asignaturas rediseñada con medición**: la diferencia de color mínima entre dos asignaturas (ΔE76) pasó de ≈ 18 (Química/Inglés casi iguales) a ≈ 40, manteniendo contraste ≥ 4,5:1 sobre el carbón y ≥ 3:1 sobre blanco (exigencia del propio proyecto). Los tonos se eligieron con una búsqueda numérica sobre la rueda de color; no es una norma, es una optimización de esas dos restricciones. El nombre siempre va junto al color.
+- **Tokens v17**: carbón cálido en capas (fondo #111113 → tarjetas → superficies elevadas), oro con degradado, colores semánticos (ok, aviso, info). Tema claro con las mismas capas.
+- **Detalles**: tarjetas con luz superior y sombra, botón primario con degradado, menú con barra de acento y brillo en la sección activa, marca con gema dorada, héroe de Hoy con resplandor del color de la asignatura, bloques del calendario tintados, diálogos con desenfoque de fondo, entrada suave de pantallas (desactivada con «reducir movimiento»).
+- Pendiente: Safari/iPad real (el desenfoque y los degradados solo se vieron en Chromium); revisar visualmente Progreso, Rutina y Temario con datos.

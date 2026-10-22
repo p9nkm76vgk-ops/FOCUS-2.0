@@ -1,6 +1,7 @@
 /* Focus OS · sistema de diseño. Oscuro por defecto (carbón + dorado); tema claro opcional en Ajustes. Todos los colores salen de estas variables. */
-:root{color-scheme:dark;--bg:#111113;--surface:#18181b;--surface2:#222226;--line:#2f2f35;--text:#f3f0e9;--muted:#a9a498;--accent:#d9ad52;--accent-ink:#1b1405;--accent-soft:#d9ad5224;--warn:#ff9a85;--ok:#86c797;--shadow:0 12px 40px #00000066;--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--r:18px}
-:root[data-theme=light]{color-scheme:light;--bg:#f5f3ee;--surface:#ffffff;--surface2:#ece8df;--line:#dcd6c8;--text:#1d1b17;--muted:#645f55;--accent:#7b5a12;--accent-ink:#ffffff;--accent-soft:#7b5a1218;--warn:#a8321c;--ok:#2f7a45;--shadow:0 12px 40px #3d34221f}
+/* Tokens v17. Oscuro: carbón cálido en capas (nunca negro puro, para no deslumbrar) + oro; el color de cada asignatura vive en palette.ts. */
+:root{color-scheme:dark;--bg:#111113;--surface:#18181b;--surface2:#212125;--surface3:#2a2a30;--line:#2c2c33;--line2:#3b3b44;--text:#f4f1ea;--muted:#a9a498;--accent:#e0b45a;--accent2:#c4953a;--accent-ink:#1b1405;--accent-soft:#e0b45a22;--warn:#ff9a85;--ok:#86c797;--info:#8fb4ff;--shadow:0 12px 40px #00000066;--shadow-sm:0 1px 2px #00000066,0 6px 18px #0000004d;--glow:#e0b45a14;--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--r:18px}
+:root[data-theme=light]{color-scheme:light;--bg:#f4f1ea;--surface:#ffffff;--surface2:#ede9e0;--surface3:#e3ded2;--line:#dcd6c8;--line2:#c9c2b2;--text:#1d1b17;--muted:#645f55;--accent:#7b5a12;--accent2:#5f450c;--accent-ink:#ffffff;--accent-soft:#7b5a1218;--warn:#a8321c;--ok:#2f7a45;--info:#2f5fb3;--shadow:0 12px 40px #3d34221f;--shadow-sm:0 1px 2px #3d342218,0 6px 18px #3d34220f;--glow:#7b5a1210}
 *{box-sizing:border-box;min-width:0}html{-webkit-text-size-adjust:100%;font-size:106.25%;font-family:var(--font);height:100%}
 @supports (font:-apple-system-body){html{font:-apple-system-body;font-family:var(--font)}}
 body{margin:0;min-height:100dvh;background:var(--bg);color:var(--text);font-family:var(--font);font-size:1rem;line-height:1.55;overflow-x:hidden;overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;font-variant-numeric:tabular-nums}
@@ -178,3 +179,52 @@ body.rail .nsec,body.rail .nv.srch kbd{display:none}
 .wstrip .wd.now b{color:var(--accent)}.wstrip .wd.now .bars{outline:2px solid var(--accent);outline-offset:1px}.wstrip .wd.past{opacity:.7}.wstrip b{font-size:.875rem;font-weight:650}
 .ev b i{font-style:normal}.ev .sn{display:none}
 .tg:not(.one) .ev .fn{display:none}.tg:not(.one) .ev .sn{display:inline}
+
+/* ===== v17 · tema visual ===== */
+html{background:var(--bg)}
+body{background:radial-gradient(1100px 520px at 78% -140px,var(--glow),transparent 70%),var(--bg)}
+::selection{background:var(--accent);color:var(--accent-ink)}
+h1{font-size:2.15rem;font-weight:720;letter-spacing:-.025em;text-wrap:balance}
+.main>*{animation:rise .28s cubic-bezier(.2,.7,.2,1) both}.main>*:nth-child(2){animation-delay:.03s}.main>*:nth-child(3){animation-delay:.06s}.main>*:nth-child(4){animation-delay:.09s}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.main>*{animation:none!important}}
+/* tarjetas con capas */
+.card{background:linear-gradient(180deg,color-mix(in srgb,var(--surface) 92%,#fff 8%) 0,var(--surface) 38%);border-color:var(--line);box-shadow:inset 0 1px 0 #ffffff0a,var(--shadow-sm)}
+:root[data-theme=light] .card{background:var(--surface);box-shadow:var(--shadow-sm)}
+.card.item[data-a]{cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}.card.item[data-a]:hover{transform:translateY(-1px);border-color:var(--line2)}
+/* botones */
+button.pri{background:linear-gradient(180deg,var(--accent),var(--accent2));border-color:transparent;box-shadow:0 1px 0 #ffffff55 inset,0 6px 16px color-mix(in srgb,var(--accent) 28%,transparent)}
+button.pri:hover{filter:brightness(1.06)}
+button:not(.pri):hover{background:var(--surface3)}
+button:focus-visible,[data-a]:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+/* menú lateral */
+.side{background:linear-gradient(180deg,var(--surface),color-mix(in srgb,var(--surface) 70%,var(--bg)));}
+.brand span{font-size:1.15rem;font-weight:760;letter-spacing:-.01em}
+.brand span:before{content:"";display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 14px var(--accent);transform:rotate(45deg) scale(.82);vertical-align:-1px}
+.nv{position:relative;transition:background .15s,color .15s}
+.nv[aria-current=page]{background:linear-gradient(90deg,var(--accent-soft),transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 26%,transparent)}
+.nv[aria-current=page]:before{content:"";position:absolute;left:-12px;top:10px;bottom:10px;width:4px;border-radius:0 4px 4px 0;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+.nv .ic{flex:none}
+.nv.srch{background:var(--surface2);box-shadow:inset 0 1px 0 #ffffff08}
+/* pestañas */
+@media(max-width:999px){#tabs{border-radius:22px 22px 0 0;box-shadow:0 -10px 30px #00000055}#tabs button[aria-current=page]{background:linear-gradient(180deg,var(--accent-soft),transparent);box-shadow:inset 0 2px 0 var(--accent)}}
+/* Hoy */
+.hero{position:relative;overflow:hidden;background:radial-gradient(520px 220px at 100% 0,color-mix(in srgb,var(--c,var(--accent)) 30%,transparent),transparent 70%),linear-gradient(160deg,color-mix(in srgb,var(--c,var(--accent)) 16%,var(--surface)),var(--surface) 72%);border-color:color-mix(in srgb,var(--c,var(--accent)) 50%,var(--line));box-shadow:var(--shadow),inset 0 1px 0 #ffffff12}
+.hero:before{content:"";position:absolute;left:0;top:22px;bottom:22px;width:4px;border-radius:0 4px 4px 0;background:var(--c,var(--accent));box-shadow:0 0 18px var(--c,var(--accent))}
+.hero .hn{font-size:2.35rem;font-weight:740}
+.chip{border-color:color-mix(in srgb,var(--c,var(--line2)) 50%,var(--line))}
+.dprog,.bar{background:var(--surface3)}.dprog i,.bar i{background:linear-gradient(90deg,var(--accent2),var(--accent))}
+.tr{transition:background .15s;border-radius:12px}.tr:hover{background:color-mix(in srgb,var(--c,var(--accent)) 7%,transparent)}
+.tr .dot{box-shadow:0 0 10px var(--c)}
+.wstrip{background:linear-gradient(180deg,var(--surface),color-mix(in srgb,var(--surface) 80%,var(--bg)));box-shadow:var(--shadow-sm)}
+/* calendario */
+.ev{background:linear-gradient(180deg,color-mix(in srgb,var(--c) 30%,var(--surface)),color-mix(in srgb,var(--c) 18%,var(--surface)));border:1px solid color-mix(in srgb,var(--c) 35%,transparent);border-left:3px solid var(--c);box-shadow:0 2px 8px #0000004d}
+.day.today,.dh.today{background:linear-gradient(180deg,var(--accent-soft),transparent)}
+/* diálogos */
+dialog{background:linear-gradient(180deg,var(--surface),color-mix(in srgb,var(--surface) 88%,var(--bg)));box-shadow:0 30px 80px #000000aa,inset 0 1px 0 #ffffff0d}
+dialog::backdrop{background:rgba(6,6,8,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+/* chips de formulario seleccionados */
+.wr{transition:background .15s,transform .15s}.wr:hover{background:var(--surface2)}
+.sri.on,.sri:hover{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent)}
+html{scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
