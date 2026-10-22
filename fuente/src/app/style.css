@@ -228,3 +228,30 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none;
 .wr{transition:background .15s,transform .15s}.wr:hover{background:var(--surface2)}
 .sri.on,.sri:hover{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent)}
 html{scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+/* Progreso v18 */
+.pgh{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:14px;margin:0 0 14px}
+.pgh .card{margin:0}.pring{display:flex;align-items:center;gap:18px}.pring .ring{width:120px;height:120px;flex:none}
+.ring .rt{fill:none;stroke:var(--surface3);stroke-width:9}.ring .rv{fill:none;stroke-width:9;stroke-linecap:round;filter:drop-shadow(0 0 6px color-mix(in srgb,var(--accent) 55%,transparent))}
+.ring .rn{fill:var(--text);font-size:25px;font-weight:720;font-family:var(--font)}.ring .rl{fill:var(--muted);font-size:11px;font-family:var(--font)}
+.pst small,.pstats small{color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:.875rem;font-weight:650;display:block}
+.pstats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.pstats .card b{display:block;font-size:1.7rem;font-weight:720;margin:4px 0 2px;letter-spacing:-.02em}.pstats .m{display:block;font-size:.9375rem}
+.wbars{display:flex;gap:8px;align-items:flex-end;height:170px;padding-top:6px}
+.wcol{flex:1;display:grid;grid-template-rows:20px 1fr 22px;justify-items:center;height:100%}
+.wcol .v{font-size:.875rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}.wcol .bx{position:relative;width:100%;max-width:46px;border-radius:10px;background:var(--surface2);overflow:hidden}
+.wcol .bx i{position:absolute;left:0;right:0;bottom:0;display:block}.wcol .p{background:color-mix(in srgb,var(--accent) 28%,transparent)}.wcol .d{background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:10px 10px 0 0}
+.wcol b{font-size:.9375rem;color:var(--muted);font-weight:600}.wcol.now b{color:var(--accent)}.wcol.now .bx{outline:2px solid color-mix(in srgb,var(--accent) 60%,transparent);outline-offset:2px}
+.srow{display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line)}.srow:first-of-type{border-top:0}
+.srow .dot{box-shadow:0 0 8px var(--c);flex:none}.srow .sn2{flex:1;min-width:0}.srow .sn2 .bar{margin:6px 0 0}.srow .sv{text-align:right;min-width:78px}.srow .sv b{display:block}.srow .sv small{color:var(--muted)}
+.empty{display:grid;justify-items:center;text-align:center;gap:6px;padding:28px 20px;margin:0 0 14px;border:1px dashed var(--line2);border-radius:var(--r);background:linear-gradient(180deg,var(--accent-soft),transparent 70%)}
+.empty i{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--surface2);color:var(--accent);box-shadow:inset 0 1px 0 #ffffff10}.empty i .ic{width:26px;height:26px}.empty b{font-size:1.1rem}.empty p{margin:0;max-width:46ch}.empty button{margin-top:8px}
+@media(max-width:800px){.pgh{grid-template-columns:1fr}.pstats{grid-template-columns:1fr}.pstats .card{display:grid;grid-template-columns:1fr auto;align-items:center}.pstats .card small{grid-column:1/-1}}
+/* Temporizador y modo concentración */
+.card.timer{border-color:color-mix(in srgb,var(--c) 45%,var(--line));background:radial-gradient(420px 180px at 100% 0,color-mix(in srgb,var(--c) 22%,transparent),transparent 70%),var(--surface)}
+.tmr{display:flex;align-items:center;gap:18px}.tmr .ring{width:132px;height:132px;flex:none}.tmr .rn{font-size:26px}.tmi h2{margin:2px 0 4px;font-size:1.6rem;text-transform:none;letter-spacing:-.02em;color:var(--text)}.tmi .lab{color:var(--c);text-transform:uppercase;letter-spacing:.1em;font-weight:700;font-size:.875rem}
+.tm{display:none}
+#focus{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:24px;background:radial-gradient(900px 500px at 50% 30%,color-mix(in srgb,var(--c,var(--accent)) 24%,transparent),transparent 70%),#08080a;color:#f4f1ea}
+.fcs{display:grid;gap:14px;justify-items:center;text-align:center;max-width:720px;width:100%}.fcs .lab{color:var(--c);text-transform:uppercase;letter-spacing:.14em;font-weight:700;font-size:1rem}
+.fcs .big{font-size:clamp(3.5rem,16vw,9rem);font-weight:700;letter-spacing:-.04em;font-variant-numeric:tabular-nums;line-height:1}
+.fcs .fsub{margin:0;color:#c9c4b8;font-size:1.15rem}.fbar{width:min(520px,80vw);height:8px;border-radius:99px;background:#ffffff1a;overflow:hidden}.fbar i{display:block;height:100%;width:0;background:var(--c);box-shadow:0 0 14px var(--c);transition:width 1s linear}
+.fcs .fhow{margin:6px 0 10px;max-width:56ch;color:#d9d4c8;line-height:1.55;font-size:1.05rem}.fx{position:absolute;top:max(16px,env(safe-area-inset-top));right:16px;min-width:48px;min-height:48px;border-radius:50%}
+body.focusing{overflow:hidden}

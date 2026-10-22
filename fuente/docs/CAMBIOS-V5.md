@@ -197,3 +197,10 @@ Causas halladas y corregidas:
 - **Tokens v17**: carbón cálido en capas (fondo #111113 → tarjetas → superficies elevadas), oro con degradado, colores semánticos (ok, aviso, info). Tema claro con las mismas capas.
 - **Detalles**: tarjetas con luz superior y sombra, botón primario con degradado, menú con barra de acento y brillo en la sección activa, marca con gema dorada, héroe de Hoy con resplandor del color de la asignatura, bloques del calendario tintados, diálogos con desenfoque de fondo, entrada suave de pantallas (desactivada con «reducir movimiento»).
 - Pendiente: Safari/iPad real (el desenfoque y los degradados solo se vieron en Chromium); revisar visualmente Progreso, Rutina y Temario con datos.
+
+## v18 — Progreso, estados vacíos, temporizador
+- **Progreso** rehecho: anillo de cumplimiento (fórmula sin cambios: minutos hechos ÷ hechos + omitidos; reprogramadas fuera), esta semana, racha (días seguidos con alguna sesión hecha, contando desde ayer si hoy aún no hay), total, últimos 7 días, evolución de 6 semanas con el cumplimiento de cada una y reparto por asignatura con su cumplimiento. Se conservan «Cómo se calcula», la rutina y «Lo que aprende el planificador». Sin datos: estado vacío, nada inventado.
+- **Estados vacíos** con acción en Tareas, Exámenes y Progreso.
+- **Temporizador**: tarjeta con anillo de progreso, fase y «Qué hacer»; **modo concentración** a pantalla completa (reloj hh:mm:ss, barra, instrucción; Esc o ✕ sale, el contador sigue; «Terminar y guardar» cierra la sesión).
+- Menú: «Progreso y estadísticas» pasa a «Progreso».
+- Pendiente: Safari/iPad real (pantalla completa y wake lock no verificados); gestos de deslizar sobre sesiones (no hechos).
