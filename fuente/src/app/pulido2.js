@@ -4,4 +4,4 @@
  const col=days.map(d=>`<section class="rday${d===n.date?' today':''}"><header class=rdh><b>${DOW[weekday(d)]}</b><span>${d.slice(8)}/${d.slice(5,7)}</span><em>${tot(d)?hr(tot(d)):'Libre'}</em></header>${dayItems(d)||'<p class=m>Sin sesiones.</p>'}</section>`).join('');
  return h.slice(0,i)+k+`<div class=rweek>${col}</div>`}}
 {const o=V.obj;if(o)V.obj=a=>{ensureG(S);let h=o(a);if(S.goals.target==null&&!(S.grades||[]).length){h=h.replace(/<h2>[^<]*C[oó]mo vas[^<]*<\/h2>[\s\S]*?(?=<h2>Notas de esta|$)/i,'')}return h}}
-{const c=V.cur;if(c)V.cur=a=>c(a).replace('<div class=card><h3>Falta la fecha de la PAU</h3>','<div class="card hero"><h3>Falta la fecha de la PAU</h3>')}
+{const c=V.cur;if(c)V.cur=a=>c(a).replace('<div class=card><h3>Falta la fecha de la PAU</h3>','<div class="card hl"><h3>Falta la fecha de la PAU</h3>')}

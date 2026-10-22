@@ -1,6 +1,6 @@
 /* Focus OS · sistema de diseño. Oscuro por defecto (carbón + dorado); tema claro opcional en Ajustes. Todos los colores salen de estas variables. */
 /* Tokens v17. Oscuro: carbón cálido en capas (nunca negro puro, para no deslumbrar) + oro; el color de cada asignatura vive en palette.ts. */
-:root{color-scheme:dark;--bg:#111113;--surface:#18181b;--surface2:#212125;--surface3:#2a2a30;--line:#2c2c33;--line2:#3b3b44;--text:#f4f1ea;--muted:#a9a498;--accent:#e0b45a;--accent2:#c4953a;--accent-ink:#1b1405;--accent-soft:#e0b45a22;--warn:#ff9a85;--ok:#86c797;--info:#8fb4ff;--shadow:0 12px 40px #00000066;--shadow-sm:0 1px 2px #00000066,0 6px 18px #0000004d;--glow:#e0b45a14;--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--r:18px}
+:root{color-scheme:dark;--bg:#111113;--surface:#18181b;--surface2:#212125;--surface3:#2a2a30;--line:#2c2c33;--line2:#3b3b44;--text:#f4f1ea;--muted:#a9a498;--accent:#d9ad52;--accent2:#c4953a;--accent-ink:#1b1405;--accent-soft:#d9ad5224;--warn:#ff9a85;--ok:#86c797;--info:#8fb4ff;--shadow:0 12px 40px #00000066;--shadow-sm:0 1px 2px #00000066,0 6px 18px #0000004d;--glow:#d9ad5210;--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--r:18px}
 :root[data-theme=light]{color-scheme:light;--bg:#f4f1ea;--surface:#ffffff;--surface2:#ede9e0;--surface3:#e3ded2;--line:#dcd6c8;--line2:#c9c2b2;--text:#1d1b17;--muted:#645f55;--accent:#7b5a12;--accent2:#5f450c;--accent-ink:#ffffff;--accent-soft:#7b5a1218;--warn:#a8321c;--ok:#2f7a45;--info:#2f5fb3;--shadow:0 12px 40px #3d34221f;--shadow-sm:0 1px 2px #3d342218,0 6px 18px #3d34220f;--glow:#7b5a1210}
 *{box-sizing:border-box;min-width:0}html{-webkit-text-size-adjust:100%;font-size:106.25%;font-family:var(--font);height:100%}
 @supports (font:-apple-system-body){html{font:-apple-system-body;font-family:var(--font)}}
@@ -193,7 +193,7 @@ h1{font-size:2.15rem;font-weight:720;letter-spacing:-.025em;text-wrap:balance}
 :root[data-theme=light] .card{background:var(--surface);box-shadow:var(--shadow-sm)}
 .card.item[data-a]{cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}.card.item[data-a]:hover{transform:translateY(-1px);border-color:var(--line2)}
 /* botones */
-button.pri{background:linear-gradient(180deg,var(--accent),var(--accent2));border-color:transparent;box-shadow:0 1px 0 #ffffff55 inset,0 6px 16px color-mix(in srgb,var(--accent) 28%,transparent)}
+button.pri{background:var(--accent);border-color:var(--accent);box-shadow:none}
 button.pri:hover{filter:brightness(1.06)}
 button:not(.pri):hover{background:var(--surface3)}
 button:focus-visible,[data-a]:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
@@ -209,9 +209,6 @@ button:focus-visible,[data-a]:focus-visible{outline:3px solid var(--accent);outl
 /* pestañas */
 @media(max-width:999px){#tabs{border-radius:22px 22px 0 0;box-shadow:0 -10px 30px #00000055}#tabs button[aria-current=page]{background:linear-gradient(180deg,var(--accent-soft),transparent);box-shadow:inset 0 2px 0 var(--accent)}}
 /* Hoy */
-.hero{position:relative;overflow:hidden;background:radial-gradient(520px 220px at 100% 0,color-mix(in srgb,var(--c,var(--accent)) 30%,transparent),transparent 70%),linear-gradient(160deg,color-mix(in srgb,var(--c,var(--accent)) 16%,var(--surface)),var(--surface) 72%);border-color:color-mix(in srgb,var(--c,var(--accent)) 50%,var(--line));box-shadow:var(--shadow),inset 0 1px 0 #ffffff12}
-.hero:before{content:"";position:absolute;left:0;top:22px;bottom:22px;width:4px;border-radius:0 4px 4px 0;background:var(--c,var(--accent));box-shadow:0 0 18px var(--c,var(--accent))}
-.hero .hn{font-size:2.35rem;font-weight:740}
 .chip{border-color:color-mix(in srgb,var(--c,var(--line2)) 50%,var(--line))}
 .dprog,.bar{background:var(--surface3)}.dprog i,.bar i{background:linear-gradient(90deg,var(--accent2),var(--accent))}
 .tr{transition:background .15s;border-radius:12px}.tr:hover{background:color-mix(in srgb,var(--c,var(--accent)) 7%,transparent)}
@@ -261,5 +258,5 @@ body.focusing{overflow:hidden}
 .rday.today{border-color:var(--accent);box-shadow:var(--glow)}
 .rdh{display:flex;align-items:baseline;gap:8px}.rdh b{font-size:1rem}.rdh span{color:var(--muted);font-size:.875rem}.rdh em{margin-left:auto;font-style:normal;font-size:.875rem;color:var(--accent)}
 .rday .m{margin:0}
-.card.hero{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-soft),var(--surface) 80%)}
+.card.hl{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-soft),var(--surface) 80%)}
 .rday .kind{display:none}.rday .bh{flex-wrap:wrap}

@@ -1,6 +1,6 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="color-scheme" content="dark light"><title>Focus OS</title><link rel=icon type=image/png href=icon-192.png><link rel=manifest href=manifest.webmanifest><link rel=apple-touch-icon href=icon-180.png><meta name=apple-mobile-web-app-capable content=yes><meta name=mobile-web-app-capable content=yes><meta name=apple-mobile-web-app-title content="Focus OS"><meta name=apple-mobile-web-app-status-bar-style content=black><meta name=theme-color content="#111113"><style>/* Focus OS · sistema de diseño. Oscuro por defecto (carbón + dorado); tema claro opcional en Ajustes. Todos los colores salen de estas variables. */
 /* Tokens v17. Oscuro: carbón cálido en capas (nunca negro puro, para no deslumbrar) + oro; el color de cada asignatura vive en palette.ts. */
-:root{color-scheme:dark;--bg:#111113;--surface:#18181b;--surface2:#212125;--surface3:#2a2a30;--line:#2c2c33;--line2:#3b3b44;--text:#f4f1ea;--muted:#a9a498;--accent:#e0b45a;--accent2:#c4953a;--accent-ink:#1b1405;--accent-soft:#e0b45a22;--warn:#ff9a85;--ok:#86c797;--info:#8fb4ff;--shadow:0 12px 40px #00000066;--shadow-sm:0 1px 2px #00000066,0 6px 18px #0000004d;--glow:#e0b45a14;--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--r:18px}
+:root{color-scheme:dark;--bg:#111113;--surface:#18181b;--surface2:#212125;--surface3:#2a2a30;--line:#2c2c33;--line2:#3b3b44;--text:#f4f1ea;--muted:#a9a498;--accent:#d9ad52;--accent2:#c4953a;--accent-ink:#1b1405;--accent-soft:#d9ad5224;--warn:#ff9a85;--ok:#86c797;--info:#8fb4ff;--shadow:0 12px 40px #00000066;--shadow-sm:0 1px 2px #00000066,0 6px 18px #0000004d;--glow:#d9ad5210;--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--r:18px}
 :root[data-theme=light]{color-scheme:light;--bg:#f4f1ea;--surface:#ffffff;--surface2:#ede9e0;--surface3:#e3ded2;--line:#dcd6c8;--line2:#c9c2b2;--text:#1d1b17;--muted:#645f55;--accent:#7b5a12;--accent2:#5f450c;--accent-ink:#ffffff;--accent-soft:#7b5a1218;--warn:#a8321c;--ok:#2f7a45;--info:#2f5fb3;--shadow:0 12px 40px #3d34221f;--shadow-sm:0 1px 2px #3d342218,0 6px 18px #3d34220f;--glow:#7b5a1210}
 *{box-sizing:border-box;min-width:0}html{-webkit-text-size-adjust:100%;font-size:106.25%;font-family:var(--font);height:100%}
 @supports (font:-apple-system-body){html{font:-apple-system-body;font-family:var(--font)}}
@@ -193,7 +193,7 @@ h1{font-size:2.15rem;font-weight:720;letter-spacing:-.025em;text-wrap:balance}
 :root[data-theme=light] .card{background:var(--surface);box-shadow:var(--shadow-sm)}
 .card.item[data-a]{cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s}.card.item[data-a]:hover{transform:translateY(-1px);border-color:var(--line2)}
 /* botones */
-button.pri{background:linear-gradient(180deg,var(--accent),var(--accent2));border-color:transparent;box-shadow:0 1px 0 #ffffff55 inset,0 6px 16px color-mix(in srgb,var(--accent) 28%,transparent)}
+button.pri{background:var(--accent);border-color:var(--accent);box-shadow:none}
 button.pri:hover{filter:brightness(1.06)}
 button:not(.pri):hover{background:var(--surface3)}
 button:focus-visible,[data-a]:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
@@ -209,9 +209,6 @@ button:focus-visible,[data-a]:focus-visible{outline:3px solid var(--accent);outl
 /* pestañas */
 @media(max-width:999px){#tabs{border-radius:22px 22px 0 0;box-shadow:0 -10px 30px #00000055}#tabs button[aria-current=page]{background:linear-gradient(180deg,var(--accent-soft),transparent);box-shadow:inset 0 2px 0 var(--accent)}}
 /* Hoy */
-.hero{position:relative;overflow:hidden;background:radial-gradient(520px 220px at 100% 0,color-mix(in srgb,var(--c,var(--accent)) 30%,transparent),transparent 70%),linear-gradient(160deg,color-mix(in srgb,var(--c,var(--accent)) 16%,var(--surface)),var(--surface) 72%);border-color:color-mix(in srgb,var(--c,var(--accent)) 50%,var(--line));box-shadow:var(--shadow),inset 0 1px 0 #ffffff12}
-.hero:before{content:"";position:absolute;left:0;top:22px;bottom:22px;width:4px;border-radius:0 4px 4px 0;background:var(--c,var(--accent));box-shadow:0 0 18px var(--c,var(--accent))}
-.hero .hn{font-size:2.35rem;font-weight:740}
 .chip{border-color:color-mix(in srgb,var(--c,var(--line2)) 50%,var(--line))}
 .dprog,.bar{background:var(--surface3)}.dprog i,.bar i{background:linear-gradient(90deg,var(--accent2),var(--accent))}
 .tr{transition:background .15s;border-radius:12px}.tr:hover{background:color-mix(in srgb,var(--c,var(--accent)) 7%,transparent)}
@@ -261,7 +258,7 @@ body.focusing{overflow:hidden}
 .rday.today{border-color:var(--accent);box-shadow:var(--glow)}
 .rdh{display:flex;align-items:baseline;gap:8px}.rdh b{font-size:1rem}.rdh span{color:var(--muted);font-size:.875rem}.rdh em{margin-left:auto;font-style:normal;font-size:.875rem;color:var(--accent)}
 .rday .m{margin:0}
-.card.hero{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-soft),var(--surface) 80%)}
+.card.hl{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-soft),var(--surface) 80%)}
 .rday .kind{display:none}.rday .bh{flex-wrap:wrap}
 </style></head><body>
 <div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b><button id=topSearch data-a=search aria-label="Buscar"><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button></div>
@@ -1671,7 +1668,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='9773e3c5c5',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='0009d6d245',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2353,7 +2350,7 @@ Object.assign(A,{jump:t=>{const el=document.querySelector(`[data-sec="${t.datase
  const col=days.map(d=>`<section class="rday${d===n.date?' today':''}"><header class=rdh><b>${DOW[weekday(d)]}</b><span>${d.slice(8)}/${d.slice(5,7)}</span><em>${tot(d)?hr(tot(d)):'Libre'}</em></header>${dayItems(d)||'<p class=m>Sin sesiones.</p>'}</section>`).join('');
  return h.slice(0,i)+k+`<div class=rweek>${col}</div>`}}
 {const o=V.obj;if(o)V.obj=a=>{ensureG(S);let h=o(a);if(S.goals.target==null&&!(S.grades||[]).length){h=h.replace(/<h2>[^<]*C[oó]mo vas[^<]*<\/h2>[\s\S]*?(?=<h2>Notas de esta|$)/i,'')}return h}}
-{const c=V.cur;if(c)V.cur=a=>c(a).replace('<div class=card><h3>Falta la fecha de la PAU</h3>','<div class="card hero"><h3>Falta la fecha de la PAU</h3>')}
+{const c=V.cur;if(c)V.cur=a=>c(a).replace('<div class=card><h3>Falta la fecha de la PAU</h3>','<div class="card hl"><h3>Falta la fecha de la PAU</h3>')}
 
 /* Progreso: anillo de cumplimiento, racha, semana, evolución de 6 semanas y reparto por asignatura. Todo sale de S.blocks (nada inventado). */
 const segCalc=n=>{const subj=new Map(S.works.map(w=>[w.id,w.subjectId])),dur=b=>b.end-b.start,mon=mondayOf(n.date),

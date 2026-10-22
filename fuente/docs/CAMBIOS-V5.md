@@ -210,3 +210,6 @@ Causas halladas y corregidas:
 - Objetivos y notas: sin objetivo ni notas ya no se pinta la tabla vacía de guiones.
 - Curso hasta la PAU: estado vacío destacado.
 - Verificado: npm test 276/276; Chromium v16 20/20, final 51/51. Pendiente: Safari/iPad real; Temario con temas (fixture sin temario).
+
+## v19.1
+- Hecho / No hecho y tarjeta «Siguiente»: restaurados color y luz anteriores a v17 (botón dorado plano #d9ad52 sin brillo, tarjeta sin resplandor lateral, mismo tamaño de título).
