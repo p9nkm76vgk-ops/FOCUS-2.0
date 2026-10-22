@@ -213,3 +213,8 @@ Causas halladas y corregidas:
 
 ## v19.1
 - Hecho / No hecho y tarjeta «Siguiente»: restaurados color y luz anteriores a v17 (botón dorado plano #d9ad52 sin brillo, tarjeta sin resplandor lateral, mismo tamaño de título).
+
+## v19.2
+- Paleta de asignaturas: vuelve la apagada de antes (la saturada de v17 se ve mal). Test y scripts Chromium actualizados.
+- Hoy: las filas de sesión ya no llevan Hecho/No hecho (ocupaban media fila); se toca la fila y se abre el menú (Hecho, Mover, No la haré…). La tarjeta «Siguiente» conserva Hecho / No hecho. Más separación entre botones.
+- Verificado: npm test 276/276; Chromium v16 20/20, v18 12/12, final 51/51.

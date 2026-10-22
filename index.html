@@ -260,6 +260,7 @@ body.focusing{overflow:hidden}
 .rday .m{margin:0}
 .card.hl{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-soft),var(--surface) 80%)}
 .rday .kind{display:none}.rday .bh{flex-wrap:wrap}
+.tr[data-a]{cursor:pointer;gap:12px}.tr .chev{color:var(--muted);font-size:1.5rem;padding:0 6px}.hb{gap:14px}.hb button{margin:0}.row button+button{margin-left:2px}
 </style></head><body>
 <div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b><button id=topSearch data-a=search aria-label="Buscar"><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button></div>
 <nav id=tabs aria-label="Secciones principales"></nav><aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
@@ -1152,13 +1153,12 @@ function regenerate(i                                                           
 }
 ;return{DEFAULT_ROUTINE,INTENSITY,HORIZON_DAYS,activityFor,fixedBusy,habitBusy,generate,proposeSchedule,regenerate,mondayOf}})();
 const PAL=(()=>{/** Paleta y color por asignatura, CENTRALIZADOS. Color efectivo = personalizado (userColor) > predeterminado por clave > color heredado (`color`). */
-// Paleta v17: 9 tonos repartidos por la rueda de color y con luminosidad algo distinta (diferencia de color ΔE76 mínima entre pares ≈ 40; antes ≈ 18).
-// Contraste ≥ 4,5:1 sobre el carbón y ≥ 3:1 sobre blanco; el nombre de la asignatura siempre va junto al color (no depende solo del color).
+// Paleta apagada y cálida (la de siempre): colores sobrios que no gritan sobre el fondo oscuro. El nombre de la asignatura siempre va junto al color.
 const DEFAULT_SUBJECT_COLORS                         = {
-  'Matemáticas II': '#0597FD', 'Física': '#8D77A8', 'Química': '#00A97E', 'Business': '#A4935F', 'Lengua Castellana': '#E468B8',
-  'Catalán': '#C36925', 'Inglés': '#0790A4', 'Historia de España': '#EC5D6D', 'Historia de la Filosofía': '#5B8F22',
+  'Matemáticas II': '#4A7BA3', 'Física': '#7B6AA0', 'Química': '#4E8B6E', 'Business': '#A97C20', 'Lengua Castellana': '#A9526A',
+  'Catalán': '#C26A3D', 'Inglés': '#3E8C8E', 'Historia de España': '#8B5E3C', 'Historia de la Filosofía': '#7A746B',
 };
-const SPARE_COLORS = ['#8C7BD9', '#C9A227', '#4FA3C7', '#B8795C', '#6FA35A', '#C26E8E'];
+const SPARE_COLORS = ['#5B8F5A', '#C09A3E', '#5A8FB8', '#B07A5C', '#8F72B0', '#7E8A52'];
                                                                                 
 const effectiveColor = (s   )         => s.userColor ?? (s.colorKey ? DEFAULT_SUBJECT_COLORS[s.colorKey] : undefined) ?? s.color ?? '#7A746B';
 const nextSpare = (used          )         => SPARE_COLORS.find(c => !used.map(u => u.toLowerCase()).includes(c.toLowerCase())) ?? '#7A746B';
@@ -1668,7 +1668,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='0009d6d245',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='dc81a3e431',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2201,7 +2201,7 @@ const HY={open:{},
  btns(it,big){const id=esc(it.id),c=big?' big':'';return it.t==='ob'?`<button class="pri${c}" data-a=quickDone data-id="${id}">✓ Hecho</button><button class="${c.trim()}" data-a=noHecho data-id="${id}">No hecho</button>`:`<button class="pri${c}" data-a=habQuick data-id="${id}">✓ Hecho</button><button class="${c.trim()}" data-a=habSkip data-id="${id}">No hecho</button>`},
  hero(n,it){const i=HY.info(it),now_=it.start<=n.minute,dur=it.end-it.start,sp=i.how.indexOf(': '),ht=sp>0?i.how.slice(0,sp):'',hd=sp>0?i.how.slice(sp+2):i.how;
   return`<div class=hero style="--c:${i.s.color}"><small class=lab>${now_?'Ahora':'Siguiente'} · ${fm(it.start)}–${fm(it.end)} · ${dur} min</small><h2 class=hn>${esc(i.s.name)}</h2><p class=hs>${esc(i.title)}${i.ph?` <span class=chip>${esc(i.ph.label)}${i.ph.n>1?` · ${i.ph.i+1}/${i.ph.n}`:''}</span>`:''}</p>${hd?`<details class=how2><summary>${esc(ht||'Qué hacer')}</summary><p>${esc(hd)}</p></details>`:''}<div class=hb>${it.t==='ob'&&it.b.date===n.date&&!UI.timer?`<button class="big" data-a=timerStart data-id="${esc(it.id)}">▶ Empezar</button>`:''}${HY.btns(it,true)}</div></div>`},
- row(it){const i=HY.info(it),done=it.st==='done';return`<div class="tr ${it.st}" style="--c:${i.s.color}"><span class=t>${fm(it.start)}</span><i class=dot></i><div class=m1><b>${esc(i.s.name)}</b><small>${esc(i.title)}${i.ph?' · '+i.ph.label.toLowerCase():''}</small></div><div class=ra>${done?'<span class=okm>✓</span>':HY.btns(it,false)}</div></div>`},
+ row(it){const i=HY.info(it),done=it.st==='done';return`<div class="tr ${it.st}" style="--c:${i.s.color}" data-a=blkMenu data-t=${it.t==='ob'?'ob':'hab'} data-id="${esc(it.id)}" role=button tabindex=0 aria-label="Opciones de ${esc(i.s.name)} a las ${fm(it.start)}"><span class=t>${fm(it.start)}</span><i class=dot></i><div class=m1><b>${esc(i.s.name)}</b><small>${esc(i.title)}${i.ph?' · '+i.ph.label.toLowerCase():''}</small></div><div class=ra>${done?'<span class=okm>✓</span>':'<span class=chev aria-hidden=true>›</span>'}</div></div>`},
  exams(n){const l=act().filter(w=>w.kind==='exam'&&w.dueDate>=n.date&&w.auto!=='review').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)).slice(0,3);
   return l.length?`<div class=chips>${l.map(w=>{const d=P.daysBetween(n.date,w.dueDate);return`<span class="chip${d<=P.guardDays(w)?' hot':''}">${esc(sub(w.subjectId).name)} · ${d===0?'hoy':d===1?'mañana':'en '+d+' días'}</span>`}).join('')}</div>`:''},
  cls(n){const c=TT.next(n);return c?`<p class=m>Próxima clase: <b>${esc(c.name)}</b> · ${c.k===0?'hoy':c.k===1?'mañana':DOW[weekday(c.date)]} ${fm(c.start)}</p>`:''}
