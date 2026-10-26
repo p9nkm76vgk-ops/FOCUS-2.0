@@ -262,3 +262,6 @@ body.focusing{overflow:hidden}
 .rday .kind{display:none}.rday .bh{flex-wrap:wrap}
 .tr[data-a]{cursor:pointer;gap:12px}.tr .chev{color:var(--muted);font-size:1.5rem;padding:0 6px}.hb{gap:14px}.hb button{margin:0}.row button+button{margin-left:2px}
 .wr .quit{margin-left:10px;min-height:44px;flex:none}
+.arr{display:grid;gap:6px;padding:10px 0;border-top:1px solid var(--line)}.arr .an{display:flex;align-items:baseline;gap:10px}.arr .an small{color:var(--muted);margin-left:auto}
+.arr .ab{height:8px;border-radius:4px;background:var(--surface3)}.arr .ab i{display:block;height:100%;border-radius:4px;background:var(--c,var(--accent))}
+.arr .at{color:var(--muted)}.arr em{font-style:normal;font-weight:650}.arr em.ok{color:var(--ok)}.arr em.mid{color:var(--accent)}.arr em.low{color:var(--warn)}

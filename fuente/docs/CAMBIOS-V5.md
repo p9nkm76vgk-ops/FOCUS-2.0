@@ -246,3 +246,9 @@ Causas halladas y corregidas:
 - Horas de examen: factor heurístico por valor (Mates ×1,15, Física/Química ×1,08, Business/Hª España ×0,92) dentro del tope existente (0,85–1,4).
 - Cifras tomadas del documento tal cual (no verificadas por mí). Fórmula: 0,6·media Bach. + 0,4·media acceso + 0,2·M1 + 0,2·M2.
 - Verificado: npm test 282/282, estrés 6000/0, Chromium v16/v18/final/v13.
+
+## v23 — Fines de semana activos y «Cómo llegarás a cada examen»
+- Fines de semana: ventanas 08:00–13:30, 15:00–17:00, 17:30–20:30 (levantarse a las 8), tope 7 h/día (`maxDayWeekend`). Migración única solo si las ventanas eran las antiguas por defecto.
+- El refuerzo de mañana (06–07) solo aplica de lunes a viernes; el de noche (22–23), todos los días.
+- Exámenes: tarjeta «Cómo llegarás a cada examen» (horas hechas + previstas frente a la estimación; etiquetas Plan completo / Llegas justo / Te quedas corto).
+- Pruebas ejecutadas: npm test, estrés (6000 estados, 0 fallos), Chromium v16/v18/final/v13/pages. Safari/iPad sin probar.

@@ -59,3 +59,20 @@ test('valor por asignatura: Matemáticas II > Física/Química > lenguas > Busin
   assert.equal(admision(10, 10, 10, 10), 14);
   assert.ok(needPond(13.526, 9.1, 10) > 10, 'PARS Industrial: no alcanzable con media 9,1 (>10 en las ponderables)');
 });
+test('fines de semana activos: se migran una vez las ventanas por defecto (8:00–13:30 y tarde), tope 7 h, y la mañana del refuerzo solo de lunes a viernes', async () => {
+  clock.t = new Date(2026, 9, 26, 14, 30).getTime();
+  const a = await boot(); await a.click('addExam'); await a.submit({ title: '', subjectId: a.S.subjects[0].id, dueDate: '2026-11-09', time: '', estOverride: '', difficulty: '3', importance: '4', readiness: '0', status: 'pending', notes: '' });
+  const st = JSON.parse(a.store['focusos.v1']); delete st.weV; delete st.settings.maxDayWeekend;
+  const b = await boot({ 'focusos.v1': JSON.stringify(st) });
+  assert.deepEqual(JSON.parse(JSON.stringify(b.S.settings.availability[6])), [{ start: 480, end: 810 }, { start: 900, end: 1020 }, { start: 1050, end: 1230 }]);
+  assert.equal(b.S.settings.maxDayWeekend, 420); assert.equal(b.S.weV, 1);
+  const st2 = JSON.parse(JSON.stringify(st)); st2.settings.availability[6] = [{ start: 600, end: 700 }]; delete st2.weV;
+  const c = await boot({ 'focusos.v1': JSON.stringify(st2) }); assert.deepEqual(JSON.parse(JSON.stringify(c.S.settings.availability[6])), [{ start: 600, end: 700 }], 'ventanas propias no se tocan');
+  const wk = d => new Date(d + 'T00:00:00Z').getUTCDay();
+  const early = b.S.blocks.filter(x => x.start < 480 && (wk(x.date) === 0 || wk(x.date) === 6)); assert.equal(early.length, 0, 'fin de semana: nada antes de las 8:00');
+});
+test('«Cómo llegarás»: Exámenes muestra por examen lo hecho, lo previsto y el %', async () => {
+  clock.t = new Date(2026, 9, 26, 14, 30).getTime();
+  const a = await boot(); await a.click('addExam'); await a.submit({ title: '', subjectId: a.S.subjects[0].id, dueDate: '2026-11-09', time: '', estOverride: '', difficulty: '3', importance: '4', readiness: '0', status: 'pending', notes: '' });
+  const h = a.t.V.exa(); assert.match(h, /Cómo llegarás a cada examen/); assert.match(h, /previstas/); assert.match(h, /\d+ %/);
+});

@@ -78,7 +78,7 @@ interface Day { occ: (Win & { sub?: string })[]; total: number; perWork: Map<str
 /** Refuerzo de exámenes: ventanas EXTRA con fecha (p. ej. 06:00–07:00 y 22:00–23:00 durante dos semanas). Suben también el tope del día en lo que suman. */
 const extraOnS = (s: Settings, d: string): Win[] => (s.extra ?? []).filter(e => e.date === d).map(e => ({ start: e.start, end: e.end }));
 export const availOf = (s: Settings, d: string): Win[] => [...extraOnS(s, d), ...(s.availability[weekday(d)] ?? [])].sort((a, b) => a.start - b.start);
-export const maxOfS = (s: Settings, d: string): number => s.maxDayMin + extraOnS(s, d).reduce((a, w) => a + dur(w), 0);
+export const maxOfS = (s: Settings, d: string): number => { const wd = weekday(d); return ((wd === 0 || wd === 6) && s.maxDayWeekend ? Math.max(s.maxDayMin, s.maxDayWeekend) : s.maxDayMin) + extraOnS(s, d).reduce((a, w) => a + dur(w), 0); };
 export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]; boost?: Record<string, number>; avoid?: { hours: number[]; days: number[] }; activities?: { date: string; start: number | null; end: number | null; status: string }[] }, now: Now): PlanResult {
   const s = input.settings;
   const active = (w?: Work) => !!w && (w.status === 'pending' || w.status === 'in_progress');

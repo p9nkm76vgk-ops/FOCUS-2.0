@@ -1,0 +1,10 @@
+/* v23 · Fines de semana activos (8:00–13:30 y tarde hasta las 20:30; tope 7 h) y «Cómo llegarás» a cada examen */
+const WE_OLD='600-810,960-1020,1050-1230';
+function migrateWeekend(Sx){if(Sx.weV>=1||!Sx.settings)return;Sx.weV=1;const av=Sx.settings.availability||{},key=d=>(av[d]||[]).map(w=>w.start+'-'+w.end).join(',');
+ for(const d of [0,6])if(key(d)===WE_OLD)av[d]=[{start:480,end:810},{start:900,end:1020},{start:1050,end:1230}];
+ if(!(Sx.settings.maxDayWeekend>0))Sx.settings.maxDayWeekend=420}
+function arrival(w,today){const st=studyOf(w),pl=S.blocks.filter(b=>b.workId===w.id&&b.status==='planned'&&b.date>=today&&b.date<=w.dueDate).reduce((a,b)=>a+b.end-b.start,0),rem=P.totalNeed(w),tot=st.min+rem,pct=tot>0?Math.min(100,Math.round(100*(st.min+pl)/tot)):100;return{done:st.min,plan:pl,rem,tot,pct,lab:pct>=95?'Plan completo':pct>=75?'Llegas justo':'Te quedas corto'}}
+function arrivalCard(){const td=now().date,ex=S.works.filter(w=>w.kind==='exam'&&w.auto!=='review'&&w.status!=='archived'&&w.status!=='done'&&w.dueDate>=td).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));if(!ex.length)return'';
+ const first=ex[0].dueDate,tp=ex.reduce((a,w)=>a+arrival(w,td).plan,0),rows=ex.map(w=>{const s=sub(w.subjectId),a=arrival(w,td);return`<div class=arr style="--c:${s.color}"><span class=an><i class=dot></i><b>${esc(s.name)}</b><small>${fd(w.dueDate)}</small></div><div class=ab><i style="width:${a.pct}%"></i></div><span class=at><b>${hr(a.plan)}</b> previstas · ${hr(a.done)} hechas · <em class=${a.pct>=95?'ok':a.pct>=75?'mid':'low'}>${a.lab} (${a.pct} %)</em></span></div>`}).join('');
+ return`<div class=card><h3>Cómo llegarás a cada examen</h3><p class=m>Con el calendario actual: ${hr(tp)} previstas desde hoy hasta cada examen. El % compara lo estudiado y previsto con lo que pide la estimación. Es una proyección: depende de que cumplas las sesiones.</p>${rows}</div>`}
+{const e=V.exa;V.exa=a=>{const h=e(a),c=arrivalCard();return c?h.replace(/(<div class=ph>[\s\S]*?<\/div>)/,m=>m+c):h}}

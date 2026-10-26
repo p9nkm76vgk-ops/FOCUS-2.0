@@ -6,6 +6,7 @@ export interface Settings {
   extra?: { date: string; start: number; end: number }[]; // ventanas extra con fecha (refuerzo de exámenes)
   availability: Record<number, Win[]>; // 0=domingo … 6=sábado (ventanas de estudio permitidas)
   blockedDates: { date: string; start: number; end: number; pausa?: boolean }[]; // bloqueos puntuales
+  maxDayWeekend?: number; // tope diario en sábado y domingo (si es mayor que maxDayMin)
   maxDayMin: number; preferredMin: number; maxSessionMin: number;
   minSessionMin: number; minGapMin: number; horizonDays: number;
 }
