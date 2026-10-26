@@ -258,3 +258,7 @@ Causas halladas y corregidas:
 
 ## v23.2 — Inglés al mínimo
 - Inglés factor 0,55 (≈4–5 h por examen); Lengua 1,12, Business y Filosofía 1,0. Suelo del factor de horas bajado de 0,85 a 0,5.
+
+## v23.3 — Nivel actual por asignatura y «Horas hasta cada examen»
+- Cada asignatura tiene «Nivel actual» (0 de cero · 1 algo sé · 2 bastante bien · 3 muy preparado). Es el valor por defecto de «Preparación» en exámenes nuevos. Migración única (`nivV`): niveles iniciales según el usuario (Mates 1, Física 0, Química 2, Business 1, Lengua 0, Catalán 0, Inglés 2, Hª España 0, Filosofía 2) aplicados solo a exámenes con temas automáticos a 0.
+- La tarjeta pasa a «Horas hasta cada examen»: hechas y previstas, sin etiquetas «te quedas corto» ni %. Inglés factor 0,8.

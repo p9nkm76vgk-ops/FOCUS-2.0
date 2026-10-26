@@ -71,8 +71,19 @@ test('fines de semana activos: se migran una vez las ventanas por defecto (8:00�
   const wk = d => new Date(d + 'T00:00:00Z').getUTCDay();
   const early = b.S.blocks.filter(x => x.start < 480 && (wk(x.date) === 0 || wk(x.date) === 6)); assert.equal(early.length, 0, 'fin de semana: nada antes de las 8:00');
 });
-test('«Cómo llegarás»: Exámenes muestra por examen lo hecho, lo previsto y el %', async () => {
+test('«Horas hasta cada examen»: Exámenes muestra por examen lo hecho y lo previsto', async () => {
   clock.t = new Date(2026, 9, 26, 14, 30).getTime();
   const a = await boot(); await a.click('addExam'); await a.submit({ title: '', subjectId: a.S.subjects[0].id, dueDate: '2026-11-09', time: '', estOverride: '', difficulty: '3', importance: '4', readiness: '0', status: 'pending', notes: '' });
-  const h = a.t.V.exa(); assert.match(h, /Cómo llegarás a cada examen/); assert.match(h, /previstas/); assert.match(h, /\d+ %/);
+  const h = a.t.V.exa(); assert.match(h, /Horas hasta cada examen/); assert.match(h, /previstas/); assert.match(h, /hechas/); assert.doesNotMatch(h, /Te quedas corto/);
+});
+
+test('nivel por asignatura: reduce las horas del examen y la migración no toca temas ya trabajados', async () => {
+  clock.t = new Date(2026, 9, 26, 14, 30).getTime();
+  const a = await boot(); const s = a.S.subjects[0];
+  await a.click('addExam'); await a.submit({ title: '', subjectId: s.id, dueDate: '2026-11-09', time: '', estOverride: '', difficulty: '3', importance: '4', prep: '0', status: 'pending', notes: '' });
+  const w0 = a.S.works.find(w => w.kind === 'exam'), h0 = w0.estimate.remainingMin;
+  const w = a.S.works.find(x => x.id === w0.id); w.topics = w.topics.map(t => ({ ...t, mastery: 2, selfRating: 2 }));
+  await a.click('replan');
+  assert.ok(a.S.works.find(x => x.id === w0.id).estimate.remainingMin < h0);
+  assert.equal(a.S.nivV, 1);
 });
