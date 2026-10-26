@@ -261,3 +261,4 @@ body.focusing{overflow:hidden}
 .card.hl{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-soft),var(--surface) 80%)}
 .rday .kind{display:none}.rday .bh{flex-wrap:wrap}
 .tr[data-a]{cursor:pointer;gap:12px}.tr .chev{color:var(--muted);font-size:1.5rem;padding:0 6px}.hb{gap:14px}.hb button{margin:0}.row button+button{margin-left:2px}
+.wr .quit{margin-left:10px;min-height:44px;flex:none}

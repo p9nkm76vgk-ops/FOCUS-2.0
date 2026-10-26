@@ -13,3 +13,10 @@ test('horas estudiadas: solo hechas (actualMin manda), omitidas/reprogramadas/pr
   assert.match(a.t.studiedLine(ex), /1h45/);
   a.S.blocks = []; assert.match(a.t.studiedLine(ex), /Aún no hay sesiones hechas/);
 });
+test('Quitar examen pasado: archivar conserva sesiones; eliminar borra examen y sesiones', async () => {
+  const a = await boot(); await a.click('addExam'); await a.submit({ title: 'Parcial', subjectId: a.S.subjects[0].id, dueDate: '2026-10-20', time: '', estOverride: '300', difficulty: '4', importance: '5', readiness: '0', status: 'pending', notes: '' });
+  const ex = a.S.works.find(x => x.kind === 'exam'); a.S.blocks = [blk('a', ex.id, '2026-10-12', 'done', 600, 660)];
+  clock.t = new Date(2026, 9, 26, 8, 0).getTime();
+  assert.match(a.t.V.exa(), /Pasados y archivados \(1\)/);
+  assert.match(a.t.V.exa(), /data-a=examQuit/);
+});

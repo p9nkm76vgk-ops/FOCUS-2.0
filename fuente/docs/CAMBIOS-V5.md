@@ -222,3 +222,6 @@ Causas halladas y corregidas:
 ## v20
 - Horas realmente estudiadas por examen (solo sesiones hechas; si hay tiempo real, ese): en la lista de Exámenes («2h20 estudiadas»), en Hoy la mañana del examen («Te has preparado 2h20 en 2 sesiones · te quedan … previstas») y al acabar, junto a «¿Qué tal ha ido?» y «¿Qué nota sacaste?».
 - Omitidas, reprogramadas y previstas no cuentan como estudiadas. Test v20.
+
+## v20.1
+- Exámenes ya pasados salen solos de la lista principal al grupo plegado «Pasados y archivados». Cada uno tiene «Quitar»: Archivar (conserva horas y nota) o Eliminar del todo (borra examen y sesiones; conserva la nota apuntada). Antes no se podía eliminar un examen con sesiones hechas.
