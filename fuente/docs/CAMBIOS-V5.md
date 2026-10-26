@@ -228,3 +228,8 @@ Causas halladas y corregidas:
 
 ## v20.2
 - Actualización automática: cuando se instala una versión nueva, la app se recarga sola (si no hay un formulario abierto) y comprueba actualizaciones al abrir. Los datos no se tocan. La primera vez desde una versión antigua hay que cerrar y abrir la app dos veces.
+
+## v20.3 — semana de exámenes
+- Causa: cuando las horas no alcanzaban para todos los exámenes, el planificador llenaba el más cercano hasta el final y los demás se quedaban SIN ninguna hora (con 9 exámenes en una semana solo 3–4 asignaturas recibían estudio).
+- Arreglo: reparto por niveles (water-filling). Si la necesidad total supera el 90 % de la capacidad hasta el último examen, cada examen recibe como máximo el mismo nivel de horas y el sobrante va a los más urgentes. Función pura de los datos → estable al repetir. Si todo cabe, no cambia nada.
+- Verificado: npm test 279/279, estrés 6000 estados 0 fallos, test v20 (9 exámenes: todas las asignaturas ≥ 60 min y regenerar dos veces no cambia).

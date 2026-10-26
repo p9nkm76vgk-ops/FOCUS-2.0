@@ -133,6 +133,31 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   const tier = (d: Demand) => d.w.auto === 'review' ? 2 : d.w.kind === 'exam' && daysBetween(now.date, d.w.dueDate) <= EXAM_FIRST_DAYS ? 0 : 1;
   demands.sort((a, b) => tier(a) - tier(b) || a.key.localeCompare(b.key) || b.prio - a.prio || a.w.id.localeCompare(b.w.id) || a.part.localeCompare(b.part));
 
+  /** Semana de exámenes (no cabe todo): la capacidad se reparte entre los exámenes con «llenado por nivel» (cada uno recibe como mucho el mismo nivel L; lo que sobra va a los más urgentes).
+   *  Sin esto, el examen más cercano se lleva todas las horas y los demás se quedan en cero. Es una función pura de los datos (no depende de las sesiones ya creadas), así que es estable al repetir.
+   *  Si todo cabe (necesidad ≤ 90 % de la capacidad), no cambia nada. */
+  const trimmed = new Map<string, number>();
+  {
+    const exD = demands.filter(d => d.w.kind === 'exam' && d.w.auto !== 'review' && !d.clipped && d.need > 0), ids = [...new Set(exD.map(d => d.w.id))];
+    if (ids.length > 1) {
+      const tot = new Map<string, number>(); for (const d of exD) tot.set(d.w.id, (tot.get(d.w.id) ?? 0) + d.need);
+      const lastEx = exD.reduce((m, d) => d.last > m ? d.last : m, now.date), need = [...tot.values()].reduce((a, b) => a + b, 0);
+      let cap = 0; for (let dt = now.date; dt <= lastEx; dt = addDays(dt, 1)) cap += Math.max(0, Math.min(s.maxDayMin - day(dt).total, free(dt, true).reduce((a, f) => a + f.end - f.start, 0)));
+      const budget = Math.floor(cap * 0.9 / 5) * 5;
+      if (need > budget) {
+        const needs = ids.map(id => tot.get(id)!); let lo = 0, hi = Math.max(...needs);
+        while (hi - lo > 5) { const mid = Math.floor((lo + hi) / 10) * 5 || lo + 5; if (needs.reduce((a, n) => a + Math.min(n, mid), 0) <= budget) lo = mid; else hi = mid; }
+        const T = new Map<string, number>(); let used = 0; for (const id of ids) { const t = Math.min(tot.get(id)!, lo); T.set(id, t); used += t; }
+        for (const id of ids) { const room = tot.get(id)! - T.get(id)!; if (room > 0 && budget - used >= 5) { const g = Math.min(room, Math.floor((budget - used) / 5) * 5); T.set(id, T.get(id)! + g); used += g; } } // el sobrante, a los más urgentes (ids ya van por urgencia)
+        for (const id of ids) {
+          const t = T.get(id)!, all = tot.get(id)!; if (t >= all) continue;
+          const ds = exD.filter(d => d.w.id === id); let left = t;
+          ds.forEach((d, i) => { const n = i === ds.length - 1 ? left : Math.min(left, Math.round(t * d.need / all / 5) * 5); left -= n; d.need = n; });
+          trimmed.set(id, all - t);
+        }
+      }
+    }
+  }
   // 2) Conservar sesiones automáticas aún válidas (evita cambios innecesarios)
   const used = new Set(input.blocks.map(b => b.id));
   const kept: Block[] = [], created: Block[] = [], rem = new Map<Demand, number>();
@@ -189,7 +214,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     }
     return left;
   };
-  const deficit = new Map<string, number>(), clippedW = new Set<string>();
+  const deficit = new Map<string, number>([...trimmed]), clippedW = new Set<string>();
   for (const d of demands) {
     let left = fill(d, d.to, rem.get(d)!);
     if (left > 0 && d.ext && d.ext > d.to) left = fill(d, d.ext, left);

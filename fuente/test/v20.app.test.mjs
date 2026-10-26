@@ -20,3 +20,12 @@ test('Quitar examen pasado: archivar conserva sesiones; eliminar borra examen y 
   assert.match(a.t.V.exa(), /Pasados y archivados \(1\)/);
   assert.match(a.t.V.exa(), /data-a=examQuit/);
 });
+test('semana de exámenes: con 9 exámenes que no caben, TODAS las asignaturas reciben horas y repetir no cambia nada', async () => {
+  clock.t = new Date(2026, 9, 26, 14, 30).getTime();
+  const a = await boot(); const days = ['2026-11-02', '2026-11-02', '2026-11-03', '2026-11-03', '2026-11-04', '2026-11-04', '2026-11-05', '2026-11-05', '2026-11-06'];
+  for (let i = 0; i < 9; i++) { await a.click('addExam'); assert.equal(await a.submit({ title: '', subjectId: a.S.subjects[i].id, dueDate: days[i], time: '', estOverride: '', difficulty: '3', importance: '4', readiness: '0', status: 'pending', notes: '' }), '') }
+  const per = id => a.S.blocks.filter(b => a.S.works.find(w => w.id === b.workId).subjectId === id).reduce((x, b) => x + b.end - b.start, 0);
+  const chk = () => { for (const s of a.S.subjects) assert.ok(per(s.id) >= 60, s.name + ' sin horas suficientes: ' + per(s.id)) }; chk();
+  await a.click('replan'); chk(); const snap = JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()); await a.click('replan');
+  assert.ok(JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()) === snap, 'regenerar dos veces seguidas no cambia nada');
+});
