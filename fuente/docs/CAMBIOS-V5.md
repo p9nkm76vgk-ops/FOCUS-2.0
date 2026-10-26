@@ -225,3 +225,6 @@ Causas halladas y corregidas:
 
 ## v20.1
 - Exámenes ya pasados salen solos de la lista principal al grupo plegado «Pasados y archivados». Cada uno tiene «Quitar»: Archivar (conserva horas y nota) o Eliminar del todo (borra examen y sesiones; conserva la nota apuntada). Antes no se podía eliminar un examen con sesiones hechas.
+
+## v20.2
+- Actualización automática: cuando se instala una versión nueva, la app se recarga sola (si no hay un formulario abierto) y comprueba actualizaciones al abrir. Los datos no se tocan. La primera vez desde una versión antigua hay que cerrar y abrir la app dos veces.
