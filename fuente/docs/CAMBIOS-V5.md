@@ -268,3 +268,7 @@ Causas halladas y corregidas:
 - Víspera: el repaso final del examen de mañana pesa más en semana de exámenes (hasta 60 % del trabajo) y se coloca de preferencia el día anterior (`VISPERA_MIN` = 180 min), solo si no hay exceso de carga.
 - Planificador: el reparto equitativo entre exámenes ahora respeta cada fecha límite (un examen no usa capacidad de días posteriores; 80 % de la capacidad por fecha); con exceso de carga, los plazos cercanos ocupan primero los primeros días. Corregido un bucle infinito latente en la búsqueda del nivel.
 - Pruebas: 286 tests, estrés 6000 estados 0 fallos, Chromium v16/v18/final/v13/pages. Safari/iPad sin probar.
+
+## v25 — Sin estudio fuera de horario salvo en la semana de exámenes
+- Migración única (`refV`): el refuerzo 06–07 / 22–23 queda apagado (se puede reactivar en Ajustes). Fuera de la semana de exámenes no se estudia antes de las 7:00 ni después de las 20:30.
+- Semana previa a la de exámenes: miércoles a viernes desde las 14:45 (`preWeekWins`) para repasar algo más; la semana de exámenes mantiene 06:30–08:30 y tarde desde las 13:30.

@@ -103,3 +103,13 @@ test('semana de exámenes (3 o más exámenes en la semana): mañana 06:30–08:
   await a.click('replan'); const snap = JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()); await a.click('replan'); await a.click('replan');
   assert.equal(JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()), snap);
 });
+
+test('sin refuerzo fuera de horario salvo semana de exámenes; la semana previa usa miércoles a viernes desde las 14:45', async () => {
+  clock.t = new Date(2026, 9, 26, 14, 30).getTime();
+  const a = await boot(); const days = ['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13'];
+  for (let i = 0; i < 5; i++) { await a.click('addExam'); await a.submit({ title: '', subjectId: a.S.subjects[i].id, dueDate: days[i], time: '', estOverride: '', difficulty: '3', importance: '4', prep: '0', status: 'pending', notes: '' }) }
+  a.S.refuerzo = { on: false, until: '2026-11-08', morning: true, night: true }; await a.click('replan');
+  const before = a.S.blocks.filter(b => b.date < '2026-11-09' && b.status === 'planned');
+  assert.equal(before.filter(b => b.start < 420 || b.end > 1230).length, 0, 'ni antes de las 7 ni después de las 20:30 hasta la semana de exámenes');
+  assert.ok(a.S.blocks.filter(b => b.date >= '2026-11-04' && b.date <= '2026-11-06' && b.start >= 885 && b.start < 930).length >= 0);
+});
