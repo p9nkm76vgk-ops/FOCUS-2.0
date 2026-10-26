@@ -255,3 +255,6 @@ Causas halladas y corregidas:
 
 ## v23.1 — Prioridades personales por asignatura
 - Más horas a Catalán e Historia de España (a nivel de Lengua, factor 1,06); menos a Inglés, Business y Filosofía (0,88). Matemáticas/Física/Química siguen arriba. Tabla `PERSONAL` en goals.ts, fácil de editar.
+
+## v23.2 — Inglés al mínimo
+- Inglés factor 0,55 (≈4–5 h por examen); Lengua 1,12, Business y Filosofía 1,0. Suelo del factor de horas bajado de 0,85 a 0,5.
