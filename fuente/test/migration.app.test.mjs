@@ -24,8 +24,8 @@ test('si no se puede crear la copia previa, NO se migra y se avisa', async () =>
   const a = await boot(store); assert.equal(a.S.schemaVersion, undefined); assert.match(a.h.toast, /copia previa/); assert.equal(a.S.works.length, JSON.parse(raw).works.length);
 });
 test('vuelta a la versión anterior: la app antigua abre datos migrados sin perder nada y los conserva al guardar', async () => {
-  const a = await boot({ 'focusos.v1': stored('export-v2') }); const migrated = JSON.parse(a.store['focusos.v1']);
-  const old = await boot(a.store, LEGACY); assert.doesNotMatch(old.h.main.innerHTML, /Datos no válidos/);
+  const a = await boot({ 'focusos.v1': JSON.stringify({ ...JSON.parse(stored('export-v2')), refuerzo: { on: false, until: '2026-11-09', morning: true, night: true } }) }); const migrated = JSON.parse(a.store['focusos.v1']);
+  const old = await boot(a.store, LEGACY); // el refuerzo de exámenes es nuevo: la versión anterior lo ignora, por eso aquí va desactivado assert.doesNotMatch(old.h.main.innerHTML, /Datos no válidos/);
   assert.equal(JSON.stringify(old.S.blocks), JSON.stringify(migrated.blocks)); assert.equal(old.S.works.length, migrated.works.length);
   assert.ok(old.S.works.every(w => w.estimatorVersion === 1)); assert.equal(old.S.schemaVersion, 3); assert.deepEqual(old.S.estimateLog, []);
   await old.click('export'); const ex = JSON.parse(old.h.blob); assert.deepEqual(ex.estimateLog, []); assert.ok(ex.works[0].topics[0].evidence);

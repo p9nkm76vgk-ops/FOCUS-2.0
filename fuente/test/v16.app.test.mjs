@@ -30,11 +30,11 @@ test('menú plano: todo a un toque (sin grupos desplegables), buscador arriba y 
   a.t.A.nav({ dataset: { r: 'tar' } }); assert.match(a.h.tabs.innerHTML, /data-r=tar aria-label="Tareas" aria-current=page/);
   a.t.A.nav({ dataset: { r: 'tem' } }); assert.match(a.h.tabs.innerHTML, /data-a=menu aria-label="Más" aria-current=page/, 'secciones secundarias marcan «Más»');
 });
-test('barra de saltos en Ajustes, Método y Temario; Hoy muestra el progreso del día y la semana', async () => {
+test('barra de saltos en Ajustes, Método y Temario; Hoy muestra el progreso del día (sin tira semanal: se quitó por confusa)', async () => {
   const a = await boot();
   const aj = a.t.V.aj(); assert.match(aj, /class=jump/); assert.match(aj, /data-sec="datos"/); assert.match(aj, /data-a=jump data-k="datos"/);
   const met = a.t.V.met(); assert.match(met, /class=jump/); assert.ok((met.match(/data-a=jump/g) ?? []).length >= 9);
   assert.match(a.t.V.tem(), /class=jump/);
   const sid = a.S.subjects[0].id; await a.click('addTask'); await a.submit({ subjectId: sid, when: '1', title: 'Algo' });
-  const hoy = a.t.V.hoy(); assert.match(hoy, /class=wstrip/); assert.match(hoy, /role=progressbar|<h1>Hoy<\/h1>/);
+  const hoy = a.t.V.hoy(); assert.match(hoy, /role=progressbar|<h1>Hoy<\/h1>/);
 });

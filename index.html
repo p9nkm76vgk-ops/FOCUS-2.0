@@ -344,6 +344,10 @@ function subtract(wins       , cuts       )        {
                                                                                               
 
 /** Planificador determinista e idempotente. Función pura: (estado, ahora) → nuevo estado. */
+/** Refuerzo de exámenes: ventanas EXTRA con fecha (p. ej. 06:00–07:00 y 22:00–23:00 durante dos semanas). Suben también el tope del día en lo que suman. */
+const extraOnS = (s          , d        )        => (s.extra ?? []).filter(e => e.date === d).map(e => ({ start: e.start, end: e.end }));
+const availOf = (s          , d        )        => [...extraOnS(s, d), ...(s.availability[weekday(d)] ?? [])].sort((a, b) => a.start - b.start);
+const maxOfS = (s          , d        )         => s.maxDayMin + extraOnS(s, d).reduce((a, w) => a + dur(w), 0);
 function plan(input                                                                                                                                                                                                                                , now     )             {
   const s = input.settings;
   const active = (w       ) => !!w && (w.status === 'pending' || w.status === 'in_progress');
@@ -359,7 +363,8 @@ function plan(input                                                             
   }
   const days = new Map             ();
   const day = (d        ) => { let x = days.get(d); if (!x) { x = { occ: [], total: 0, perWork: new Map() }; days.set(d, x); } return x; };
-  const dayCap = (d        ) => Math.max(60, Math.min(s.maxDayMin, (s.availability[weekday(d)] ?? []).reduce((a, w) => a + dur(w), 0)));
+  const avail = (d        )        => availOf(s, d), maxOf = (d        )         => maxOfS(s, d);
+  const dayCap = (d        ) => Math.max(60, Math.min(maxOf(d), avail(d).reduce((a, w) => a + dur(w), 0)));
   const occupy = (b       ) => { const x = day(b.date); x.occ.push({ start: b.start, end: b.end, sub: byId.get(b.workId)?.subjectId }); x.total += dur(b); x.perWork.set(b.workId, (x.perWork.get(b.workId) ?? 0) + dur(b)); };
   history.filter(b => b.status === 'done').forEach(occupy);
   manualF.forEach(occupy);
@@ -370,7 +375,7 @@ function plan(input                                                             
   const free = (date        , clip         ) => {
     const cuts        = [...s.blockedDates.filter(b => b.date === date), ...day(date).occ.map(o => ({ start: o.start - s.minGapMin, end: o.end + s.minGapMin }))];
     if (clip && date === now.date) cuts.push({ start: 0, end: up5(now.minute) });
-    return subtract(s.availability[weekday(date)] ?? [], cuts);
+    return subtract(avail(date), cuts);
   };
 
   // 1) Demandas por trabajo activo
@@ -411,7 +416,7 @@ function plan(input                                                             
     if (ids.length > 1) {
       const tot = new Map                (); for (const d of exD) tot.set(d.w.id, (tot.get(d.w.id) ?? 0) + d.need);
       const lastEx = exD.reduce((m, d) => d.last > m ? d.last : m, now.date), need = [...tot.values()].reduce((a, b) => a + b, 0);
-      let cap = 0; for (let dt = now.date; dt <= lastEx; dt = addDays(dt, 1)) cap += Math.max(0, Math.min(s.maxDayMin - day(dt).total, free(dt, true).reduce((a, f) => a + f.end - f.start, 0)));
+      let cap = 0; for (let dt = now.date; dt <= lastEx; dt = addDays(dt, 1)) cap += Math.max(0, Math.min(maxOf(dt) - day(dt).total, free(dt, true).reduce((a, f) => a + f.end - f.start, 0)));
       const budget = Math.floor(cap * 0.9 / 5) * 5;
       if (need > budget) {
         const needs = ids.map(id => tot.get(id) ); let lo = 0, hi = Math.max(...needs);
@@ -434,7 +439,7 @@ function plan(input                                                             
     let have = 0;
     for (const b of autoF.filter(x => x.workId === d.w.id && (x.part ?? 'main') === d.part).sort(cmp)) {
       if (b.date < d.from || b.date > (d.ext ?? d.to) || (b.date === d.last && b.end > d.cutoff) || have + dur(b) > d.need) continue;
-      if (!free(b.date, false).some(f => f.start <= b.start && b.end <= f.end) || day(b.date).total + dur(b) > s.maxDayMin) continue;
+      if (!free(b.date, false).some(f => f.start <= b.start && b.end <= f.end) || day(b.date).total + dur(b) > maxOf(b.date)) continue;
       occupy(b); kept.push(b); have += dur(b);
     }
     const r = d.need - have; rem.set(d, have > 0 && r < MIN_FRAG ? 0 : r); // resto diminuto tras conservar sesiones: se da por cubierto
@@ -451,7 +456,7 @@ function plan(input                                                             
       const avH = new Set(input.avoid?.hours ?? []), avD = new Set(input.avoid?.days ?? []), rev = d.w.auto === 'review';
       for (const strict of [true, false]) {
         for (let dt = d.from; dt <= to; dt = addDays(dt, 1)) {
-          const x = day(dt), capLeft = s.maxDayMin - x.total; if (capLeft <= 0) continue;
+          const x = day(dt), capLeft = maxOf(dt) - x.total; if (capLeft <= 0) continue;
           if (d.w.kind !== 'exam') { const gd = examGuard(input.works, dt); if (gd.size && !gd.has(d.w.subjectId) && !(dt >= d.w.dueDate && !isUndated(d.w))) continue; } // protección de examen
           const fr = free(dt, true), ord = d.w.difficulty <= 2 && d.w.kind === 'task' && !isUndated(d.w) ? [...fr].reverse() : fr; // lo fácil, más tarde; lo difícil, a primera hora
           const opts                                                                                        = [];
@@ -508,7 +513,7 @@ function plan(input                                                             
       let nb = b;
       if (b.date > now.date || (b.date === now.date && b.start >= up5(now.minute) + 30)) {
         const cuts        = [...(b.date === now.date ? [{ start: 0, end: up5(now.minute) }] : []), ...s.blockedDates.filter(x => x.date === b.date), ...[...(fx.get(b.date) ?? []), ...(placed.get(b.date) ?? [])].map(o => ({ start: o.start - s.minGapMin, end: o.end + s.minGapMin }))];
-        const win = subtract(s.availability[weekday(b.date)] ?? [], cuts).find(w => w.start <= b.start && b.end <= w.end), st = win ? up5(win.start) : b.start;
+        const win = subtract(avail(b.date), cuts).find(w => w.start <= b.start && b.end <= w.end), st = win ? up5(win.start) : b.start;
         const badSlot = (m        ) => (input.avoid?.hours ?? []).includes(hourBucket(m));
         if (win && b.start - st >= MIN_HOLE && !(badSlot(st) && !badSlot(b.start))) {
           let id = `auto:${b.workId}:${b.part ?? 'main'}:${b.date}:${st}`, k = 1; while (used.has(id)) id = `auto:${b.workId}:${b.part ?? 'main'}:${b.date}:${st}:r${k++}`; used.add(id);
@@ -542,8 +547,8 @@ function capacityFor(s          , blocks         , now     , w      , acts      
     const occ = blocks.filter(b => b.date === d && (b.workId === w.id ? b.status === 'done' || (b.status === 'planned' && b.manual) : b.status === 'planned' || b.status === 'done'));
     const cuts        = [...s.blockedDates.filter(b => b.date === d), ...occ.map(o => ({ start: o.start - s.minGapMin, end: o.end + s.minGapMin })), ...acts.filter(a => a.date === d && a.status !== 'skipped' && a.start != null && a.end != null).map(a => ({ start: a.start  - s.minGapMin, end: a.end  + s.minGapMin }))];
     if (d === now.date) cuts.push({ start: 0, end: up5(now.minute) });
-    const wins = subtract(s.availability[weekday(d)] ?? [], cuts).map(x => ({ start: x.start, end: Math.min(x.end, d === last && !und && w.dueDate <= hz ? cutoff : 1440) })).filter(x => x.end > x.start);
-    const free = Math.min(wins.reduce((a, x) => a + dur(x), 0), Math.max(0, s.maxDayMin - occ.reduce((a, o) => a + dur(o), 0)));
+    const wins = subtract(availOf(s, d), cuts).map(x => ({ start: x.start, end: Math.min(x.end, d === last && !und && w.dueDate <= hz ? cutoff : 1440) })).filter(x => x.end > x.start);
+    const free = Math.min(wins.reduce((a, x) => a + dur(x), 0), Math.max(0, maxOfS(s, d) - occ.reduce((a, o) => a + dur(o), 0)));
     freeMin += free; if (free >= s.minSessionMin) freeDays++;
   }
   return { freeMin, freeDays };
@@ -1694,7 +1699,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='a598b25ea6',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='73983f66b3',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -1743,7 +1748,7 @@ function regenFuture(){const n=now();S.blocks=S.blocks.filter(b=>!(b.status==='p
 /** Regeneración total: la versión anterior desaparece (también la rutina futura no hecha ni fijada, con sus «sustituidas»/«sin hueco»). */
 function regenAll(){regenFuture();const n=now();{S.habit=(S.habit||[]).filter(h=>h.pinned||h.status==='done'||h.date<n.date||(h.date===n.date&&h.start<n.minute&&h.status!=='replaced'&&h.status!=='displaced'));if(S.routine&&S.routine.enabled){S.routine={...S.routine,generatedThrough:addDays(n.date,-1)};extendRoutine()}}}
 function ensureG(Sx){if(!Sx.goals)Sx.goals={...GL.DEFAULT_GOALS,prev:{},subjTarget:{}};if(!Array.isArray(Sx.grades))Sx.grades=[];if(!Array.isArray(Sx.syllabus))Sx.syllabus=[]}
-function scheduleOf(Sx,quiet){ensureG(Sx);const n=now();Sx.works=GL.syncReviews(Sx.works,Sx.blocks,Sx.syllabus,Sx.subjects,n.date,sid=>GL.gapOf(Sx.goals,Sx.grades,sid,n.date)).works;Sx.works=reestimate(Sx.works,Sx.blocks,ctxOf(Sx));Sx.works=GL.stampBase(Sx.works,GL.learnedPace(Sx.works,Sx.blocks));return proposeSchedule({boost:GL.examBoosts(Sx.goals,Sx.grades,Sx.syllabus,Sx.subjects,n.date),avoid:(st=>({hours:st.avoidHours,days:st.avoidDays}))(GL.slotStats(Sx.blocks,n.date)),settings:Sx.settings,subjects:Sx.subjects,works:Sx.works,blocks:Sx.blocks,activities:Sx.activities||[],routine:Sx.routine||DEFAULT_ROUTINE,habit:Sx.habit||[],now:now()})}
+function scheduleOf(Sx,quiet){ensureG(Sx);const n=now();Sx.works=GL.syncReviews(Sx.works,Sx.blocks,Sx.syllabus,Sx.subjects,n.date,sid=>GL.gapOf(Sx.goals,Sx.grades,sid,n.date)).works;Sx.works=reestimate(Sx.works,Sx.blocks,ctxOf(Sx));Sx.works=GL.stampBase(Sx.works,GL.learnedPace(Sx.works,Sx.blocks));return proposeSchedule({boost:GL.examBoosts(Sx.goals,Sx.grades,Sx.syllabus,Sx.subjects,n.date),avoid:(st=>({hours:st.avoidHours,days:st.avoidDays}))(GL.slotStats(Sx.blocks,n.date)),settings:{...Sx.settings,extra:typeof refWins==='function'?refWins(Sx,n.date):[]},subjects:Sx.subjects,works:Sx.works,blocks:Sx.blocks,activities:Sx.activities||[],routine:Sx.routine||DEFAULT_ROUTINE,habit:Sx.habit||[],now:now()})}
 function finish(Sx,r){const tm={};Sx.works.forEach(w=>{if(w.topics?.length&&(w.status==='pending'||w.status==='in_progress'))Object.assign(tm,assignTopics(w,r.blocks))});Sx.blocks=r.blocks.map(b=>tm[b.id]&&!b.manual&&b.topicId!==tm[b.id]?{...b,topicId:tm[b.id]}:b);Sx.habit=r.habit;if(r.through&&Sx.routine)Sx.routine={...Sx.routine,generatedThrough:r.through};W=r.warnings}
 async function persist(){syncPred();S.version=(S.version||0)+1;LAST=JSON.stringify(S);try{await repo.save(S);typeof SY!=='undefined'&&SY.touch()}catch(e){toast('Error al guardar: '+e.message)}render()}
 function extendRoutine(){const R=S.routine;if(!R||!R.enabled)return;const n=now(),to=addDays(n.date,RTN.HORIZON_DAYS-1);if(R.generatedThrough&&R.generatedThrough>=to)return;const from=R.generatedThrough&&R.generatedThrough>=n.date?addDays(R.generatedThrough,1):n.date;S.habit=[...(S.habit||[]),...generate({settings:S.settings,routine:R,subjects:S.subjects,works:S.works,blocks:S.blocks,activities:S.activities||[],habit:S.habit||[],now:n,from,to})];S.routine={...R,generatedThrough:to}}
@@ -2016,7 +2021,7 @@ const v2Block=w=>{const e=w.estimateV2;if(w.estimatorVersion!==2||!e)return`<br>
  return`<hr><b>Estimador 2.0</b> · ${e.interval.kind==='calibrado'?'intervalo calibrado':'rango orientativo y heurístico'} ${hr(e.interval.p10)}–${hr(e.interval.p90)} (central ${hr(e.interval.p50)}) · confianza ${esc(e.confidence)} · evidencia de dominio: ${e.evidenceLevel}${e.provisional?' · provisional':''}<br>${e.phases.filter(p=>p.minutes).map(p=>p.phase+' '+hr(p.minutes)).join(' · ')}${(e.perTopic||[]).length?'<br>'+e.perTopic.map(x=>esc(x.name)+': dominio ~'+Math.round(x.mastery*100)+'% ('+x.evidenceLevel+(x.unknownExtent?', extensión desconocida':'')+')').join('<br>'):''}<br>${e.factors.map(esc).join('<br>')}${v?'<br><b>'+VIAB[v.status]+'</b>'+(v.deficitP50?' · déficit estimado '+hr(v.deficitP50)+' (escenario alto: '+hr(v.deficitP90)+'). Prioriza los temas de menor dominio, amplía disponibilidad o baja el objetivo.':v.deficitP90?' · en el escenario alto faltarían '+hr(v.deficitP90):''):''}<br><button type=button data-a=revertV1 data-id="${w.id}">Volver a estimador v1</button>`};
 const estNote=w=>(w.estimate?estNote1(w):'<b>Estimador v1:</b> se usan tus minutos manuales.')+v2Block(w);
 async function boot(){applyTheme();let r;try{r=await repo.load()}catch(e){r={error:e.message}}if(r.error)return recovery(r.error);
- S=r.state||fresh();if(!Array.isArray(S.activities))S.activities=[];if(!Array.isArray(S.suggestionLog))S.suggestionLog=[];if(!S.routine)S.routine={...DEFAULT_ROUTINE};if(!Array.isArray(S.habit))S.habit=[];if(!S.explore||!Array.isArray(S.explore.log))S.explore={log:[]};if(r.warn)toast(r.warn);try{navigator.storage.persist()}catch{}extendRoutine();if(S.patternV!==2){regenFuture();S.patternV=2}if(S.cenaV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.CENA])]));S.cenaV=1;if(!r.warn)0}if(S.ejV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.EJERCICIO])]));S.ejV=1;}if(S.metV!==2){regenAll();S.metV=2}await commit({quiet:true});try{const dl=$('#dlg');dl.addEventListener&&dl.addEventListener('close',()=>{CHOOSING=false;if(PENDING){PENDING=false;S=JSON.parse(LAST);render()}})}catch{}try{SY.init()}catch{}try{if('serviceWorker' in navigator&&isSecureContext){const had=!!navigator.serviceWorker.controller;let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had||rl)return;rl=true;const go=()=>{const d=document.getElementById('dlg');if(d&&d.open)return setTimeout(go,4000);location.reload()};setTimeout(go,300)});navigator.serviceWorker.register('sw.js').then(r=>{r.update&&r.update()}).catch(()=>{})}}catch{}
+ S=r.state||fresh();if(!S.refuerzo)S.refuerzo={on:!!(S.works&&S.works.length),until:addDays(now().date,13),morning:true,night:true};if(!Array.isArray(S.activities))S.activities=[];if(!Array.isArray(S.suggestionLog))S.suggestionLog=[];if(!S.routine)S.routine={...DEFAULT_ROUTINE};if(!Array.isArray(S.habit))S.habit=[];if(!S.explore||!Array.isArray(S.explore.log))S.explore={log:[]};if(r.warn)toast(r.warn);try{navigator.storage.persist()}catch{}extendRoutine();if(S.patternV!==2){regenFuture();S.patternV=2}if(S.cenaV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.CENA])]));S.cenaV=1;if(!r.warn)0}if(S.ejV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.EJERCICIO])]));S.ejV=1;}if(S.metV!==2){regenAll();S.metV=2}await commit({quiet:true});try{const dl=$('#dlg');dl.addEventListener&&dl.addEventListener('close',()=>{CHOOSING=false;if(PENDING){PENDING=false;S=JSON.parse(LAST);render()}})}catch{}try{SY.init()}catch{}try{if('serviceWorker' in navigator&&isSecureContext){const had=!!navigator.serviceWorker.controller;let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had||rl)return;rl=true;const go=()=>{const d=document.getElementById('dlg');if(d&&d.open)return setTimeout(go,4000);location.reload()};setTimeout(go,300)});navigator.serviceWorker.register('sw.js').then(r=>{r.update&&r.update()}).catch(()=>{})}}catch{}
  setInterval(tick,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick()})}
 
 /* ===== Objetivos, notas, temario, curso hasta la PAU y revisión semanal (v6). Todo se calcula en src/core/goals.ts; aquí solo hay pantallas. ===== */
@@ -2253,7 +2258,7 @@ Object.assign(A,{
   const rest=its.filter(x=>x!==first&&!(tc&&UI.timer&&x.id===UI.timer.id)),
    hero=tc||(first?HY.hero(n,first):`<div class=hero><h2 class=hn>${its.length?'Hecho por hoy':'Nada que estudiar hoy'}</h2><p class=hs>${its.length?'Has cerrado todas las sesiones de hoy.':'Disfruta del descanso.'}</p></div>`);
   const body=all.replace(/<h1>Hoy<\/h1><p class=m>[^<]*<\/p>/,'').replace(tc,'');
-  return head+hero+HY.week(n)+HY.post(n)+HY.exams(n)+HY.semana(n)+HY.fallos(n)+HY.cls(n)+(rest.length?`<div class=tl>${rest.map(HY.row).join('')}</div>`:'')+`<div class=quick><button data-a=addTask>+ Tarea</button><button data-a=addExam>+ Examen</button><button data-a=addBlk>+ Sesión</button><button data-a=addErr>+ Fallo</button></div><details class=more data-k=hoy${HY.open.hoy?' open':''}><summary>Más: estadísticas, prioridades y sugerencias</summary>${body}</details>`}}
+  return head+hero+HY.post(n)+HY.exams(n)+HY.semana(n)+HY.fallos(n)+HY.cls(n)+(rest.length?`<div class=tl>${rest.map(HY.row).join('')}</div>`:'')+`<div class=quick><button data-a=addTask>+ Tarea</button><button data-a=addExam>+ Examen</button><button data-a=addBlk>+ Sesión</button><button data-a=addErr>+ Fallo</button></div><details class=more data-k=hoy${HY.open.hoy?' open':''}><summary>Más: estadísticas, prioridades y sugerencias</summary>${body}</details>`}}
 Object.assign(A,{noHecho:t=>{const b=S.blocks.find(x=>x.id===t.dataset.id);if(!b||b.status!=='planned')return;const n=now();b.status='skipped';if(b.date>n.date||b.end>n.minute)b.reason='otro';commit({quiet:true})},
  habQuick:t=>{S.habit=S.habit.map(x=>x.id===t.dataset.id?{...x,status:'done',actualMin:x.end-x.start}:x);commit({quiet:true})}});
 /* Rutina: la configuración y las actividades fijas quedan plegadas; arriba, el estado y «Regenerar». */
@@ -2345,13 +2350,19 @@ function studiedLine(w){const s=studyOf(w);if(!s.n)return'Aún no hay sesiones h
 {const p=HY.post;HY.post=n=>{let h=p(n);const d=n.date;
  if(!h){const ex=S.works.find(w=>w.kind==='exam'&&w.status!=='archived'&&w.auto!=='review'&&w.dueDate===d&&n.minute<870);if(ex){const s=sub(ex.subjectId);return`<div class=card style="--c:${s.color}"><h3>Hoy: examen de ${esc(s.name)}</h3><p class=m>${studiedLine(ex)}</p></div>`}return h}
  const m=/data-(?:a=autopsia|a=gradeFor) data-id="([^"]+)"/.exec(h)||/data-a=(?:autopsia|gradeFor) data-id="([^"]+)"/.exec(h);const w=m&&S.works.find(x=>x.id===m[1]);
- return w?h.replace('<p class=m>',`<p class=m>${studiedLine(w)}</p><p class=m>`):h}}
+ return w&&studyOf(w).n?h.replace('<p class=m>',`<p class=m>${studiedLine(w)}</p><p class=m>`):h}}
 /* v20.1 · Quitar un examen ya hecho: archivar (conserva horas y nota) o eliminar del todo */
 Object.assign(A,{examQuit:t=>{const w=S.works.find(x=>x.id===t.dataset.id);if(!w)return;const hrs=studyOf(w);
  choose('Quitar «'+w.title+'»',hrs.n?`Tienes ${hr(hrs.min)} estudiadas para este examen.`:'',[
   ...(w.status!=='archived'?[{l:'Archivar (conserva horas y nota)',c:'pri',fn:()=>{w.status='archived';commit({quiet:true})}}]:[]),
   {l:'Eliminar del todo',c:'danger',fn:()=>{if(confirm('Se borran el examen y sus sesiones (también las horas estudiadas). La nota que apuntaste se conserva. ¿Seguro?')){S.works=S.works.filter(x=>x.id!==w.id);S.blocks=S.blocks.filter(b=>b.workId!==w.id);commit({quiet:true})}}},
   {l:'Cancelar',fn:()=>{}}])}});
+
+/* v21 · Refuerzo de exámenes: horas extra con fecha (mañana 06:00–07:00 y noche 22:00–23:00) durante unas semanas */
+function refWins(Sx,today){const R=Sx.refuerzo;if(!R||!R.on||!R.until)return[];const out=[];for(let d=today;d<=R.until;d=addDays(d,1)){if(R.morning)out.push({date:d,start:360,end:420});if(R.night)out.push({date:d,start:1320,end:1380})}return out}
+function refText(R){if(!R||!R.on)return'Desactivado. Si lo activas, se añaden horas de estudio extra durante unas semanas.';const p=[R.morning&&'06:00–07:00 por la mañana',R.night&&'22:00–23:00 por la noche'].filter(Boolean).join(' y ');return`Activado hasta el ${R.until.split('-').reverse().join('/')}: ${p||'sin franjas elegidas'}. El planificador las usa solo si hacen falta.`}
+{const aj=V.aj;V.aj=a=>{let h=aj(a);const R=S.refuerzo,card=`<div class=card data-sec=refuerzo><h3>Refuerzo de exámenes</h3><p class=m>${esc(refText(R))}</p><div class=row style="justify-content:flex-start;gap:12px"><button class=pri data-a=refEdit>${R&&R.on?'Cambiar':'Activar'}</button>${R&&R.on?'<button data-a=refOff>Desactivar</button>':''}</div></div>`;const i=h.indexOf('<form id=sf');return i<0?h:h.slice(0,i)+card+h.slice(i)}}
+Object.assign(A,{refOff:()=>{S.refuerzo={...S.refuerzo,on:false};commit({quiet:true})},refEdit:()=>{const R=S.refuerzo||{};openForm('Refuerzo de exámenes',[{t:'note',v:'Horas de estudio extra durante unas semanas. No cambian tu horario normal: se acaban solas el día que elijas.'},{k:'morning',l:'Mañana 06:00–07:00',t:'chips',o:[['1','Sí'],['0','No']],v:R.morning===false?'0':'1'},{k:'night',l:'Noche 22:00–23:00',t:'chips',o:[['1','Sí'],['0','No']],v:R.night===false?'0':'1'},{k:'until',l:'Hasta el día',t:'date',v:R.until||addDays(now().date,13)}],v=>{if(!v.until||v.until<now().date)return'Elige una fecha de hoy en adelante.';S.refuerzo={on:true,until:v.until,morning:v.morning!=='0',night:v.night!=='0'};commit({quiet:true})},null,'Guardar')}});
 
 /* Búsqueda global: pantallas, acciones, tareas, exámenes, temas y asignaturas. Atajo: «/» o Ctrl/⌘+K. */
 const SCR=[['hoy','Hoy','inicio resumen sesiones'],['cal','Calendario','semana agenda horario bloques'],['tar','Tareas','deberes entregas pendientes'],['exa','Exámenes','examen parcial prueba'],['tem','Temario','temas guion materia'],['met','Método de estudio','fases guion memorizar autopsia reparto'],['obj','Notas y objetivo','notas nota media objetivo evaluación'],['cur','Curso hasta la PAU','pau selectividad fases'],['seg','Progreso','estadísticas seguimiento cumplimiento horas gráficos'],['rut','Rutina semanal','hábitos rutina regenerar'],['est','Estimaciones','estimador tiempo minutos'],['aj','Ajustes','configuración horario clases copia exportar importar cuenta']];

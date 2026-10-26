@@ -233,3 +233,9 @@ Causas halladas y corregidas:
 - Causa: cuando las horas no alcanzaban para todos los exámenes, el planificador llenaba el más cercano hasta el final y los demás se quedaban SIN ninguna hora (con 9 exámenes en una semana solo 3–4 asignaturas recibían estudio).
 - Arreglo: reparto por niveles (water-filling). Si la necesidad total supera el 90 % de la capacidad hasta el último examen, cada examen recibe como máximo el mismo nivel de horas y el sobrante va a los más urgentes. Función pura de los datos → estable al repetir. Si todo cabe, no cambia nada.
 - Verificado: npm test 279/279, estrés 6000 estados 0 fallos, test v20 (9 exámenes: todas las asignaturas ≥ 60 min y regenerar dos veces no cambia).
+
+## v21
+- Refuerzo de exámenes (Ajustes): horas extra con fecha, 06:00–07:00 y 22:00–23:00, hasta el día elegido (por defecto 2 semanas desde la primera apertura con datos). Suben el tope diario en lo que suman. El planificador las usa solo si hace falta; no cambian el horario normal. Se pueden quitar o cambiar en Ajustes → Refuerzo de exámenes.
+- Hoy más sencillo: se quita la tira semanal (barras sin etiqueta). El resto sigue igual.
+- Calendario: con refuerzo el día va de 06:00 a 23:00 (más alto).
+- Verificado: npm test 280/280, estrés 6000/0, Chromium v16 20/20, v18 12/12, final 51/51.

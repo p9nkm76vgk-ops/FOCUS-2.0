@@ -29,3 +29,14 @@ test('semana de exámenes: con 9 exámenes que no caben, TODAS las asignaturas r
   await a.click('replan'); chk(); const snap = JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()); await a.click('replan');
   assert.ok(JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()) === snap, 'regenerar dos veces seguidas no cambia nada');
 });
+test('refuerzo de exámenes: usa 06:00–07:00 y 22:00–23:00 solo hasta la fecha elegida; apagado, nada fuera del horario normal', async () => {
+  clock.t = new Date(2026, 9, 26, 14, 30).getTime();
+  const mk = async on => { const a = await boot(); a.S.refuerzo = { on, until: '2026-11-02', morning: true, night: true };
+    const days = ['2026-11-03', '2026-11-03', '2026-11-04', '2026-11-04', '2026-11-05', '2026-11-05', '2026-11-06', '2026-11-06', '2026-11-06'];
+    for (let i = 0; i < 9; i++) { await a.click('addExam'); await a.submit({ title: '', subjectId: a.S.subjects[i].id, dueDate: days[i], time: '', estOverride: '', difficulty: '3', importance: '4', readiness: '0', status: 'pending', notes: '' }) } return a };
+  const on = await mk(true), off = await mk(false);
+  const extra = a => a.S.blocks.filter(b => b.start < 420 || b.end > 1320);
+  assert.ok(extra(on).length > 0, 'con refuerzo se usan las franjas extra');
+  assert.ok(extra(on).every(b => b.date <= '2026-11-02' && ((b.start >= 360 && b.end <= 420) || (b.start >= 1320 && b.end <= 1380))), 'solo dentro de las franjas y hasta la fecha');
+  assert.equal(extra(off).length, 0, 'sin refuerzo, nada fuera del horario normal');
+});

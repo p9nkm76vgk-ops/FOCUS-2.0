@@ -5,7 +5,7 @@ function studiedLine(w){const s=studyOf(w);if(!s.n)return'Aún no hay sesiones h
 {const p=HY.post;HY.post=n=>{let h=p(n);const d=n.date;
  if(!h){const ex=S.works.find(w=>w.kind==='exam'&&w.status!=='archived'&&w.auto!=='review'&&w.dueDate===d&&n.minute<870);if(ex){const s=sub(ex.subjectId);return`<div class=card style="--c:${s.color}"><h3>Hoy: examen de ${esc(s.name)}</h3><p class=m>${studiedLine(ex)}</p></div>`}return h}
  const m=/data-(?:a=autopsia|a=gradeFor) data-id="([^"]+)"/.exec(h)||/data-a=(?:autopsia|gradeFor) data-id="([^"]+)"/.exec(h);const w=m&&S.works.find(x=>x.id===m[1]);
- return w?h.replace('<p class=m>',`<p class=m>${studiedLine(w)}</p><p class=m>`):h}}
+ return w&&studyOf(w).n?h.replace('<p class=m>',`<p class=m>${studiedLine(w)}</p><p class=m>`):h}}
 /* v20.1 · Quitar un examen ya hecho: archivar (conserva horas y nota) o eliminar del todo */
 Object.assign(A,{examQuit:t=>{const w=S.works.find(x=>x.id===t.dataset.id);if(!w)return;const hrs=studyOf(w);
  choose('Quitar «'+w.title+'»',hrs.n?`Tienes ${hr(hrs.min)} estudiadas para este examen.`:'',[

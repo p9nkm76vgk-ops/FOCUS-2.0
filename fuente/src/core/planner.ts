@@ -75,6 +75,10 @@ interface Demand { key: string; w: Work; part: 'main' | 'review'; need: number; 
 interface Day { occ: (Win & { sub?: string })[]; total: number; perWork: Map<string, number> }
 
 /** Planificador determinista e idempotente. Función pura: (estado, ahora) → nuevo estado. */
+/** Refuerzo de exámenes: ventanas EXTRA con fecha (p. ej. 06:00–07:00 y 22:00–23:00 durante dos semanas). Suben también el tope del día en lo que suman. */
+const extraOnS = (s: Settings, d: string): Win[] => (s.extra ?? []).filter(e => e.date === d).map(e => ({ start: e.start, end: e.end }));
+export const availOf = (s: Settings, d: string): Win[] => [...extraOnS(s, d), ...(s.availability[weekday(d)] ?? [])].sort((a, b) => a.start - b.start);
+export const maxOfS = (s: Settings, d: string): number => s.maxDayMin + extraOnS(s, d).reduce((a, w) => a + dur(w), 0);
 export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]; boost?: Record<string, number>; avoid?: { hours: number[]; days: number[] }; activities?: { date: string; start: number | null; end: number | null; status: string }[] }, now: Now): PlanResult {
   const s = input.settings;
   const active = (w?: Work) => !!w && (w.status === 'pending' || w.status === 'in_progress');
@@ -90,7 +94,8 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   }
   const days = new Map<string, Day>();
   const day = (d: string) => { let x = days.get(d); if (!x) { x = { occ: [], total: 0, perWork: new Map() }; days.set(d, x); } return x; };
-  const dayCap = (d: string) => Math.max(60, Math.min(s.maxDayMin, (s.availability[weekday(d)] ?? []).reduce((a, w) => a + dur(w), 0)));
+  const avail = (d: string): Win[] => availOf(s, d), maxOf = (d: string): number => maxOfS(s, d);
+  const dayCap = (d: string) => Math.max(60, Math.min(maxOf(d), avail(d).reduce((a, w) => a + dur(w), 0)));
   const occupy = (b: Block) => { const x = day(b.date); x.occ.push({ start: b.start, end: b.end, sub: byId.get(b.workId)?.subjectId }); x.total += dur(b); x.perWork.set(b.workId, (x.perWork.get(b.workId) ?? 0) + dur(b)); };
   history.filter(b => b.status === 'done').forEach(occupy);
   manualF.forEach(occupy);
@@ -101,7 +106,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   const free = (date: string, clip: boolean) => {
     const cuts: Win[] = [...s.blockedDates.filter(b => b.date === date), ...day(date).occ.map(o => ({ start: o.start - s.minGapMin, end: o.end + s.minGapMin }))];
     if (clip && date === now.date) cuts.push({ start: 0, end: up5(now.minute) });
-    return subtract(s.availability[weekday(date)] ?? [], cuts);
+    return subtract(avail(date), cuts);
   };
 
   // 1) Demandas por trabajo activo
@@ -142,7 +147,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     if (ids.length > 1) {
       const tot = new Map<string, number>(); for (const d of exD) tot.set(d.w.id, (tot.get(d.w.id) ?? 0) + d.need);
       const lastEx = exD.reduce((m, d) => d.last > m ? d.last : m, now.date), need = [...tot.values()].reduce((a, b) => a + b, 0);
-      let cap = 0; for (let dt = now.date; dt <= lastEx; dt = addDays(dt, 1)) cap += Math.max(0, Math.min(s.maxDayMin - day(dt).total, free(dt, true).reduce((a, f) => a + f.end - f.start, 0)));
+      let cap = 0; for (let dt = now.date; dt <= lastEx; dt = addDays(dt, 1)) cap += Math.max(0, Math.min(maxOf(dt) - day(dt).total, free(dt, true).reduce((a, f) => a + f.end - f.start, 0)));
       const budget = Math.floor(cap * 0.9 / 5) * 5;
       if (need > budget) {
         const needs = ids.map(id => tot.get(id)!); let lo = 0, hi = Math.max(...needs);
@@ -165,7 +170,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     let have = 0;
     for (const b of autoF.filter(x => x.workId === d.w.id && (x.part ?? 'main') === d.part).sort(cmp)) {
       if (b.date < d.from || b.date > (d.ext ?? d.to) || (b.date === d.last && b.end > d.cutoff) || have + dur(b) > d.need) continue;
-      if (!free(b.date, false).some(f => f.start <= b.start && b.end <= f.end) || day(b.date).total + dur(b) > s.maxDayMin) continue;
+      if (!free(b.date, false).some(f => f.start <= b.start && b.end <= f.end) || day(b.date).total + dur(b) > maxOf(b.date)) continue;
       occupy(b); kept.push(b); have += dur(b);
     }
     const r = d.need - have; rem.set(d, have > 0 && r < MIN_FRAG ? 0 : r); // resto diminuto tras conservar sesiones: se da por cubierto
@@ -182,7 +187,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       const avH = new Set(input.avoid?.hours ?? []), avD = new Set(input.avoid?.days ?? []), rev = d.w.auto === 'review';
       for (const strict of [true, false]) {
         for (let dt = d.from; dt <= to; dt = addDays(dt, 1)) {
-          const x = day(dt), capLeft = s.maxDayMin - x.total; if (capLeft <= 0) continue;
+          const x = day(dt), capLeft = maxOf(dt) - x.total; if (capLeft <= 0) continue;
           if (d.w.kind !== 'exam') { const gd = examGuard(input.works, dt); if (gd.size && !gd.has(d.w.subjectId) && !(dt >= d.w.dueDate && !isUndated(d.w))) continue; } // protección de examen
           const fr = free(dt, true), ord = d.w.difficulty <= 2 && d.w.kind === 'task' && !isUndated(d.w) ? [...fr].reverse() : fr; // lo fácil, más tarde; lo difícil, a primera hora
           const opts: { start: number; L: number; bad: number; sec: number; packed: number; adj: number }[] = [];
@@ -239,7 +244,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       let nb = b;
       if (b.date > now.date || (b.date === now.date && b.start >= up5(now.minute) + 30)) {
         const cuts: Win[] = [...(b.date === now.date ? [{ start: 0, end: up5(now.minute) }] : []), ...s.blockedDates.filter(x => x.date === b.date), ...[...(fx.get(b.date) ?? []), ...(placed.get(b.date) ?? [])].map(o => ({ start: o.start - s.minGapMin, end: o.end + s.minGapMin }))];
-        const win = subtract(s.availability[weekday(b.date)] ?? [], cuts).find(w => w.start <= b.start && b.end <= w.end), st = win ? up5(win.start) : b.start;
+        const win = subtract(avail(b.date), cuts).find(w => w.start <= b.start && b.end <= w.end), st = win ? up5(win.start) : b.start;
         const badSlot = (m: number) => (input.avoid?.hours ?? []).includes(hourBucket(m));
         if (win && b.start - st >= MIN_HOLE && !(badSlot(st) && !badSlot(b.start))) {
           let id = `auto:${b.workId}:${b.part ?? 'main'}:${b.date}:${st}`, k = 1; while (used.has(id)) id = `auto:${b.workId}:${b.part ?? 'main'}:${b.date}:${st}:r${k++}`; used.add(id);
@@ -273,8 +278,8 @@ export function capacityFor(s: Settings, blocks: Block[], now: Now, w: Work, act
     const occ = blocks.filter(b => b.date === d && (b.workId === w.id ? b.status === 'done' || (b.status === 'planned' && b.manual) : b.status === 'planned' || b.status === 'done'));
     const cuts: Win[] = [...s.blockedDates.filter(b => b.date === d), ...occ.map(o => ({ start: o.start - s.minGapMin, end: o.end + s.minGapMin })), ...acts.filter(a => a.date === d && a.status !== 'skipped' && a.start != null && a.end != null).map(a => ({ start: a.start! - s.minGapMin, end: a.end! + s.minGapMin }))];
     if (d === now.date) cuts.push({ start: 0, end: up5(now.minute) });
-    const wins = subtract(s.availability[weekday(d)] ?? [], cuts).map(x => ({ start: x.start, end: Math.min(x.end, d === last && !und && w.dueDate <= hz ? cutoff : 1440) })).filter(x => x.end > x.start);
-    const free = Math.min(wins.reduce((a, x) => a + dur(x), 0), Math.max(0, s.maxDayMin - occ.reduce((a, o) => a + dur(o), 0)));
+    const wins = subtract(availOf(s, d), cuts).map(x => ({ start: x.start, end: Math.min(x.end, d === last && !und && w.dueDate <= hz ? cutoff : 1440) })).filter(x => x.end > x.start);
+    const free = Math.min(wins.reduce((a, x) => a + dur(x), 0), Math.max(0, maxOfS(s, d) - occ.reduce((a, o) => a + dur(o), 0)));
     freeMin += free; if (free >= s.minSessionMin) freeDays++;
   }
   return { freeMin, freeDays };
