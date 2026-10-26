@@ -1381,7 +1381,7 @@ const GL=(()=>{const {addDays,daysBetween,hourBucket,weekday,NO_DATE}=P;
                                                           
 /** Nota de un examen o trabajo: `weight` = % que vale dentro de SU evaluación (1.ª, 2.ª o 3.ª; la 3.ª es la nota final de 2.º). Sin `weight` (datos antiguos) no entra en el cálculo. */
                                                                                                                                                                              
-                                                                                                                                                                                                                                                   
+                                                                                                                                                                                                                                                                                                                                       
                                                                                                                                                                                              
 const DEFAULT_GOALS        = { target: null, prevAvg: null, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
 
@@ -1444,6 +1444,20 @@ function accessInfo(g                   , media2               ) {
   const needMedia = nmbNeed == null ? null : r2(p1 != null ? 2 * nmbNeed - p1 : nmbNeed);
   return { nmb, access, needMedia, feasible: needMedia == null ? null : needMedia <= 10 };
 }
+
+// ---------- Plan de admisión (documento de ingeniería: GITI UPM/UC3M, Madrid) ----------
+/** Puntos de NOTA DE ADMISIÓN (0–14) que suma 1 punto más en cada asignatura de 2.º (aprox.):
+ *  - Bachillerato: 0,6 × (1/2 de la media de 2.º) × (1/9 asignaturas) ≈ 0,033 en todas.
+ *  - Fase de acceso (5 exámenes, 0,4 × 1/5 = 0,08): Matemáticas II, Lengua, Catalán, Inglés y Hª de la Filosofía (si se elige Filosofía).
+ *  - Ponderación 0,2 en la fase de admisión: las dos mejores de Matemáticas II, Física y Química (Mates cuenta en ambas).
+ *  Hª de España y Business no suman en el acceso ni ponderan a estos grados (solo la media de Bachillerato). Es un cálculo aproximado, no una cifra oficial. */
+const PAU_VALUE                         = { 'Matemáticas II': 0.31, 'Física': 0.23, 'Química': 0.23, 'Lengua Castellana': 0.11, 'Catalán': 0.11, 'Inglés': 0.11, 'Historia de la Filosofía': 0.11, 'Business': 0.03, 'Historia de España': 0.03 };
+/** Factor heurístico de horas de examen según ese valor (no se baja de 0,92 porque las notas de 2.º siguen contando en la media). */
+const valueFactor = (name         )         => { const v = name ? PAU_VALUE[name] : undefined; return v == null ? 1 : v >= 0.3 ? 1.15 : v >= 0.2 ? 1.08 : v <= 0.05 ? 0.92 : 1; };
+/** Nota de admisión (máx. 14) = 0,6·media Bachillerato + 0,4·media del acceso + 0,2·M1 + 0,2·M2 (M1, M2 = mejores materias ponderables). */
+const admision = (nmb        , acceso        , m1        , m2        ) => r2(Math.min(14, 0.6 * nmb + 0.4 * acceso + 0.2 * m1 + 0.2 * m2));
+/** Media que necesitas en las dos materias ponderables para llegar a `cut`, dados la media de Bachillerato y la del acceso. */
+const needPond = (cut        , nmb        , acceso        ) => r2((cut - 0.6 * nmb - 0.4 * acceso) / 0.4);
 
 // ---------- Temario y repaso espaciado ----------
 const INTERVALS = [2, 7, 21, 45, 90];
@@ -1598,9 +1612,9 @@ function masteryFactor(topics          , sid        )                {
   return r2(clamp(1.2 - 0.1 * avg, 0.9, 1.2));
 }
 /** Combina la brecha con el objetivo y el dominio del temario en un factor por asignatura (solo exámenes). */
-function examBoosts(g                   , grades         , topics          , subjects                                      , today        )                         {
+function examBoosts(g                   , grades         , topics          , subjects                                                     , today        )                         {
   const o                         = {};
-  for (const s of subjects) if (!s.archived) { const a = boostFactor(gapOf(g, grades, s.id, today)), m = masteryFactor(topics, s.id) ?? 1, f = r2(clamp(a * m, 0.85, 1.4)); if (f !== 1) o[s.id] = f; }
+  for (const s of subjects) if (!s.archived) { const a = boostFactor(gapOf(g, grades, s.id, today)), m = masteryFactor(topics, s.id) ?? 1, f = r2(clamp(a * m * (g?.planPau ? valueFactor(s.name) : 1), 0.85, 1.4)); if (f !== 1) o[s.id] = f; }
   return o;
 }
 
@@ -1623,7 +1637,7 @@ function weekLoads(works        , blocks         , today        , weeks = 6)    
   }
   return out;
 }
-;return{DEFAULT_GOALS,evalOfDate,gradeEval,evalSummary,projected,subjectTarget,gapOf,boostFactor,boosts,overall,accessInfo,INTERVALS,LEVELS,newTopic,setMastery,reviewDone,syncReviews,coverage,coverageByCourse,maintenance,TOPIC_NEED,stampBase,learnedPace,QUALITY,bestHours,macro,slotStats,suggestCap,masteryFactor,examBoosts,HOUR_LABELS,DOW_NAMES,failedTopic,weekLoads}})();
+;return{DEFAULT_GOALS,evalOfDate,gradeEval,evalSummary,projected,subjectTarget,gapOf,boostFactor,boosts,overall,accessInfo,INTERVALS,LEVELS,newTopic,setMastery,reviewDone,syncReviews,coverage,coverageByCourse,maintenance,TOPIC_NEED,stampBase,learnedPace,QUALITY,bestHours,macro,slotStats,suggestCap,masteryFactor,examBoosts,HOUR_LABELS,DOW_NAMES,failedTopic,weekLoads,PAU_VALUE,valueFactor,admision,needPond}})();
 const ST=(()=>{                                                   
 const dur = (b       ) => b.end - b.start;
 /**
@@ -1699,7 +1713,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='73983f66b3',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='5a84bf52e3',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2021,7 +2035,7 @@ const v2Block=w=>{const e=w.estimateV2;if(w.estimatorVersion!==2||!e)return`<br>
  return`<hr><b>Estimador 2.0</b> · ${e.interval.kind==='calibrado'?'intervalo calibrado':'rango orientativo y heurístico'} ${hr(e.interval.p10)}–${hr(e.interval.p90)} (central ${hr(e.interval.p50)}) · confianza ${esc(e.confidence)} · evidencia de dominio: ${e.evidenceLevel}${e.provisional?' · provisional':''}<br>${e.phases.filter(p=>p.minutes).map(p=>p.phase+' '+hr(p.minutes)).join(' · ')}${(e.perTopic||[]).length?'<br>'+e.perTopic.map(x=>esc(x.name)+': dominio ~'+Math.round(x.mastery*100)+'% ('+x.evidenceLevel+(x.unknownExtent?', extensión desconocida':'')+')').join('<br>'):''}<br>${e.factors.map(esc).join('<br>')}${v?'<br><b>'+VIAB[v.status]+'</b>'+(v.deficitP50?' · déficit estimado '+hr(v.deficitP50)+' (escenario alto: '+hr(v.deficitP90)+'). Prioriza los temas de menor dominio, amplía disponibilidad o baja el objetivo.':v.deficitP90?' · en el escenario alto faltarían '+hr(v.deficitP90):''):''}<br><button type=button data-a=revertV1 data-id="${w.id}">Volver a estimador v1</button>`};
 const estNote=w=>(w.estimate?estNote1(w):'<b>Estimador v1:</b> se usan tus minutos manuales.')+v2Block(w);
 async function boot(){applyTheme();let r;try{r=await repo.load()}catch(e){r={error:e.message}}if(r.error)return recovery(r.error);
- S=r.state||fresh();if(!S.refuerzo)S.refuerzo={on:!!(S.works&&S.works.length),until:addDays(now().date,13),morning:true,night:true};if(!Array.isArray(S.activities))S.activities=[];if(!Array.isArray(S.suggestionLog))S.suggestionLog=[];if(!S.routine)S.routine={...DEFAULT_ROUTINE};if(!Array.isArray(S.habit))S.habit=[];if(!S.explore||!Array.isArray(S.explore.log))S.explore={log:[]};if(r.warn)toast(r.warn);try{navigator.storage.persist()}catch{}extendRoutine();if(S.patternV!==2){regenFuture();S.patternV=2}if(S.cenaV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.CENA])]));S.cenaV=1;if(!r.warn)0}if(S.ejV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.EJERCICIO])]));S.ejV=1;}if(S.metV!==2){regenAll();S.metV=2}await commit({quiet:true});try{const dl=$('#dlg');dl.addEventListener&&dl.addEventListener('close',()=>{CHOOSING=false;if(PENDING){PENDING=false;S=JSON.parse(LAST);render()}})}catch{}try{SY.init()}catch{}try{if('serviceWorker' in navigator&&isSecureContext){const had=!!navigator.serviceWorker.controller;let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had||rl)return;rl=true;const go=()=>{const d=document.getElementById('dlg');if(d&&d.open)return setTimeout(go,4000);location.reload()};setTimeout(go,300)});navigator.serviceWorker.register('sw.js').then(r=>{r.update&&r.update()}).catch(()=>{})}}catch{}
+ S=r.state||fresh();if(r.state&&typeof applyPlan==='function')applyPlan(S);if(!S.refuerzo)S.refuerzo={on:!!(S.works&&S.works.length),until:addDays(now().date,13),morning:true,night:true};if(!Array.isArray(S.activities))S.activities=[];if(!Array.isArray(S.suggestionLog))S.suggestionLog=[];if(!S.routine)S.routine={...DEFAULT_ROUTINE};if(!Array.isArray(S.habit))S.habit=[];if(!S.explore||!Array.isArray(S.explore.log))S.explore={log:[]};if(r.warn)toast(r.warn);try{navigator.storage.persist()}catch{}extendRoutine();if(S.patternV!==2){regenFuture();S.patternV=2}if(S.cenaV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.CENA])]));S.cenaV=1;if(!r.warn)0}if(S.ejV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.EJERCICIO])]));S.ejV=1;}if(S.metV!==2){regenAll();S.metV=2}await commit({quiet:true});try{const dl=$('#dlg');dl.addEventListener&&dl.addEventListener('close',()=>{CHOOSING=false;if(PENDING){PENDING=false;S=JSON.parse(LAST);render()}})}catch{}try{SY.init()}catch{}try{if('serviceWorker' in navigator&&isSecureContext){const had=!!navigator.serviceWorker.controller;let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had||rl)return;rl=true;const go=()=>{const d=document.getElementById('dlg');if(d&&d.open)return setTimeout(go,4000);location.reload()};setTimeout(go,300)});navigator.serviceWorker.register('sw.js').then(r=>{r.update&&r.update()}).catch(()=>{})}}catch{}
  setInterval(tick,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick()})}
 
 /* ===== Objetivos, notas, temario, curso hasta la PAU y revisión semanal (v6). Todo se calcula en src/core/goals.ts; aquí solo hay pantallas. ===== */
@@ -2363,6 +2377,16 @@ function refWins(Sx,today){const R=Sx.refuerzo;if(!R||!R.on||!R.until)return[];c
 function refText(R){if(!R||!R.on)return'Desactivado. Si lo activas, se añaden horas de estudio extra durante unas semanas.';const p=[R.morning&&'06:00–07:00 por la mañana',R.night&&'22:00–23:00 por la noche'].filter(Boolean).join(' y ');return`Activado hasta el ${R.until.split('-').reverse().join('/')}: ${p||'sin franjas elegidas'}. El planificador las usa solo si hacen falta.`}
 {const aj=V.aj;V.aj=a=>{let h=aj(a);const R=S.refuerzo,card=`<div class=card data-sec=refuerzo><h3>Refuerzo de exámenes</h3><p class=m>${esc(refText(R))}</p><div class=row style="justify-content:flex-start;gap:12px"><button class=pri data-a=refEdit>${R&&R.on?'Cambiar':'Activar'}</button>${R&&R.on?'<button data-a=refOff>Desactivar</button>':''}</div></div>`;const i=h.indexOf('<form id=sf');return i<0?h:h.slice(0,i)+card+h.slice(i)}}
 Object.assign(A,{refOff:()=>{S.refuerzo={...S.refuerzo,on:false};commit({quiet:true})},refEdit:()=>{const R=S.refuerzo||{};openForm('Refuerzo de exámenes',[{t:'note',v:'Horas de estudio extra durante unas semanas. No cambian tu horario normal: se acaban solas el día que elijas.'},{k:'morning',l:'Mañana 06:00–07:00',t:'chips',o:[['1','Sí'],['0','No']],v:R.morning===false?'0':'1'},{k:'night',l:'Noche 22:00–23:00',t:'chips',o:[['1','Sí'],['0','No']],v:R.night===false?'0':'1'},{k:'until',l:'Hasta el día',t:'date',v:R.until||addDays(now().date,13)}],v=>{if(!v.until||v.until<now().date)return'Elige una fecha de hoy en adelante.';S.refuerzo={on:true,until:v.until,morning:v.morning!=='0',night:v.night!=='0'};commit({quiet:true})},null,'Guardar')}});
+
+/* v22 · Plan de admisión (documento de ingeniería): objetivos y horas según lo que más suma a la nota de admisión */
+function applyPlan(Sx){const g=Sx.goals;if(!g||g.planPau||g.planOff)return;
+ if(!(Sx.works||[]).some(w=>w.kind==='exam')||g.target!=null||g.pauDate||g.prevAvg!=null){g.planOff=g.planOff||(g.target!=null||!!g.pauDate||g.prevAvg!=null)||undefined;if(g.planOff===undefined)delete g.planOff;return}
+ Object.assign(g,{prevAvg:9.11,target:9.3,pauDate:'2027-06-01',pauExpected:8.5,admTarget:12.41,admLabel:'GITI UPM (corte 12,261 en 2026-27 + 0,15 de margen)',planPau:true})}
+function planCard(){const g=S.goals;if(!g||!g.planPau||g.admTarget==null)return'';
+ const med=GL.overall(g,S.grades,S.subjects,now().date).media,m2=med!=null?med:g.target,nmb=(g.prevAvg+m2)/2,need=GL.needPond(g.admTarget,nmb,g.pauExpected),ok=need<=10;
+ const rows=S.subjects.filter(s=>!s.archived&&GL.PAU_VALUE[s.name]!=null).sort((a,b)=>GL.PAU_VALUE[b.name]-GL.PAU_VALUE[a.name]).map(s=>`<div class=ro><span><i class=dot style="--c:${sub(s.id).color}"></i> ${esc(s.name)}</span><b>+${String(GL.PAU_VALUE[s.name]).replace('.',',')}</b></div>`).join('');
+ return`<div class=card data-sec=plan><h3>Tu objetivo de admisión</h3><p class=m>${esc(g.admLabel||'')}: <b>${String(g.admTarget).replace('.',',')}</b> sobre 14.</p><p class=m>${ok?`Con una media de Bachillerato de ${String(Math.round(nmb*100)/100).replace('.',',')} y ${String(g.pauExpected).replace('.',',')} de media en el acceso, necesitas <b>${String(need).replace('.',',')}</b> de media en Matemáticas II y en Física/Química.`:`Con esa media de Bachillerato y ese acceso haría falta más de un 10 en las materias ponderables: no es alcanzable sin subir la media.`}</p><details class=more><summary>Dónde rinde más estudiar</summary><p class=m>Puntos de nota de admisión que suma cada punto más de nota (aproximado):</p>${rows}<p class=m>Por eso reciben más horas Matemáticas II, Física y Química. Hª de España y Business solo cuentan en la media de Bachillerato. Datos de tu plan de ingeniería; las notas de corte de 2027-28 pueden subir.</p></details></div>`}
+{const o=V.obj;V.obj=a=>{const h=o(a);return h.replace(/(<h1>Objetivos y notas<\/h1>[\s\S]*?<\/div>)/,m=>m+planCard())}}
 
 /* Búsqueda global: pantallas, acciones, tareas, exámenes, temas y asignaturas. Atajo: «/» o Ctrl/⌘+K. */
 const SCR=[['hoy','Hoy','inicio resumen sesiones'],['cal','Calendario','semana agenda horario bloques'],['tar','Tareas','deberes entregas pendientes'],['exa','Exámenes','examen parcial prueba'],['tem','Temario','temas guion materia'],['met','Método de estudio','fases guion memorizar autopsia reparto'],['obj','Notas y objetivo','notas nota media objetivo evaluación'],['cur','Curso hasta la PAU','pau selectividad fases'],['seg','Progreso','estadísticas seguimiento cumplimiento horas gráficos'],['rut','Rutina semanal','hábitos rutina regenerar'],['est','Estimaciones','estimador tiempo minutos'],['aj','Ajustes','configuración horario clases copia exportar importar cuenta']];

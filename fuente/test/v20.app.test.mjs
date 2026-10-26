@@ -40,3 +40,22 @@ test('refuerzo de exámenes: usa 06:00–07:00 y 22:00–23:00 solo hasta la fec
   assert.ok(extra(on).every(b => b.date <= '2026-11-02' && ((b.start >= 360 && b.end <= 420) || (b.start >= 1320 && b.end <= 1380))), 'solo dentro de las franjas y hasta la fecha');
   assert.equal(extra(off).length, 0, 'sin refuerzo, nada fuera del horario normal');
 });
+test('plan de admisión: se aplica una vez al abrir datos existentes con exámenes, no pisa objetivos propios; Mates/Física/Química reciben más horas que Business', async () => {
+  clock.t = new Date(2026, 9, 26, 14, 30).getTime();
+  const a = await boot(); await a.click('addExam'); await a.submit({ title: '', subjectId: a.S.subjects[0].id, dueDate: '2026-11-09', time: '', estOverride: '', difficulty: '3', importance: '4', readiness: '0', status: 'pending', notes: '' });
+  const store = JSON.parse(JSON.stringify(a.store)); const b = await boot(a.store);
+  assert.equal(b.S.goals.planPau, true); assert.equal(b.S.goals.target, 9.3); assert.equal(b.S.goals.pauDate, '2027-06-01'); assert.equal(b.S.goals.admTarget, 12.41);
+  assert.match(b.t.V.obj(), /Tu objetivo de admisión/); assert.match(b.t.V.obj(), /12,41/);
+  // objetivos propios: no se pisan
+  const st = JSON.parse(store['focusos.v1']); st.goals = { ...st.goals, target: 8, subjTarget: {} };
+  const c = await boot({ 'focusos.v1': JSON.stringify(st) }); assert.equal(c.S.goals.target, 8); assert.ok(!c.S.goals.planPau);
+});
+test('valor por asignatura: Matemáticas II > Física/Química > lenguas > Business/Hª España; la fórmula de admisión coincide con el documento', async () => {
+  const a = await boot(); const GL = a.t.GL ?? null;
+  const { PAU_VALUE, valueFactor, admision, needPond } = GL || {};
+  assert.ok(PAU_VALUE, 'GL expuesto en el harness');
+  assert.ok(valueFactor('Matemáticas II') > valueFactor('Física') && valueFactor('Física') > valueFactor('Catalán') && valueFactor('Catalán') > valueFactor('Business'));
+  assert.equal(admision(9.1, 8.5, 8.5, 8.5), 12.26, 'escenario A del documento: 5,46 + 3,40 + 3,40');
+  assert.equal(admision(10, 10, 10, 10), 14);
+  assert.ok(needPond(13.526, 9.1, 10) > 10, 'PARS Industrial: no alcanzable con media 9,1 (>10 en las ponderables)');
+});

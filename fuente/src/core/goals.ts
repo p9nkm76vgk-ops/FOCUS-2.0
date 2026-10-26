@@ -6,7 +6,7 @@ import type { Block, Work } from './types.ts';
 export type GradeKind = 'examen' | 'tarea' | 'evaluacion';
 /** Nota de un examen o trabajo: `weight` = % que vale dentro de SU evaluación (1.ª, 2.ª o 3.ª; la 3.ª es la nota final de 2.º). Sin `weight` (datos antiguos) no entra en el cálculo. */
 export interface Grade { id: string; subjectId: string; score: number; weight?: number; evalNo?: 1 | 2 | 3; kind?: GradeKind; date: string; label?: string; workId?: string }
-export interface Goals { target: number | null; prevAvg?: number | null; prev?: Record<string, number>; subjTarget: Record<string, number>; pauDate: string | null; start: string | null; pauExpected: number | null; accessTarget: number | null }
+export interface Goals { target: number | null; prevAvg?: number | null; prev?: Record<string, number>; subjTarget: Record<string, number>; pauDate: string | null; start: string | null; pauExpected: number | null; accessTarget: number | null; admTarget?: number | null; admLabel?: string; planPau?: boolean; planOff?: boolean }
 export interface Topic2 { id: string; subjectId: string; name: string; course?: 1 | 2; mastery: 0 | 1 | 2 | 3; reviews: number; last: string | null; next: string | null; createdAt: number }
 export const DEFAULT_GOALS: Goals = { target: null, prevAvg: null, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
 
@@ -69,6 +69,20 @@ export function accessInfo(g: Goals | undefined, media2: number | null) {
   const needMedia = nmbNeed == null ? null : r2(p1 != null ? 2 * nmbNeed - p1 : nmbNeed);
   return { nmb, access, needMedia, feasible: needMedia == null ? null : needMedia <= 10 };
 }
+
+// ---------- Plan de admisión (documento de ingeniería: GITI UPM/UC3M, Madrid) ----------
+/** Puntos de NOTA DE ADMISIÓN (0–14) que suma 1 punto más en cada asignatura de 2.º (aprox.):
+ *  - Bachillerato: 0,6 × (1/2 de la media de 2.º) × (1/9 asignaturas) ≈ 0,033 en todas.
+ *  - Fase de acceso (5 exámenes, 0,4 × 1/5 = 0,08): Matemáticas II, Lengua, Catalán, Inglés y Hª de la Filosofía (si se elige Filosofía).
+ *  - Ponderación 0,2 en la fase de admisión: las dos mejores de Matemáticas II, Física y Química (Mates cuenta en ambas).
+ *  Hª de España y Business no suman en el acceso ni ponderan a estos grados (solo la media de Bachillerato). Es un cálculo aproximado, no una cifra oficial. */
+export const PAU_VALUE: Record<string, number> = { 'Matemáticas II': 0.31, 'Física': 0.23, 'Química': 0.23, 'Lengua Castellana': 0.11, 'Catalán': 0.11, 'Inglés': 0.11, 'Historia de la Filosofía': 0.11, 'Business': 0.03, 'Historia de España': 0.03 };
+/** Factor heurístico de horas de examen según ese valor (no se baja de 0,92 porque las notas de 2.º siguen contando en la media). */
+export const valueFactor = (name?: string): number => { const v = name ? PAU_VALUE[name] : undefined; return v == null ? 1 : v >= 0.3 ? 1.15 : v >= 0.2 ? 1.08 : v <= 0.05 ? 0.92 : 1; };
+/** Nota de admisión (máx. 14) = 0,6·media Bachillerato + 0,4·media del acceso + 0,2·M1 + 0,2·M2 (M1, M2 = mejores materias ponderables). */
+export const admision = (nmb: number, acceso: number, m1: number, m2: number) => r2(Math.min(14, 0.6 * nmb + 0.4 * acceso + 0.2 * m1 + 0.2 * m2));
+/** Media que necesitas en las dos materias ponderables para llegar a `cut`, dados la media de Bachillerato y la del acceso. */
+export const needPond = (cut: number, nmb: number, acceso: number) => r2((cut - 0.6 * nmb - 0.4 * acceso) / 0.4);
 
 // ---------- Temario y repaso espaciado ----------
 export const INTERVALS = [2, 7, 21, 45, 90];
@@ -223,9 +237,9 @@ export function masteryFactor(topics: Topic2[], sid: string): number | null {
   return r2(clamp(1.2 - 0.1 * avg, 0.9, 1.2));
 }
 /** Combina la brecha con el objetivo y el dominio del temario en un factor por asignatura (solo exámenes). */
-export function examBoosts(g: Goals | undefined, grades: Grade[], topics: Topic2[], subjects: { id: string; archived?: boolean }[], today: string): Record<string, number> {
+export function examBoosts(g: Goals | undefined, grades: Grade[], topics: Topic2[], subjects: { id: string; name?: string; archived?: boolean }[], today: string): Record<string, number> {
   const o: Record<string, number> = {};
-  for (const s of subjects) if (!s.archived) { const a = boostFactor(gapOf(g, grades, s.id, today)), m = masteryFactor(topics, s.id) ?? 1, f = r2(clamp(a * m, 0.85, 1.4)); if (f !== 1) o[s.id] = f; }
+  for (const s of subjects) if (!s.archived) { const a = boostFactor(gapOf(g, grades, s.id, today)), m = masteryFactor(topics, s.id) ?? 1, f = r2(clamp(a * m * (g?.planPau ? valueFactor(s.name) : 1), 0.85, 1.4)); if (f !== 1) o[s.id] = f; }
   return o;
 }
 

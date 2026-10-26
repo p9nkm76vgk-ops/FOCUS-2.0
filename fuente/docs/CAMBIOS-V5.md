@@ -239,3 +239,10 @@ Causas halladas y corregidas:
 - Hoy más sencillo: se quita la tira semanal (barras sin etiqueta). El resto sigue igual.
 - Calendario: con refuerzo el día va de 06:00 a 23:00 (más alto).
 - Verificado: npm test 280/280, estrés 6000/0, Chromium v16 20/20, v18 12/12, final 51/51.
+
+## v22 — plan de admisión (documento de ingeniería Madrid)
+- Al abrir datos existentes con exámenes y SIN objetivos propios, se aplica una vez: media de 1.º 9,11, objetivo de 2.º 9,3, PAU 1 jun 2027, acceso esperado 8,5, objetivo de admisión 12,41 (GITI UPM, corte 12,261 + 0,15). Si ya hay objetivos propios no se toca nada.
+- «Notas y objetivo»: tarjeta «Tu objetivo de admisión» con la media que necesitas en Matemáticas II y Física/Química y «Dónde rinde más estudiar» (puntos de admisión por punto de nota; aproximado).
+- Horas de examen: factor heurístico por valor (Mates ×1,15, Física/Química ×1,08, Business/Hª España ×0,92) dentro del tope existente (0,85–1,4).
+- Cifras tomadas del documento tal cual (no verificadas por mí). Fórmula: 0,6·media Bach. + 0,4·media acceso + 0,2·M1 + 0,2·M2.
+- Verificado: npm test 282/282, estrés 6000/0, Chromium v16/v18/final/v13.
