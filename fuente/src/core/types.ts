@@ -3,7 +3,7 @@ export type WorkStatus = 'pending' | 'in_progress' | 'done' | 'archived';
 export type BlockStatus = 'planned' | 'done' | 'skipped' | 'rescheduled';
 export interface Win { start: number; end: number } // minutos desde 00:00
 export interface Settings {
-  extra?: { date: string; start: number; end: number }[]; // ventanas extra con fecha (refuerzo de exámenes)
+  extra?: { date: string; start: number; end: number; ex?: 1 }[]; // ventanas extra con fecha (refuerzo de exámenes)
   availability: Record<number, Win[]>; // 0=domingo … 6=sábado (ventanas de estudio permitidas)
   blockedDates: { date: string; start: number; end: number; pausa?: boolean }[]; // bloqueos puntuales
   maxDayWeekend?: number; // tope diario en sábado y domingo (si es mayor que maxDayMin)

@@ -35,7 +35,7 @@ test('refuerzo de exámenes: usa 06:00–07:00 y 22:00–23:00 solo hasta la fec
     const days = ['2026-11-03', '2026-11-03', '2026-11-04', '2026-11-04', '2026-11-05', '2026-11-05', '2026-11-06', '2026-11-06', '2026-11-06'];
     for (let i = 0; i < 9; i++) { await a.click('addExam'); await a.submit({ title: '', subjectId: a.S.subjects[i].id, dueDate: days[i], time: '', estOverride: '', difficulty: '3', importance: '4', readiness: '0', status: 'pending', notes: '' }) } return a };
   const on = await mk(true), off = await mk(false);
-  const extra = a => a.S.blocks.filter(b => b.start < 420 || b.end > 1320);
+  const extra = a => a.S.blocks.filter(b => (b.start < 420 || b.end > 1320) && b.date < '2026-11-02');
   assert.ok(extra(on).length > 0, 'con refuerzo se usan las franjas extra');
   assert.ok(extra(on).every(b => b.date <= '2026-11-02' && ((b.start >= 360 && b.end <= 420) || (b.start >= 1320 && b.end <= 1380))), 'solo dentro de las franjas y hasta la fecha');
   assert.equal(extra(off).length, 0, 'sin refuerzo, nada fuera del horario normal');
@@ -86,4 +86,20 @@ test('nivel por asignatura: reduce las horas del examen y la migración no toca 
   await a.click('replan');
   assert.ok(a.S.works.find(x => x.id === w0.id).estimate.remainingMin < h0);
   assert.equal(a.S.nivV, 1);
+});
+
+test('semana de exámenes (3 o más exámenes en la semana): mañana 06:30–08:30 y tarde desde las 13:30; nunca entre las 08:30 y las 13:30; víspera con más repaso del examen de mañana', async () => {
+  clock.t = new Date(2026, 9, 26, 14, 30).getTime();
+  const a = await boot(); const days = ['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13'];
+  for (let i = 0; i < 5; i++) { await a.click('addExam'); await a.submit({ title: '', subjectId: a.S.subjects[i].id, dueDate: days[i], time: '', estOverride: '', difficulty: '3', importance: '4', prep: '0', status: 'pending', notes: '' }) }
+  const wk = a.S.blocks.filter(b => b.date >= '2026-11-09' && b.date <= '2026-11-13' && b.status === 'planned');
+  assert.ok(wk.some(b => b.start >= 390 && b.end <= 510), 'mañana de repaso');
+  assert.ok(wk.some(b => b.start >= 810 && b.start < 990), 'tarde desde las 13:30');
+  assert.ok(wk.every(b => b.end <= 510 || b.start >= 810), 'nada en horario escolar');
+  const eve = a.S.works.find(w => w.subjectId === a.S.subjects[4].id && w.kind === 'exam');
+  const min = a.S.blocks.filter(b => b.workId === eve.id && b.date === '2026-11-12' && b.status === 'planned').reduce((x, b) => x + b.end - b.start, 0);
+  const tot = a.S.blocks.filter(b => b.workId === eve.id && b.status === 'planned').reduce((x, b) => x + b.end - b.start, 0);
+  assert.ok(min >= Math.min(120, tot * 0.6), 'víspera del examen: ' + min + ' de ' + tot);
+  await a.click('replan'); const snap = JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()); await a.click('replan'); await a.click('replan');
+  assert.equal(JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()), snap);
 });

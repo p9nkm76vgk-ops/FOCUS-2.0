@@ -31,6 +31,7 @@ export const EXAM_FIRST_DAYS = 14;  // exámenes dentro de este margen tienen pr
 /** PROTECCIÓN DE EXAMEN: los EXAM_GUARD_DAYS días previos (y el propio día) solo se estudia la asignatura del examen; las tareas de otras asignaturas
  *  esperan, salvo que venzan ese mismo día o antes (entonces es su última oportunidad). En esos días el examen recibe además GUARD_MIN_PER_DAY min/día
  *  (exámenes antiguos y repaso: la práctica de recuperación es lo que más rinde justo antes de evaluar). */
+export const VISPERA_MIN = 180;
 export const EXAM_GUARD_DAYS = 3, EXAM_GUARD_DAYS_HEAVY = 5, GUARD_MIN_PER_DAY = 90;
 /** Exámenes de mucho peso (importancia ≥ 4: 80–100 % de la evaluación) protegen 5 días en lugar de 3: es la «semana de examen». */
 export const guardDays = (w: { importance?: number }) => (w.importance ?? 3) >= 4 ? EXAM_GUARD_DAYS_HEAVY : EXAM_GUARD_DAYS;
@@ -128,7 +129,8 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const base = { key, w, from: now.date, last, cutoff, prio: priority(w, now), clipped };
     const mainTo = addDays(w.dueDate, -(REVIEW_DAYS + 1));
     if (w.kind === 'exam' && !overdue && !clipped && need > 0 && mainTo >= now.date && Math.min(need, Math.round(need * REVIEW_SHARE / 5) * 5) >= 15 && need - Math.round(need * REVIEW_SHARE / 5) * 5 >= 15) {
-      let review = Math.min(need, Math.round(need * REVIEW_SHARE / 5) * 5); if (review < 15 || need - review < 15) review = 0; // sin repaso ni sesiones principales diminutas
+      const sem = (s.extra ?? []).some(e => e.ex && e.date === addDays(w.dueDate, -1)); // semana de exámenes: el repaso de la víspera pesa más
+      let review = Math.min(need, Math.round((sem ? Math.min(need * 0.6, Math.max(need * REVIEW_SHARE, 2 * VISPERA_MIN * 0.67)) : need * REVIEW_SHARE) / 5) * 5); if (review < 15 || need - review < 15) review = 0; // sin repaso ni sesiones principales diminutas
       demands.push({ ...base, part: 'main', need: need - review, to: mainTo, ext: last });
       demands.push({ ...base, part: 'review', need: review, from: addDays(w.dueDate, -REVIEW_DAYS) > now.date ? addDays(w.dueDate, -REVIEW_DAYS) : now.date, to: last });
     } else demands.push({ ...base, part: 'main', need, to: last });
@@ -146,14 +148,16 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const exD = demands.filter(d => d.w.kind === 'exam' && d.w.auto !== 'review' && !d.clipped && d.need > 0), ids = [...new Set(exD.map(d => d.w.id))];
     if (ids.length > 1) {
       const tot = new Map<string, number>(); for (const d of exD) tot.set(d.w.id, (tot.get(d.w.id) ?? 0) + d.need);
-      const lastEx = exD.reduce((m, d) => d.last > m ? d.last : m, now.date), need = [...tot.values()].reduce((a, b) => a + b, 0);
-      let cap = 0; for (let dt = now.date; dt <= lastEx; dt = addDays(dt, 1)) cap += Math.max(0, Math.min(maxOf(dt) - day(dt).total, free(dt, true).reduce((a, f) => a + f.end - f.start, 0)));
-      const budget = Math.floor(cap * 0.9 / 5) * 5;
-      if (need > budget) {
-        const needs = ids.map(id => tot.get(id)!); let lo = 0, hi = Math.max(...needs);
-        while (hi - lo > 5) { const mid = Math.floor((lo + hi) / 10) * 5 || lo + 5; if (needs.reduce((a, n) => a + Math.min(n, mid), 0) <= budget) lo = mid; else hi = mid; }
-        const T = new Map<string, number>(); let used = 0; for (const id of ids) { const t = Math.min(tot.get(id)!, lo); T.set(id, t); used += t; }
-        for (const id of ids) { const room = tot.get(id)! - T.get(id)!; if (room > 0 && budget - used >= 5) { const g = Math.min(room, Math.floor((budget - used) / 5) * 5); T.set(id, T.get(id)! + g); used += g; } } // el sobrante, a los más urgentes (ids ya van por urgencia)
+      // Plazos escalonados: un examen solo puede usar la capacidad de los días hasta su fecha. Se busca el mayor nivel T tal que, para CADA fecha límite,
+      // la suma de min(necesidad, T) de los exámenes que vencen hasta ella cabe en el 80 % de la capacidad hasta esa fecha.
+      const lastOf = new Map<string, string>(); for (const d of exD) lastOf.set(d.w.id, !lastOf.has(d.w.id) || d.last > lastOf.get(d.w.id)! ? d.last : lastOf.get(d.w.id)!);
+      const lasts = [...new Set(lastOf.values())].sort(), capTo = new Map<string, number>();
+      for (const L of lasts) { let c = 0; for (let dt = now.date; dt <= L; dt = addDays(dt, 1)) c += Math.max(0, Math.min(maxOf(dt) - day(dt).total, free(dt, true).reduce((a, f) => a + f.end - f.start, 0))); capTo.set(L, Math.floor(c * 0.8 / 5) * 5); }
+      const fits = (T: number) => lasts.every(L => ids.reduce((a, id) => a + (lastOf.get(id)! <= L ? Math.min(tot.get(id)!, T) : 0), 0) <= capTo.get(L)!);
+      const need = [...tot.values()].reduce((a, b) => a + b, 0), top = Math.max(...tot.values());
+      if (!fits(top)) {
+        let lo = 0, hi = top; while (hi - lo > 5) { let mid = Math.floor((lo + hi) / 10) * 5; if (mid <= lo) mid = lo + 5; if (mid >= hi) break; if (fits(mid)) lo = mid; else hi = mid; }
+        const T = new Map<string, number>(); for (const id of ids) T.set(id, Math.min(tot.get(id)!, lo));
         for (const id of ids) {
           const t = T.get(id)!, all = tot.get(id)!; if (t >= all) continue;
           const ds = exD.filter(d => d.w.id === id); let left = t;
@@ -203,10 +207,11 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
           if (!opts.length) continue;
           const hasStudy = x.total > 0, score = (o: typeof opts[0]) => o.bad * 8 + o.sec * 4 + o.adj * 2 + (hasStudy && !o.packed ? 1 : 0);
           let pick = opts[0]; for (const o of opts) if (score(o) < score(pick)) pick = o; // la mejor ventana del día (a igualdad, la primera en el orden)
-          const load = Math.round(10 * x.total / dayCap(dt)), noPack = hasStudy && !pick.packed ? 1 : 0, sameWork = x.perWork.get(d.w.id) ? 1 : 0;
+          const eve = trimmed.size === 0 && d.w.kind === 'exam' && !rev && !isUndated(d.w) && dt === addDays(d.w.dueDate, -1) && (x.perWork.get(d.w.id) ?? 0) < VISPERA_MIN ? 0 : 1; // víspera: el examen de mañana se repasa a fondo (hasta VISPERA_MIN min)
+          const load = trimmed.size > 0 && d.w.kind === 'exam' ? 0 : Math.round(10 * x.total / dayCap(dt)), /* con exceso de carga, los plazos más cercanos ocupan los primeros días y dejan los últimos a los demás */ noPack = hasStudy && !pick.packed ? 1 : 0, sameWork = eve === 0 ? 0 : x.perWork.get(d.w.id) ? 1 : 0;
           // Patrón: 1) no repetir el mismo trabajo el mismo día · 2) evitar franjas que fallas · 3) la franja de después de cenar solo como último recurso ·
           // 4) los repasos cortos se pegan a días que ya tienen estudio (no abren un día por sí solos) · 5) repartir por carga relativa · 6) sesiones seguidas, sin huecos · 7) alternar asignaturas
-          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [sameWork, pick.bad, pick.sec, pick.adj, load, noPack, dt] });
+          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, sameWork, pick.bad, pick.sec, pick.adj, load, noPack, dt] });
         }
         if (cands.length) break;
       }

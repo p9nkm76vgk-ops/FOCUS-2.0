@@ -262,3 +262,9 @@ Causas halladas y corregidas:
 ## v23.3 — Nivel actual por asignatura y «Horas hasta cada examen»
 - Cada asignatura tiene «Nivel actual» (0 de cero · 1 algo sé · 2 bastante bien · 3 muy preparado). Es el valor por defecto de «Preparación» en exámenes nuevos. Migración única (`nivV`): niveles iniciales según el usuario (Mates 1, Física 0, Química 2, Business 1, Lengua 0, Catalán 0, Inglés 2, Hª España 0, Filosofía 2) aplicados solo a exámenes con temas automáticos a 0.
 - La tarjeta pasa a «Horas hasta cada examen»: hechas y previstas, sin etiquetas «te quedas corto» ni %. Inglés factor 0,8.
+
+## v24 — Semana de exámenes
+- Semana (lunes–viernes) con 3 o más exámenes con fecha: salida a las 12:50 → ventanas extra 06:30–08:30 y desde las 13:30 hasta donde empieza el horario normal (marcadas `ex:1`). Se calculan en cada plan (`examWeekWins`, finde.js); no se guardan.
+- Víspera: el repaso final del examen de mañana pesa más en semana de exámenes (hasta 60 % del trabajo) y se coloca de preferencia el día anterior (`VISPERA_MIN` = 180 min), solo si no hay exceso de carga.
+- Planificador: el reparto equitativo entre exámenes ahora respeta cada fecha límite (un examen no usa capacidad de días posteriores; 80 % de la capacidad por fecha); con exceso de carga, los plazos cercanos ocupan primero los primeros días. Corregido un bucle infinito latente en la búsqueda del nivel.
+- Pruebas: 286 tests, estrés 6000 estados 0 fallos, Chromium v16/v18/final/v13/pages. Safari/iPad sin probar.

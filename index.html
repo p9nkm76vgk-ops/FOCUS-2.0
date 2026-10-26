@@ -303,6 +303,7 @@ const EXAM_FIRST_DAYS = 14;  // exámenes dentro de este margen tienen prioridad
 /** PROTECCIÓN DE EXAMEN: los EXAM_GUARD_DAYS días previos (y el propio día) solo se estudia la asignatura del examen; las tareas de otras asignaturas
  *  esperan, salvo que venzan ese mismo día o antes (entonces es su última oportunidad). En esos días el examen recibe además GUARD_MIN_PER_DAY min/día
  *  (exámenes antiguos y repaso: la práctica de recuperación es lo que más rinde justo antes de evaluar). */
+const VISPERA_MIN = 180;
 const EXAM_GUARD_DAYS = 3, EXAM_GUARD_DAYS_HEAVY = 5, GUARD_MIN_PER_DAY = 90;
 /** Exámenes de mucho peso (importancia ≥ 4: 80–100 % de la evaluación) protegen 5 días en lugar de 3: es la «semana de examen». */
 const guardDays = (w                         ) => (w.importance ?? 3) >= 4 ? EXAM_GUARD_DAYS_HEAVY : EXAM_GUARD_DAYS;
@@ -400,7 +401,8 @@ function plan(input                                                             
     const base = { key, w, from: now.date, last, cutoff, prio: priority(w, now), clipped };
     const mainTo = addDays(w.dueDate, -(REVIEW_DAYS + 1));
     if (w.kind === 'exam' && !overdue && !clipped && need > 0 && mainTo >= now.date && Math.min(need, Math.round(need * REVIEW_SHARE / 5) * 5) >= 15 && need - Math.round(need * REVIEW_SHARE / 5) * 5 >= 15) {
-      let review = Math.min(need, Math.round(need * REVIEW_SHARE / 5) * 5); if (review < 15 || need - review < 15) review = 0; // sin repaso ni sesiones principales diminutas
+      const sem = (s.extra ?? []).some(e => e.ex && e.date === addDays(w.dueDate, -1)); // semana de exámenes: el repaso de la víspera pesa más
+      let review = Math.min(need, Math.round((sem ? Math.min(need * 0.6, Math.max(need * REVIEW_SHARE, 2 * VISPERA_MIN * 0.67)) : need * REVIEW_SHARE) / 5) * 5); if (review < 15 || need - review < 15) review = 0; // sin repaso ni sesiones principales diminutas
       demands.push({ ...base, part: 'main', need: need - review, to: mainTo, ext: last });
       demands.push({ ...base, part: 'review', need: review, from: addDays(w.dueDate, -REVIEW_DAYS) > now.date ? addDays(w.dueDate, -REVIEW_DAYS) : now.date, to: last });
     } else demands.push({ ...base, part: 'main', need, to: last });
@@ -418,14 +420,16 @@ function plan(input                                                             
     const exD = demands.filter(d => d.w.kind === 'exam' && d.w.auto !== 'review' && !d.clipped && d.need > 0), ids = [...new Set(exD.map(d => d.w.id))];
     if (ids.length > 1) {
       const tot = new Map                (); for (const d of exD) tot.set(d.w.id, (tot.get(d.w.id) ?? 0) + d.need);
-      const lastEx = exD.reduce((m, d) => d.last > m ? d.last : m, now.date), need = [...tot.values()].reduce((a, b) => a + b, 0);
-      let cap = 0; for (let dt = now.date; dt <= lastEx; dt = addDays(dt, 1)) cap += Math.max(0, Math.min(maxOf(dt) - day(dt).total, free(dt, true).reduce((a, f) => a + f.end - f.start, 0)));
-      const budget = Math.floor(cap * 0.9 / 5) * 5;
-      if (need > budget) {
-        const needs = ids.map(id => tot.get(id) ); let lo = 0, hi = Math.max(...needs);
-        while (hi - lo > 5) { const mid = Math.floor((lo + hi) / 10) * 5 || lo + 5; if (needs.reduce((a, n) => a + Math.min(n, mid), 0) <= budget) lo = mid; else hi = mid; }
-        const T = new Map                (); let used = 0; for (const id of ids) { const t = Math.min(tot.get(id) , lo); T.set(id, t); used += t; }
-        for (const id of ids) { const room = tot.get(id)  - T.get(id) ; if (room > 0 && budget - used >= 5) { const g = Math.min(room, Math.floor((budget - used) / 5) * 5); T.set(id, T.get(id)  + g); used += g; } } // el sobrante, a los más urgentes (ids ya van por urgencia)
+      // Plazos escalonados: un examen solo puede usar la capacidad de los días hasta su fecha. Se busca el mayor nivel T tal que, para CADA fecha límite,
+      // la suma de min(necesidad, T) de los exámenes que vencen hasta ella cabe en el 80 % de la capacidad hasta esa fecha.
+      const lastOf = new Map                (); for (const d of exD) lastOf.set(d.w.id, !lastOf.has(d.w.id) || d.last > lastOf.get(d.w.id)  ? d.last : lastOf.get(d.w.id) );
+      const lasts = [...new Set(lastOf.values())].sort(), capTo = new Map                ();
+      for (const L of lasts) { let c = 0; for (let dt = now.date; dt <= L; dt = addDays(dt, 1)) c += Math.max(0, Math.min(maxOf(dt) - day(dt).total, free(dt, true).reduce((a, f) => a + f.end - f.start, 0))); capTo.set(L, Math.floor(c * 0.8 / 5) * 5); }
+      const fits = (T        ) => lasts.every(L => ids.reduce((a, id) => a + (lastOf.get(id)  <= L ? Math.min(tot.get(id) , T) : 0), 0) <= capTo.get(L) );
+      const need = [...tot.values()].reduce((a, b) => a + b, 0), top = Math.max(...tot.values());
+      if (!fits(top)) {
+        let lo = 0, hi = top; while (hi - lo > 5) { let mid = Math.floor((lo + hi) / 10) * 5; if (mid <= lo) mid = lo + 5; if (mid >= hi) break; if (fits(mid)) lo = mid; else hi = mid; }
+        const T = new Map                (); for (const id of ids) T.set(id, Math.min(tot.get(id) , lo));
         for (const id of ids) {
           const t = T.get(id) , all = tot.get(id) ; if (t >= all) continue;
           const ds = exD.filter(d => d.w.id === id); let left = t;
@@ -475,10 +479,11 @@ function plan(input                                                             
           if (!opts.length) continue;
           const hasStudy = x.total > 0, score = (o                ) => o.bad * 8 + o.sec * 4 + o.adj * 2 + (hasStudy && !o.packed ? 1 : 0);
           let pick = opts[0]; for (const o of opts) if (score(o) < score(pick)) pick = o; // la mejor ventana del día (a igualdad, la primera en el orden)
-          const load = Math.round(10 * x.total / dayCap(dt)), noPack = hasStudy && !pick.packed ? 1 : 0, sameWork = x.perWork.get(d.w.id) ? 1 : 0;
+          const eve = trimmed.size === 0 && d.w.kind === 'exam' && !rev && !isUndated(d.w) && dt === addDays(d.w.dueDate, -1) && (x.perWork.get(d.w.id) ?? 0) < VISPERA_MIN ? 0 : 1; // víspera: el examen de mañana se repasa a fondo (hasta VISPERA_MIN min)
+          const load = trimmed.size > 0 && d.w.kind === 'exam' ? 0 : Math.round(10 * x.total / dayCap(dt)), /* con exceso de carga, los plazos más cercanos ocupan los primeros días y dejan los últimos a los demás */ noPack = hasStudy && !pick.packed ? 1 : 0, sameWork = eve === 0 ? 0 : x.perWork.get(d.w.id) ? 1 : 0;
           // Patrón: 1) no repetir el mismo trabajo el mismo día · 2) evitar franjas que fallas · 3) la franja de después de cenar solo como último recurso ·
           // 4) los repasos cortos se pegan a días que ya tienen estudio (no abren un día por sí solos) · 5) repartir por carga relativa · 6) sesiones seguidas, sin huecos · 7) alternar asignaturas
-          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [sameWork, pick.bad, pick.sec, pick.adj, load, noPack, dt] });
+          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, sameWork, pick.bad, pick.sec, pick.adj, load, noPack, dt] });
         }
         if (cands.length) break;
       }
@@ -1717,7 +1722,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='d79574b235',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='37fc299ce2',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2377,7 +2382,7 @@ Object.assign(A,{examQuit:t=>{const w=S.works.find(x=>x.id===t.dataset.id);if(!w
   {l:'Cancelar',fn:()=>{}}])}});
 
 /* v21 · Refuerzo de exámenes: horas extra con fecha (mañana 06:00–07:00 y noche 22:00–23:00) durante unas semanas */
-function refWins(Sx,today){const R=Sx.refuerzo;if(!R||!R.on||!R.until)return[];const out=[];for(let d=today;d<=R.until;d=addDays(d,1)){if(R.morning&&weekday(d)>=1&&weekday(d)<=5)out.push({date:d,start:360,end:420});if(R.night)out.push({date:d,start:1320,end:1380})}return out}
+function refWins0(Sx,today){const R=Sx.refuerzo;if(!R||!R.on||!R.until)return[];const out=[];for(let d=today;d<=R.until;d=addDays(d,1)){if(R.morning&&weekday(d)>=1&&weekday(d)<=5)out.push({date:d,start:360,end:420});if(R.night)out.push({date:d,start:1320,end:1380})}return out}
 function refText(R){if(!R||!R.on)return'Desactivado. Si lo activas, se añaden horas de estudio extra durante unas semanas.';const p=[R.morning&&'06:00–07:00 por la mañana (lunes a viernes; el fin de semana, desde las 8:00)',R.night&&'22:00–23:00 por la noche'].filter(Boolean).join(' y ');return`Activado hasta el ${R.until.split('-').reverse().join('/')}: ${p||'sin franjas elegidas'}. El planificador las usa solo si hacen falta.`}
 {const aj=V.aj;V.aj=a=>{let h=aj(a);const R=S.refuerzo,card=`<div class=card data-sec=refuerzo><h3>Refuerzo de exámenes</h3><p class=m>${esc(refText(R))}</p><div class=row style="justify-content:flex-start;gap:12px"><button class=pri data-a=refEdit>${R&&R.on?'Cambiar':'Activar'}</button>${R&&R.on?'<button data-a=refOff>Desactivar</button>':''}</div></div>`;const i=h.indexOf('<form id=sf');return i<0?h:h.slice(0,i)+card+h.slice(i)}}
 Object.assign(A,{refOff:()=>{S.refuerzo={...S.refuerzo,on:false};commit({quiet:true})},refEdit:()=>{const R=S.refuerzo||{};openForm('Refuerzo de exámenes',[{t:'note',v:'Horas de estudio extra durante unas semanas. No cambian tu horario normal: se acaban solas el día que elijas.'},{k:'morning',l:'Mañana 06:00–07:00 (entre semana)',t:'chips',o:[['1','Sí'],['0','No']],v:R.morning===false?'0':'1'},{k:'night',l:'Noche 22:00–23:00',t:'chips',o:[['1','Sí'],['0','No']],v:R.night===false?'0':'1'},{k:'until',l:'Hasta el día',t:'date',v:R.until||addDays(now().date,13)}],v=>{if(!v.until||v.until<now().date)return'Elige una fecha de hoy en adelante.';S.refuerzo={on:true,until:v.until,morning:v.morning!=='0',night:v.night!=='0'};commit({quiet:true})},null,'Guardar')}});
@@ -2407,6 +2412,13 @@ function arrivalCard(){const td=now().date,ex=S.works.filter(w=>w.kind==='exam'&
  const rows=ex.map(w=>{const s=sub(w.subjectId),a=arrival(w,td);return`<div class=arr style="--c:${s.color}"><span class=an><i class=dot></i><b>${esc(s.name)}</b><small>${fd(w.dueDate)}</small></div><div class=ab><i style="width:${a.pct}%"></i></div><span class=at><b>${hr(a.done)}</b> hechas · <b>${hr(a.plan)}</b> previstas</span></div>`}).join('');
  return`<div class=card><h3>Horas hasta cada examen</h3><p class=m>Lo que has estudiado y lo que el calendario ya tiene previsto hasta el día del examen. La barra se llena a medida que estudias. Si cambias el nivel de una asignatura (Asignaturas → Editar), las horas se ajustan.</p>${rows}</div>`}
 {const e=V.exa;V.exa=a=>{const h=e(a),c=arrivalCard();return c?h.replace(/(<div class=ph>[\s\S]*?<\/div>)/,m=>m+c):h}}
+
+/* v24 · Semana de exámenes: lunes a viernes de una semana con 3 o más exámenes con fecha. Se sale a las 12:50: tarde libre desde las 13:30 y mañana de repaso 06:30–08:30. */
+const EXW={morning:[390,510],afternoonFrom:810};
+function examWeeks(Sx){const by={};for(const w of Sx.works||[]){if(w.kind!=='exam'||w.auto==='review'||isUndated(w)||!(w.status==='pending'||w.status==='in_progress')||!w.dueDate)continue;const mon=addDays(w.dueDate,-((weekday(w.dueDate)+6)%7));by[mon]=(by[mon]||0)+1}return Object.keys(by).filter(m=>by[m]>=3)}
+function mergeWins(l){const by={};for(const e of l)(by[e.date]=by[e.date]||[]).push(e);const out=[];for(const d of Object.keys(by).sort()){const a=by[d].sort((x,y)=>x.start-y.start);let c=null;for(const e of a){if(c&&e.start<=c.end){c.end=Math.max(c.end,e.end);if(e.ex)c.ex=1}else{c={date:d,start:e.start,end:e.end};if(e.ex)c.ex=1;out.push(c)}}}return out}
+function examWeekWins(Sx,today){const out=[],av=(Sx.settings&&Sx.settings.availability)||{};for(const mon of examWeeks(Sx))for(let i=0;i<5;i++){const d=addDays(mon,i);if(d<today)continue;out.push({date:d,start:EXW.morning[0],end:EXW.morning[1],ex:1});const ws=(av[weekday(d)]||[]).filter(w=>w.end>EXW.afternoonFrom).sort((a,b)=>a.start-b.start),end=ws.length?Math.max(EXW.afternoonFrom,ws[0].start):EXW.afternoonFrom+120;if(end-EXW.afternoonFrom>=30&&(!ws.length||ws[0].start>EXW.afternoonFrom))out.push({date:d,start:EXW.afternoonFrom,end,ex:1})}return out}
+function refWins(Sx,today){return mergeWins([...refWins0(Sx,today),...examWeekWins(Sx,today)])}
 
 /* Búsqueda global: pantallas, acciones, tareas, exámenes, temas y asignaturas. Atajo: «/» o Ctrl/⌘+K. */
 const SCR=[['hoy','Hoy','inicio resumen sesiones'],['cal','Calendario','semana agenda horario bloques'],['tar','Tareas','deberes entregas pendientes'],['exa','Exámenes','examen parcial prueba'],['tem','Temario','temas guion materia'],['met','Método de estudio','fases guion memorizar autopsia reparto'],['obj','Notas y objetivo','notas nota media objetivo evaluación'],['cur','Curso hasta la PAU','pau selectividad fases'],['seg','Progreso','estadísticas seguimiento cumplimiento horas gráficos'],['rut','Rutina semanal','hábitos rutina regenerar'],['est','Estimaciones','estimador tiempo minutos'],['aj','Ajustes','configuración horario clases copia exportar importar cuenta']];
