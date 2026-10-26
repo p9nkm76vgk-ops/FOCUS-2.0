@@ -54,7 +54,7 @@ test('valor por asignatura: Matemáticas II > Física/Química > lenguas > Busin
   const a = await boot(); const GL = a.t.GL ?? null;
   const { PAU_VALUE, valueFactor, admision, needPond } = GL || {};
   assert.ok(PAU_VALUE, 'GL expuesto en el harness');
-  assert.ok(valueFactor('Matemáticas II') > valueFactor('Física') && valueFactor('Física') > valueFactor('Catalán') && valueFactor('Catalán') > valueFactor('Business'));
+  assert.ok(valueFactor('Matemáticas II') > valueFactor('Física') && valueFactor('Física') > valueFactor('Catalán') && valueFactor("Catalán") > valueFactor("Business") && valueFactor("Historia de España") === valueFactor("Lengua Castellana"));
   assert.equal(admision(9.1, 8.5, 8.5, 8.5), 12.26, 'escenario A del documento: 5,46 + 3,40 + 3,40');
   assert.equal(admision(10, 10, 10, 10), 14);
   assert.ok(needPond(13.526, 9.1, 10) > 10, 'PARS Industrial: no alcanzable con media 9,1 (>10 en las ponderables)');

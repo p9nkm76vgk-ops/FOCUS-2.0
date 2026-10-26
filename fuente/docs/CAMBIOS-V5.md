@@ -252,3 +252,6 @@ Causas halladas y corregidas:
 - El refuerzo de mañana (06–07) solo aplica de lunes a viernes; el de noche (22–23), todos los días.
 - Exámenes: tarjeta «Cómo llegarás a cada examen» (horas hechas + previstas frente a la estimación; etiquetas Plan completo / Llegas justo / Te quedas corto).
 - Pruebas ejecutadas: npm test, estrés (6000 estados, 0 fallos), Chromium v16/v18/final/v13/pages. Safari/iPad sin probar.
+
+## v23.1 — Prioridades personales por asignatura
+- Más horas a Catalán e Historia de España (a nivel de Lengua, factor 1,06); menos a Inglés, Business y Filosofía (0,88). Matemáticas/Física/Química siguen arriba. Tabla `PERSONAL` en goals.ts, fácil de editar.

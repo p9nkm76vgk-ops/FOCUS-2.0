@@ -78,7 +78,8 @@ export function accessInfo(g: Goals | undefined, media2: number | null) {
  *  Hª de España y Business no suman en el acceso ni ponderan a estos grados (solo la media de Bachillerato). Es un cálculo aproximado, no una cifra oficial. */
 export const PAU_VALUE: Record<string, number> = { 'Matemáticas II': 0.31, 'Física': 0.23, 'Química': 0.23, 'Lengua Castellana': 0.11, 'Catalán': 0.11, 'Inglés': 0.11, 'Historia de la Filosofía': 0.11, 'Business': 0.03, 'Historia de España': 0.03 };
 /** Factor heurístico de horas de examen según ese valor (no se baja de 0,92 porque las notas de 2.º siguen contando en la media). */
-export const valueFactor = (name?: string): number => { const v = name ? PAU_VALUE[name] : undefined; return v == null ? 1 : v >= 0.3 ? 1.15 : v >= 0.2 ? 1.08 : v <= 0.05 ? 0.92 : 1; };
+export const PERSONAL: Record<string, number> = { 'Catalán': 1.06, 'Historia de España': 1.06, 'Lengua Castellana': 1.06, 'Inglés': 0.88, 'Business': 0.88, 'Historia de la Filosofía': 0.88 };
+export const valueFactor = (name?: string): number => { if (name && name in PERSONAL) return PERSONAL[name]; const v = name ? PAU_VALUE[name] : undefined; return v == null ? 1 : v >= 0.3 ? 1.15 : v >= 0.2 ? 1.08 : 1; };
 /** Nota de admisión (máx. 14) = 0,6·media Bachillerato + 0,4·media del acceso + 0,2·M1 + 0,2·M2 (M1, M2 = mejores materias ponderables). */
 export const admision = (nmb: number, acceso: number, m1: number, m2: number) => r2(Math.min(14, 0.6 * nmb + 0.4 * acceso + 0.2 * m1 + 0.2 * m2));
 /** Media que necesitas en las dos materias ponderables para llegar a `cut`, dados la media de Bachillerato y la del acceso. */
