@@ -113,3 +113,17 @@ test('sin refuerzo fuera de horario salvo semana de exámenes; la semana previa 
   assert.equal(before.filter(b => b.start < 420 || b.end > 1230).length, 0, 'ni antes de las 7 ni después de las 20:30 hasta la semana de exámenes');
   assert.ok(a.S.blocks.filter(b => b.date >= '2026-11-04' && b.date <= '2026-11-06' && b.start >= 885 && b.start < 930).length >= 0);
 });
+
+test('pausa de entrenamiento: entre semana se estudia en el hueco de 17:00–17:30 hasta el último examen; fines de semana 1 h reservada; se puede reanudar', async () => {
+  clock.t = new Date(2026, 9, 27, 20, 0).getTime();
+  const a = await boot(); const days = ['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13'];
+  for (let i = 0; i < 5; i++) { await a.click('addExam'); await a.submit({ title: '', subjectId: a.S.subjects[i].id, dueDate: days[i], time: '', estOverride: '', difficulty: '3', importance: '4', prep: '0', status: 'pending', notes: '' }) }
+  a.S.pausaEntreno = { on: true }; await a.click('replan'); await a.click('replan');
+  const wkdays = a.S.blocks.filter(b => b.status === 'planned' && [3, 4, 5].includes(new Date(b.date + 'T12:00').getDay()) && b.start < 1050 && b.end > 1020);
+  assert.ok(wkdays.length > 0, 'se usa el hueco de las 17:00 entre semana');
+  const we = a.S.activities.filter(x => x.category === 'exercise' && ['2026-10-31', '2026-11-01', '2026-11-07', '2026-11-08'].includes(x.date));
+  assert.equal(we.length, 4); assert.ok(we.every(x => x.start === 1020 && x.end === 1080));
+  assert.equal(a.S.blocks.filter(b => b.status === 'planned' && ['2026-10-31', '2026-11-01', '2026-11-07', '2026-11-08'].includes(b.date) && b.start < 1080 && b.end > 1020).length, 0, 'nada pisa el entreno del fin de semana');
+  const snap = JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()); await a.click('replan');
+  assert.equal(JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()), snap); assert.equal(a.S.activities.filter(x => x.id.startsWith('act:ent-')).length, 4, 'sin duplicados');
+});

@@ -272,3 +272,7 @@ Causas halladas y corregidas:
 ## v25 — Sin estudio fuera de horario salvo en la semana de exámenes
 - Migración única (`refV`): el refuerzo 06–07 / 22–23 queda apagado (se puede reactivar en Ajustes). Fuera de la semana de exámenes no se estudia antes de las 7:00 ni después de las 20:30.
 - Semana previa a la de exámenes: miércoles a viernes desde las 14:45 (`preWeekWins`) para repasar algo más; la semana de exámenes mantiene 06:30–08:30 y tarde desde las 13:30.
+
+## v26 — Pausa de entrenamiento entre semana
+- `S.pausaEntreno` (migración única `trV`: activada). Hasta el último examen, de lunes a viernes el hueco de ejercicio (17:00–17:30) pasa a ser estudio (`trainWins`) y el bloque fijo «Ejercicio» deja de mostrarse. Sábado y domingo se reserva 1 h (17:00–18:00) como actividad de ejercicio, creada una sola vez por fecha (`entrenoHecho`; si la borras, no vuelve).
+- Ajustes → «Entrenar entre semana» para pausar o reanudar.
