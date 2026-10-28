@@ -127,3 +127,19 @@ test('pausa de entrenamiento: entre semana se estudia en el hueco de 17:00–17:
   const snap = JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()); await a.click('replan');
   assert.equal(JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()), snap); assert.equal(a.S.activities.filter(x => x.id.startsWith('act:ent-')).length, 4, 'sin duplicados');
 });
+
+test('regenerar mantiene lo de hoy, se puede deshacer; un examen «lo llevo yo» no recibe sesiones', async () => {
+  clock.t = new Date(2026, 9, 28, 17, 34).getTime();
+  const a = await boot(); const days = ['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-10-29'];
+  for (let i = 0; i < 5; i++) { await a.click('addExam'); await a.submit({ title: '', subjectId: a.S.subjects[i].id, dueDate: days[i], time: '', estOverride: '', difficulty: '3', importance: '4', prep: '0', status: 'pending', notes: '' }) }
+  const lunes = a.S.works.find(w => w.dueDate === '2026-10-29'); assert.ok(a.S.blocks.some(b => b.workId === lunes.id), 'antes: sesiones de ese examen');
+  const hoy0 = JSON.stringify(a.S.blocks.filter(b => b.date === '2026-10-28' && b.status === 'planned' && b.start >= 1054).map(b => [b.id, b.start, b.end]).sort());
+  await a.click('replan');
+  assert.equal(JSON.stringify(a.S.blocks.filter(b => b.date === '2026-10-28' && b.status === 'planned' && b.start >= 1054).map(b => [b.id, b.start, b.end]).sort()), hoy0, 'hoy no cambia al regenerar');
+  assert.ok(a.S.deshacer && a.S.deshacer.blocks.length > 0);
+  const antes = JSON.stringify(a.S.deshacer.blocks.map(b => b.id).sort());
+  await a.click('replan'); a.S.deshacer.blocks.length;
+  const w2 = a.S.works.find(w => w.id === lunes.id); w2.noPlan = true; await a.click('replan');
+  assert.equal(a.S.blocks.filter(b => b.workId === lunes.id && b.status === 'planned').length, 0, 'sin sesiones automáticas si lo lleva él');
+  const n = a.S.deshacer.blocks.length; await a.click('undoRegen'); assert.equal(a.S.deshacer, undefined); assert.ok(n >= 0 && antes.length > 0);
+});

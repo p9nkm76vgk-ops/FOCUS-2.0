@@ -276,3 +276,7 @@ Causas halladas y corregidas:
 ## v26 — Pausa de entrenamiento entre semana
 - `S.pausaEntreno` (migración única `trV`: activada). Hasta el último examen, de lunes a viernes el hueco de ejercicio (17:00–17:30) pasa a ser estudio (`trainWins`) y el bloque fijo «Ejercicio» deja de mostrarse. Sábado y domingo se reserva 1 h (17:00–18:00) como actividad de ejercicio, creada una sola vez por fecha (`entrenoHecho`; si la borras, no vuelve).
 - Ajustes → «Entrenar entre semana» para pausar o reanudar.
+
+## v27 — Regenerar sin sorpresas y «lo llevo yo»
+- «Regenerar futuro» ya no toca lo que queda de hoy (se regenera de mañana en adelante) y guarda una copia (`S.deshacer`): botón «Deshacer última regeneración» en Calendario, visible el mismo día.
+- Examen con «Sesiones automáticas: No, lo llevo yo» (`noPlan`): sin sesiones ni repasos del temario de esa asignatura mientras esté pendiente (`planWorks`). Migración única (`fiV`): el examen de Filosofía de hoy o mañana queda así.
