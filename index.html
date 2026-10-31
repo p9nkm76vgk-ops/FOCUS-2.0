@@ -276,12 +276,12 @@ const hm = (h        , m = 0) => h * 60 + m;
 /** Cena y ducha (20:30–22:00): sin estudio por defecto. Editable en Ajustes añadiendo una franja si algún día quieres estudiar más tarde. */
 const CENA      = { start: hm(20, 30), end: hm(22) };
 /** Ejercicio diario fijo (17:00–17:30): nunca se planifica estudio encima. */
-const EJERCICIO      = { start: hm(17), end: hm(17, 30) };
+const EJERCICIO      = { start: hm(17), end: hm(18) };
 const wk        = [{ start: hm(15, 30), end: EJERCICIO.start }, { start: EJERCICIO.end, end: hm(20, 30) }];
 const we        = [{ start: hm(10), end: hm(13, 30) }, { start: hm(16), end: EJERCICIO.start }, { start: EJERCICIO.end, end: hm(20, 30) }];
 /** Valores iniciales editables. Lun/Mar descuentan llegada a casa (16:30 / 17:10). */
 const DEFAULT_SETTINGS           = {
-  availability: { 0: we, 1: [{ start: EJERCICIO.end, end: hm(20, 30) }], 2: [{ start: hm(17, 40), end: hm(20, 30) }], 3: wk, 4: wk, 5: wk, 6: we },
+  availability: { 0: we, 1: [{ start: EJERCICIO.end, end: hm(20, 30) }], 2: [{ start: EJERCICIO.end, end: hm(20, 30) }], 3: wk, 4: wk, 5: wk, 6: we },
   blockedDates: [], maxDayMin: 240, preferredMin: 50, maxSessionMin: 90, minSessionMin: 25, minGapMin: 10, horizonDays: 28,
 };
 /** Función de prioridad: desempate entre demandas con el mismo plazo. Ajustable. */
@@ -1359,7 +1359,7 @@ const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 /** Fin del curso por defecto: 15 de junio del curso en marcha. */
 const schoolEnd = (today        ) => { const y = +today.slice(0, 4), m = +today.slice(5, 7); return `${m >= 7 ? y + 1 : y}-06-15`; };
 
-function buildIcs(a                                                                                                                                                                     )                                  {
+function buildIcs(a                                                                                                                                                                                                                                )                                  {
   const sn = (id        ) => a.subjects.find(s => s.id === id)?.name ?? 'Estudio', wk = (id        ) => a.works.find(w => w.id === id);
   const alarm = a.alarmMin ?? 10, ev             = [];
   const base = (uid        ) => ['BEGIN:VEVENT', `UID:${uid}@focusos`, `DTSTAMP:${a.stampUtc}`];
@@ -1376,6 +1376,9 @@ function buildIcs(a                                                             
   for (const c of [...(a.classes ?? [])].sort((x, y) => x.day - y.day || x.start - y.start || x.id.localeCompare(y.id))) {
     const first = addD(a.today, (c.day - wd(a.today) + 7) % 7), until = (a.until ?? schoolEnd(a.today)).replace(/-/g, '');
     ev.push([...base('clase-' + c.id), `DTSTART:${stamp(first, c.start)}`, `DTEND:${stamp(first, c.end)}`, `RRULE:FREQ=WEEKLY;BYDAY=${BYDAY[c.day]};UNTIL=${until}T235959`, `SUMMARY:${esc('Clase · ' + c.name)}`, 'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(`En ${alarm} min: ${c.name}`)}`, `TRIGGER:-PT${alarm}M`, 'END:VALARM', 'END:VEVENT']);
+  }
+  for (const t of [...(a.training ?? [])].filter(t => t.date >= a.today).sort((x, y) => x.date.localeCompare(y.date) || x.start - y.start)) {
+    ev.push([...base('entreno-' + t.date), `DTSTART:${stamp(t.date, t.start)}`, `DTEND:${stamp(t.date, t.end)}`, `SUMMARY:${esc(`Entreno · ${t.end - t.start} min`)}`, `DESCRIPTION:${esc('Abre Entreno OS y dale a empezar · Focus OS')}`, 'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc('En 10 min: entreno')}`, 'TRIGGER:-PT10M', 'END:VALARM', 'END:VEVENT']);
   }
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Focus OS//ES', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Focus OS', ...ev.flat(), 'END:VCALENDAR'];
   return { text: lines.map(fold).join('\r\n') + '\r\n', count: ev.length };
@@ -1722,7 +1725,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='89fd9cd1a6',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='af91123751',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -1937,7 +1940,7 @@ function calEvents(d){const ev=[],nos=[];
  for(const b of S.blocks.filter(x=>x.date===d)){const w=wk(b.workId)||{},c=sub(w.subjectId);ev.push({s:b.start,e:b.end,c:c.color,cls:'ob '+b.status+(b.manual?' manual':''),t:'ob',id:b.id,name:c.name,sub:(w.title||'')+(b.part==='review'?' · repaso':'')+(b.topicId?' · '+wTopic(b):'')+(isUndated(w)?' · sin fecha':'')+(b.status==='done'?' · hecha':b.status==='skipped'?' · omitida':b.status==='rescheduled'?' · reprogramada':''),act:b.status==='planned'})}
  for(const h of (S.habit||[]).filter(x=>x.date===d&&x.status!=='skipped'&&x.status!=='replaced')){const c=sub(h.subjectId),nm=h.title.replace(c.name+': ','');if(h.status==='displaced')nos.push({c:c.color,t:'hab',id:h.id,name:c.name,sub:'sugerido · sin hueco'});else ev.push({s:h.start,e:h.end,c:c.color,cls:'hab '+h.status,t:'hab',id:h.id,name:c.name,sub:nm+(h.status==='done'?' · hecha':h.status==='replaced'?' · sustituida':''),act:h.status==='planned'})}
  for(const a of S.activities.filter(x=>x.date===d)){const nm=a.category==='exercise'?'Ejercicio · '+TL(a.type):a.title||'Actividad opcional',o={c:'var(--muted)',cls:'act '+a.status,t:'act',id:a.id,name:nm,sub:a.status==='done'?'completada':a.status==='skipped'?'omitida':'',act:true};if(a.start==null)nos.push(o);else ev.push({...o,s:a.start,e:a.end})}
- if(!(typeof noEntreno==='function'&&noEntreno(d))&&!S.activities.some(a=>a.category==='exercise'&&a.date===d&&a.start!=null&&a.start<=EJ.start&&a.end>=EJ.end))ev.push({s:EJ.start,e:EJ.end,c:'var(--muted)',cls:'act fixed',t:'fix',id:'fix:'+d,name:'Ejercicio',sub:'fijo cada día',act:false});
+ if(!(typeof noEntreno==='function'&&noEntreno(d))&&!S.activities.some(a=>a.category==='exercise'&&a.date===d&&a.start!=null&&a.start<=EJ.start&&a.end>=(typeof ejFin==='function'?ejFin(S,d):EJ.end)))ev.push({s:EJ.start,e:(typeof ejFin==='function'?ejFin(S,d):EJ.end),c:'var(--muted)',cls:'act fixed',t:'fix',id:'fix:'+d,name:'Entreno',sub:(typeof ejFin==='function'&&ejFin(S,d)<EJ.end)?'30 min · semana de exámenes':'1 hora · Entreno OS',act:false});
  return{ev:lanesOf(ev),nos}}
 const shortName=n=>{n=String(n||'');const m=/^Historia de la (.+)$/.exec(n);if(m)return m[1];const h=/^Historia de (.+)$/.exec(n);if(h)return'Hist. '+h[1];if(n==='Matemáticas II')return'Mates II';if(n==='Lengua Castellana')return'Lengua';return n.length>12?n.split(/\s+/).filter(w=>!/^(de|la|el|y)$/i.test(w)).map((w,i)=>i?w.slice(0,4)+'.':w).join(' ').slice(0,14):n};
 const evHtml=(x,g0)=>{const top=(x.s-g0)*PXM,h=Math.max(26,(x.e-x.s)*PXM-2),tall=h>=44,L=x.lanes||1,lane=x.lane||0;return`<div class="ev ${x.cls}${tall?'':' sm'}" style="--c:${x.c};top:${top}px;height:${h}px;left:calc(${lane*100/L}% + 2px);right:auto;width:calc(${100/L}% - 4px)" ${x.t==='fix'?'':`data-a=blkMenu data-t=${x.t} data-id="${esc(x.id)}" role=button tabindex=0 `}aria-label="${esc(x.name)} ${fm(x.s)}–${fm(x.e)}"><b><i class=fn>${esc(x.name)}</i><i class=sn>${esc(shortName(x.name))}</i></b><span>${tall?fm(x.s)+' · '+(x.e-x.s)+' min':(x.e-x.s)+'m'}</span>${tall&&x.sub?`<small>${esc(x.sub)}</small>`:''}</div>`};
@@ -2029,7 +2032,7 @@ document.addEventListener('submit',e=>{if(e.target.id!=='sf')return;e.preventDef
 function render(){const [r,arg]=route.split(':');renderNav();$('#main').innerHTML=(V[r]||V.hoy)(arg);$('#topTitle').textContent=r==='asg'&&arg?sub(arg).name:NAVT[r]||'Focus OS'}
 const tick=()=>{if(S&&!$('#dlg').open&&route!=='aj'&&route!=='rut'){extendRoutine();commit({quiet:true})}};
 const dl=(txt,name,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:type||'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)};
-const fresh=()=>({weV:1,nivV:1,refV:1,trV:1,fiV:1,timetable:[],patternV:2,cenaV:1,ejV:1,metV:2,goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
+const fresh=()=>({weV:1,nivV:1,refV:1,trV:2,fiV:1,timetable:[],patternV:2,cenaV:1,ejV:1,metV:2,goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
 function recovery(err){S=null;$('#main').innerHTML=`<h1>Datos no válidos</h1><div class="card warn">${esc(err)}</div><p class=m>No se ha sobrescrito nada: la copia dañada sigue guardada en este navegador. Puedes descargarla, importar una copia JSON válida o empezar de cero (la dañada se conserva aparte).</p><div class=row style="justify-content:flex-start"><button data-a=dlBad>Descargar copia dañada</button><button class=danger data-a=fresh>Empezar de cero</button></div><label>Importar copia JSON<input type=file id=imp accept=".json,application/json"></label>`}
 function importText(text){let o;try{o=JSON.parse(text)}catch{toast('El archivo no es un JSON válido.');return'json'}
  const e=validate(o);if(e){toast('Copia no válida: '+e);return e}
@@ -2149,8 +2152,8 @@ Object.assign(A,{
  timerStart:t=>{const b=S.blocks.find(x=>x.id===t.dataset.id);if(!b||b.status!=='planned')return;if(b.date!==now().date)return toast('Solo puedes empezar sesiones de hoy');if(UI.timer&&UI.timer.id!==b.id)return toast('Ya hay una sesión en marcha');UI.timer={id:b.id,at:Date.now()};b.running=UI.timer.at;saveUI();commit({quiet:true});toast('Cuenta empezada')},
  timerEnd:()=>{if(!UI.timer)return;logForm(UI.timer.id,true,elapsedMin())},timerDetail:()=>{if(!UI.timer)return;logForm(UI.timer.id,false,elapsedMin())},timerCancel:()=>{const b=UI.timer&&S.blocks.find(x=>x.id===UI.timer.id);if(b)delete b.running;UI.timer=null;saveUI();commit({quiet:true})},
  weakTopics:t=>weakForm(t.dataset.id),
- icsAsk:()=>{const r=ICS.buildIcs({blocks:S.blocks,works:S.works,subjects:S.subjects,classes:S.timetable||[],today:now().date,stampUtc:new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z'});choose('Avisos en el Calendario del iPad',`<p>Se descargará un archivo con <b>${r.count}</b> eventos: tus <b>clases semanales</b> (aviso 10 min antes de cada una), tus sesiones futuras, tus exámenes y tus entregas.</p><p>Ábrelo desde Descargas y elige <b>Añadir todo</b> (mejor en un calendario nuevo llamado «Focus OS»). Si lo vuelves a importar más adelante, normalmente actualiza los mismos eventos; los que quites o muevas aquí puedes borrarlos allí a mano.</p>`,[{l:'Descargar',c:'pri',fn:()=>A.icsGo()},{l:'Cerrar',fn:()=>{}}])},
- icsGo:()=>{const r=ICS.buildIcs({blocks:S.blocks,works:S.works,subjects:S.subjects,classes:S.timetable||[],today:now().date,stampUtc:new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z'});dl(r.text,`focus-os-${now().date}.ics`,'text/calendar')}});
+ icsAsk:()=>{const r=ICS.buildIcs({blocks:S.blocks,works:S.works,subjects:S.subjects,classes:S.timetable||[],training:typeof entrenoDias==='function'?entrenoDias(S,now().date,28):[],today:now().date,stampUtc:new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z'});choose('Avisos en el Calendario del iPad',`<p>Se descargará un archivo con <b>${r.count}</b> eventos: tus <b>clases semanales</b> (aviso 10 min antes de cada una), tus sesiones futuras, tus <b>entrenos</b> de las próximas 4 semanas (aviso 10 min antes), tus exámenes y tus entregas.</p><p>Ábrelo desde Descargas y elige <b>Añadir todo</b> (mejor en un calendario nuevo llamado «Focus OS»). Si lo vuelves a importar más adelante, normalmente actualiza los mismos eventos; los que quites o muevas aquí puedes borrarlos allí a mano.</p>`,[{l:'Descargar',c:'pri',fn:()=>A.icsGo()},{l:'Cerrar',fn:()=>{}}])},
+ icsGo:()=>{const r=ICS.buildIcs({blocks:S.blocks,works:S.works,subjects:S.subjects,classes:S.timetable||[],training:typeof entrenoDias==='function'?entrenoDias(S,now().date,28):[],today:now().date,stampUtc:new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z'});dl(r.text,`focus-os-${now().date}.ics`,'text/calendar')}});
 
 // ===== v8b: pausa del plan y evolución de notas =====
 const pausa=()=>{const d=(S.settings.blockedDates||[]).filter(b=>b.pausa&&b.date>=now().date).map(b=>b.date).sort();return d.length?{from:d[0],to:d[d.length-1],n:d.length}:null};
@@ -2400,7 +2403,7 @@ function planCard(){const g=S.goals;if(!g||!g.planPau||g.admTarget==null)return'
 /* v23 · Fines de semana activos (8:00–13:30 y tarde hasta las 20:30; tope 7 h) y «Cómo llegarás» a cada examen */
 const WE_OLD='600-810,960-1020,1050-1230';
 function migrateWeekend(Sx){if(Sx.weV>=1||!Sx.settings)return;Sx.weV=1;const av=Sx.settings.availability||{},key=d=>(av[d]||[]).map(w=>w.start+'-'+w.end).join(',');
- for(const d of [0,6])if(key(d)===WE_OLD)av[d]=[{start:480,end:810},{start:900,end:1020},{start:1050,end:1230}];
+ for(const d of [0,6]){if(key(d)===WE_OLD)av[d]=[{start:480,end:810},{start:900,end:1020},{start:1050,end:1230}];else if(key(d)===WE_OLD.replace('1050','1080'))av[d]=[{start:480,end:810},{start:900,end:1020},{start:1080,end:1230}]}
  if(!(Sx.settings.maxDayWeekend>0))Sx.settings.maxDayWeekend=420}
 const NIVEL={'Matemáticas II':1,'Física':0,'Química':2,'Business':1,'Lengua Castellana':0,'Catalán':0,'Inglés':2,'Historia de España':0,'Historia de la Filosofía':2};
 function migrateNivel(Sx){if(Sx.nivV>=1||!Sx.subjects)return;Sx.nivV=1;
@@ -2426,11 +2429,19 @@ function preWeekWins(Sx,today){const out=[];for(const mon of examWeeks(Sx)){cons
 /* v26 · Pausa de entrenamiento entre semana hasta el último examen; fines de semana: 1 h reservada (17:00–18:00). */
 function pausaHasta(Sx,today){const R=Sx.pausaEntreno;if(!R||!R.on)return null;const ds=(Sx.works||[]).filter(w=>w.kind==='exam'&&w.auto!=='review'&&!isUndated(w)&&(w.status==='pending'||w.status==='in_progress')&&w.dueDate>=today).map(w=>w.dueDate).sort();return ds.length?ds[ds.length-1]:addDays(today,14)}
 function noEntreno(d){const u=pausaHasta(S,now().date);return!!u&&d>=now().date&&d<=u&&weekday(d)>=1&&weekday(d)<=5}
-function trainWins(Sx,today){const u=pausaHasta(Sx,today),out=[];if(!u)return out;const av=(Sx.settings&&Sx.settings.availability)||{};for(let d=today;d<=u;d=addDays(d,1)){const wd=weekday(d);if(wd<1||wd>5)continue;const ws=(av[wd]||[]).slice().sort((a,b)=>a.start-b.start);for(let i=0;i<ws.length;i++){if(i===0&&ws[0].start===1050)out.push({date:d,start:1020,end:1050});if(i>0&&ws[i-1].end===1020&&ws[i].start===1050)out.push({date:d,start:1020,end:1050})}}return out}
+function trainWins(Sx,today){const out=[],u=pausaHasta(Sx,today),av=(Sx.settings&&Sx.settings.availability)||{};const libre=(d,a,b)=>{const ws=av[weekday(d)]||[];return!ws.some(w=>w.start<b&&w.end>a)&&ws.some(w=>w.end===a||w.start===b||w.end===1020||w.start===1080)};
+ if(u)for(let d=today;d<=u;d=addDays(d,1)){const wd=weekday(d);if(wd>=1&&wd<=5&&libre(d,1020,1080))out.push({date:d,start:1020,end:1080})}
+ for(const mon of examWeeks(Sx))for(let i=0;i<5;i++){const d=addDays(mon,i);if(d<today||(u&&d<=u))continue;if(libre(d,EJ_CORTO,1080))out.push({date:d,start:EJ_CORTO,end:1080})}return out}
 function ensureEntreno(Sx,today){const u=pausaHasta(Sx,today);if(!u)return;Sx.entrenoHecho=Sx.entrenoHecho||{};if(!Array.isArray(Sx.activities))Sx.activities=[];for(let d=today;d<=u;d=addDays(d,1)){const wd=weekday(d);if(wd!==0&&wd!==6)continue;if(Sx.entrenoHecho[d])continue;Sx.entrenoHecho[d]=1;if(Sx.activities.some(a=>a.category==='exercise'&&a.date===d&&a.status!=='skipped'))continue;Sx.activities.push({id:'act:ent-'+d,category:'exercise',type:'gimnasio',date:d,start:1020,end:1080,durMin:60,status:'planned',note:'Entrenamiento del fin de semana',createdAt:Date.now(),updatedAt:Date.now()})}}
-function migrateEntreno(Sx){if(Sx.trV>=1)return;Sx.trV=1;Sx.pausaEntreno={on:true}}
+function migrateEntreno(Sx){if(!(Sx.trV>=1)){Sx.trV=1;Sx.pausaEntreno={on:true}}
+ /* v28 · Entreno de 1 hora cada día (17:00–18:00); en semana de exámenes 30 min (17:00–17:30) y 17:30–18:00 para estudiar. Se quita la pausa. */
+ if(Sx.trV>=2)return;Sx.trV=2;Sx.pausaEntreno={on:false};const av=Sx.settings&&Sx.settings.availability;if(av)for(const d of Object.keys(av))av[d]=(av[d]||[]).map(w=>w.start>=1020&&w.start<1080&&w.end>1080?{...w,start:1080}:w).filter(w=>w.end>w.start)}
+const EJ_CORTO=1050;
+function ejSemanaExamen(Sx,d){const wd=weekday(d);if(wd<1||wd>5)return false;const mon=addDays(d,-((wd+6)%7));return examWeeks(Sx).includes(mon)}
+function ejFin(Sx,d){return ejSemanaExamen(Sx,d)?EJ_CORTO:1080}
+function entrenoDias(Sx,today,n){const out=[];for(let i=0;i<n;i++){const d=addDays(today,i);const u=pausaHasta(Sx,today);if(u&&d<=u&&weekday(d)>=1&&weekday(d)<=5)continue;out.push({date:d,start:1020,end:ejFin(Sx,d)})}return out}
 function refWins(Sx,today){return mergeWins([...refWins0(Sx,today),...examWeekWins(Sx,today),...preWeekWins(Sx,today),...trainWins(Sx,today)])}
-{const aj=V.aj;V.aj=a=>{let h=aj(a);const R=S.pausaEntreno,u=pausaHasta(S,now().date),card=`<div class=card data-sec=entreno><h3>Entrenar entre semana</h3><p class=m>${u?`Pausado hasta el ${u.split('-').reverse().join('/')} (último examen): de lunes a viernes ese rato se dedica a estudiar. Los fines de semana se reserva 1 hora para entrenar (17:00–18:00).`:'Activo: cada día queda libre el rato de ejercicio (17:00–17:30). Si lo pausas, ese rato se usa para estudiar hasta el último examen.'}</p><div class=row style="justify-content:flex-start;gap:12px"><button class=pri data-a=entrenoToggle>${R&&R.on?'Volver a entrenar entre semana':'Pausar hasta los exámenes'}</button></div></div>`;const i=h.indexOf('<form id=sf');return i<0?h:h.slice(0,i)+card+h.slice(i)}}
+{const aj=V.aj;V.aj=a=>{let h=aj(a);const R=S.pausaEntreno,u=pausaHasta(S,now().date),card=`<div class=card data-sec=entreno><h3>Entreno diario · 17:00</h3><p class=m>${u?`Pausado hasta el ${u.split('-').reverse().join('/')} (último examen): de lunes a viernes de 17:00 a 18:00 se estudia. Los fines de semana sigue la hora de entreno (17:00–18:00).`:'Activo: cada día entrenas 1 hora, de 17:00 a 18:00 (lo marca Entreno OS). En la semana de exámenes el entreno baja a 30 min (17:00–17:30) y de 17:30 a 18:00 estudias. Si lo pausas, ese rato de lunes a viernes se usa para estudiar hasta el último examen.'}</p><div class=row style="justify-content:flex-start;gap:12px"><button class=pri data-a=entrenoToggle>${R&&R.on?'Volver a entrenar entre semana':'Pausar hasta los exámenes'}</button></div></div>`;const i=h.indexOf('<form id=sf');return i<0?h:h.slice(0,i)+card+h.slice(i)}}
 Object.assign(A,{entrenoToggle:()=>{S.pausaEntreno={on:!(S.pausaEntreno&&S.pausaEntreno.on)};commit({quiet:true})}});
 
 /* v27 · Examen «lo llevo yo» (noPlan): sin sesiones automáticas ni repasos del temario de esa asignatura mientras dure. Regenerar mantiene lo de hoy y se puede deshacer. */

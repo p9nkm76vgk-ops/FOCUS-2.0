@@ -93,13 +93,13 @@ test('regenerar: la versión anterior desaparece por completo (sin «sustituidas
   for (const x of live) for (const y of live) if (x !== y && x.date === y.date) assert.ok(x.end <= y.start || y.end <= x.start, `solape ${x.date} ${x.start}`);
 });
 
-test('ejercicio fijo 17:00–17:30 cada día: sin estudio encima, migración única, visible en el calendario y sin sección de ejercicio', async () => {
-  const hit = av => Object.values(av).flat().some(w => w.start < 1050 && w.end > 1020);
+test('entreno fijo 17:00–18:00 cada día: sin estudio encima, migración única, visible en el calendario y sin sección de ejercicio', async () => {
+  const hit = av => Object.values(av).flat().some(w => w.start < 1080 && w.end > 1020);
   const a = await boot(); assert.ok(!hit(a.S.settings.availability)); await mk(a, { when: '14', size: '5' });
-  assert.ok(a.S.blocks.filter(b => b.status === 'planned').every(b => b.end <= 1020 || b.start >= 1050), 'nada entre 17:00 y 17:30');
-  assert.match(a.t.V.cal(), /Ejercicio/); assert.doesNotMatch(a.h.nav.innerHTML, /Ejercicio físico/);
+  assert.ok(a.S.blocks.filter(b => b.status === 'planned').every(b => b.end <= 1020 || b.start >= 1080), 'nada entre 17:00 y 18:00');
+  assert.match(a.t.V.cal(), /Entreno/); assert.doesNotMatch(a.h.nav.innerHTML, /Ejercicio físico/);
   const old = JSON.parse(JSON.stringify(a.store)); const st = JSON.parse(old['focusos.v1']), S0 = st.state ?? st; delete S0.ejV; S0.settings.availability[3] = [{ start: 930, end: 1230 }]; old['focusos.v1'] = JSON.stringify(st);
-  const r = await boot(old); assert.equal(r.S.ejV, 1); assert.equal(JSON.stringify(r.S.settings.availability[3]), JSON.stringify([{ start: 930, end: 1020 }, { start: 1050, end: 1230 }]));
+  const r = await boot(old); assert.equal(r.S.ejV, 1); assert.equal(JSON.stringify(r.S.settings.availability[3]), JSON.stringify([{ start: 930, end: 1020 }, { start: 1080, end: 1230 }]));
 });
 test('método por asignatura: las nueve tienen tareas concretas con su porqué; Historia tiene repaso propio; el bloque muestra qué hacer', async () => {
   const a = await boot(); const names = a.S.subjects.map(s => s.name);

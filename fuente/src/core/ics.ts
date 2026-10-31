@@ -16,7 +16,7 @@ const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 /** Fin del curso por defecto: 15 de junio del curso en marcha. */
 export const schoolEnd = (today: string) => { const y = +today.slice(0, 4), m = +today.slice(5, 7); return `${m >= 7 ? y + 1 : y}-06-15`; };
 
-export function buildIcs(a: { blocks: Block[]; works: Work[]; subjects: { id: string; name: string }[]; today: string; stampUtc: string; alarmMin?: number; classes?: Class[]; until?: string }): { text: string; count: number } {
+export function buildIcs(a: { blocks: Block[]; works: Work[]; subjects: { id: string; name: string }[]; today: string; stampUtc: string; alarmMin?: number; classes?: Class[]; until?: string; training?: { date: string; start: number; end: number }[] }): { text: string; count: number } {
   const sn = (id: string) => a.subjects.find(s => s.id === id)?.name ?? 'Estudio', wk = (id: string) => a.works.find(w => w.id === id);
   const alarm = a.alarmMin ?? 10, ev: string[][] = [];
   const base = (uid: string) => ['BEGIN:VEVENT', `UID:${uid}@focusos`, `DTSTAMP:${a.stampUtc}`];
@@ -33,6 +33,9 @@ export function buildIcs(a: { blocks: Block[]; works: Work[]; subjects: { id: st
   for (const c of [...(a.classes ?? [])].sort((x, y) => x.day - y.day || x.start - y.start || x.id.localeCompare(y.id))) {
     const first = addD(a.today, (c.day - wd(a.today) + 7) % 7), until = (a.until ?? schoolEnd(a.today)).replace(/-/g, '');
     ev.push([...base('clase-' + c.id), `DTSTART:${stamp(first, c.start)}`, `DTEND:${stamp(first, c.end)}`, `RRULE:FREQ=WEEKLY;BYDAY=${BYDAY[c.day]};UNTIL=${until}T235959`, `SUMMARY:${esc('Clase · ' + c.name)}`, 'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(`En ${alarm} min: ${c.name}`)}`, `TRIGGER:-PT${alarm}M`, 'END:VALARM', 'END:VEVENT']);
+  }
+  for (const t of [...(a.training ?? [])].filter(t => t.date >= a.today).sort((x, y) => x.date.localeCompare(y.date) || x.start - y.start)) {
+    ev.push([...base('entreno-' + t.date), `DTSTART:${stamp(t.date, t.start)}`, `DTEND:${stamp(t.date, t.end)}`, `SUMMARY:${esc(`Entreno · ${t.end - t.start} min`)}`, `DESCRIPTION:${esc('Abre Entreno OS y dale a empezar · Focus OS')}`, 'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc('En 10 min: entreno')}`, 'TRIGGER:-PT10M', 'END:VALARM', 'END:VEVENT']);
   }
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Focus OS//ES', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Focus OS', ...ev.flat(), 'END:VCALENDAR'];
   return { text: lines.map(fold).join('\r\n') + '\r\n', count: ev.length };
