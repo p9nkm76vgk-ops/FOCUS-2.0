@@ -19,8 +19,16 @@ test('migración del temario: carga tus temas una vez, enlazados a los exámenes
   clock.t = new Date(2026, 10, 2, 17, 0).getTime(); const a = await boot(); await exam(a, 'Química', '2026-11-10');
   const st = JSON.parse(JSON.stringify(a.S)); delete st.tmV; st.syllabus = [];
   const b = await boot({ 'focusos.v1': JSON.stringify(st) });
-  const q = sid(b, 'Química'), ts = b.S.syllabus.filter(t => t.subjectId === q); assert.equal(ts.length, 3); assert.ok(ts.every(t => t.mastery === 0)); assert.equal(b.S.tmV, 1);
+  const q = sid(b, 'Química'), ts = b.S.syllabus.filter(t => t.subjectId === q); assert.equal(ts.length, 3); assert.ok(ts.every(t => t.mastery === 0)); assert.equal(b.S.tmV, 2);
   const w = b.S.works.find(x => x.kind === 'exam' && x.subjectId === q); assert.equal(w.topics.length, 3); assert.ok(w.topics.every(t => t.sylId));
   assert.ok(b.S.syllabus.some(t => t.name === 'Campo gravitatorio') || true);
   const c = await boot({ 'focusos.v1': JSON.stringify(b.S) }); assert.equal(c.S.syllabus.length, b.S.syllabus.length, 'sin duplicar al reabrir');
+});
+
+test('migración del temario: quien ya migró con v30 recibe solo los 3 temas de Business', async () => {
+  clock.t = new Date(2026, 10, 2, 17, 0).getTime(); const a = await boot();
+  const st = JSON.parse(JSON.stringify(a.S)); st.tmV = 1; st.syllabus = [];
+  const b = await boot({ 'focusos.v1': JSON.stringify(st) });
+  const bz = sid(b, 'Business'); assert.equal(b.S.syllabus.length, 3); assert.ok(b.S.syllabus.every(t => t.subjectId === bz && t.mastery === 0));
+  assert.equal(b.S.tmV, 2);
 });

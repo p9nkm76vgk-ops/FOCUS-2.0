@@ -1736,7 +1736,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='0870bd915d',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='1ca35ca490',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2044,7 +2044,7 @@ document.addEventListener('submit',e=>{if(e.target.id!=='sf')return;e.preventDef
 function render(){const [r,arg]=route.split(':');renderNav();$('#main').innerHTML=(V[r]||V.hoy)(arg);$('#topTitle').textContent=r==='asg'&&arg?sub(arg).name:NAVT[r]||'Focus OS'}
 const tick=()=>{if(S&&!$('#dlg').open&&route!=='aj'&&route!=='rut'){extendRoutine();commit({quiet:true})}};
 const dl=(txt,name,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:type||'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)};
-const fresh=()=>({weV:1,nivV:1,refV:1,trV:2,fiV:1,hzV:1,tmV:1,timetable:[],patternV:2,cenaV:1,ejV:1,metV:2,goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
+const fresh=()=>({weV:1,nivV:1,refV:1,trV:2,fiV:1,hzV:1,tmV:2,timetable:[],patternV:2,cenaV:1,ejV:1,metV:2,goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
 function recovery(err){S=null;$('#main').innerHTML=`<h1>Datos no válidos</h1><div class="card warn">${esc(err)}</div><p class=m>No se ha sobrescrito nada: la copia dañada sigue guardada en este navegador. Puedes descargarla, importar una copia JSON válida o empezar de cero (la dañada se conserva aparte).</p><div class=row style="justify-content:flex-start"><button data-a=dlBad>Descargar copia dañada</button><button class=danger data-a=fresh>Empezar de cero</button></div><label>Importar copia JSON<input type=file id=imp accept=".json,application/json"></label>`}
 function importText(text){let o;try{o=JSON.parse(text)}catch{toast('El archivo no es un JSON válido.');return'json'}
  const e=validate(o);if(e){toast('Copia no válida: '+e);return e}
@@ -2479,6 +2479,7 @@ const SEED_TEMAS={'Catalán':['La alegria que passa','En la meva mort','Històri
  'Historia de España':['Crisis del Antiguo Régimen (1808–1833)','Estado liberal y Sexenio Democrático (1833–1874)'],
  'Inglés':['Texto (examen tipo PAU)'],'Física':['Campo gravitatorio','Campo eléctrico'],
  'Química':['Contenidos básicos: formulación orgánica, gases, estequiometría y disoluciones','Química del carbono: isomería','Estructura de la materia: tabla periódica'],
+ 'Business':['Tema 1 · The Company and Its Environment','Unidad 2 · Types of Companies: Legal Form, Trade and Tax Legislation','Tema 5 · Production, Productivity and Efficiency (solo problemas, sin teoría)'],
  'Historia de la Filosofía':['Presocráticos','Sócrates','Platón'],'Matemáticas II':['Matrices y determinantes','Sistemas de ecuaciones lineales']};
 const sylOf=sid=>(S.syllabus||[]).filter(t=>t.subjectId===sid).sort((a,b)=>a.createdAt-b.createdAt||a.name.localeCompare(b.name));
 function linkTopic(t,old,df){return{id:old?old.id:uid(),name:t.name,size:old?old.size:3,difficulty:old?old.difficulty:df||3,mastery:old&&Math.round(old.mastery)===t.mastery?old.mastery:t.mastery,selfRating:t.mastery,explicit:true,sylId:t.id}}
@@ -2492,8 +2493,8 @@ function sylBump(w0,topicId){const w=S.works.find(x=>x.id===w0.id),y=w&&(w.topic
 function sylLink(sid,list){if(!list.length)return;const ts=sylOf(sid);S.works=S.works.map(w=>{if(w.kind!=='exam'||w.auto==='review'||w.subjectId!==sid||!(w.status==='pending'||w.status==='in_progress'))return w;
   const have=new Set((w.topics||[]).filter(t=>t.sylId).map(t=>t.sylId)),manual=(w.topics||[]).filter(t=>!t.auto&&!t.sylId),add=ts.filter(t=>list.includes(t.id)&&!have.has(t.id)).map(t=>linkTopic(t,null,w.difficulty));
   return add.length?{...w,topics:[...(w.topics||[]).filter(t=>t.sylId||!t.auto),...add].length?[...(w.topics||[]).filter(t=>t.sylId||!t.auto),...add]:add,autoEst:w.manualEstMin==null?true:w.autoEst}:w})}
-function migrateTemario(Sx){if(Sx.tmV>=1)return;Sx.tmV=1;if(!Array.isArray(Sx.syllabus))Sx.syllabus=[];const t=now().date,base=Date.now();let k=0;
- for(const s of Sx.subjects||[]){const L=SEED_TEMAS[s.name];if(!L||Sx.syllabus.some(x=>x.subjectId===s.id))continue;const add=L.map((nm,i)=>GL.newTopic(uid(),s.id,nm,0,t,base+(k++),2,0));Sx.syllabus=[...Sx.syllabus,...add];
+function migrateTemario(Sx){if(Sx.tmV>=2)return;const prev=Sx.tmV||0;Sx.tmV=2;if(!Array.isArray(Sx.syllabus))Sx.syllabus=[];const t=now().date,base=Date.now();let k=0;
+ for(const s of Sx.subjects||[]){const L=SEED_TEMAS[s.name];if(prev>=1&&s.name!=='Business')continue;if(!L||Sx.syllabus.some(x=>x.subjectId===s.id))continue;const add=L.map((nm,i)=>GL.newTopic(uid(),s.id,nm,0,t,base+(k++),2,0));Sx.syllabus=[...Sx.syllabus,...add];
   Sx.works=(Sx.works||[]).map(w=>{if(w.kind!=='exam'||w.auto==='review'||w.subjectId!==s.id||!(w.status==='pending'||w.status==='in_progress')||(w.topics||[]).some(x=>!x.auto))return w;return{...w,topics:add.map(x=>linkTopic(x,null,w.difficulty)),autoEst:w.manualEstMin==null?true:w.autoEst}})}}
 function topicsForm(sid){openForm('Añadir temas · '+sub(sid).name,[{k:'names',l:'Un tema por línea',t:'area',v:'',h:'Pon el nombre real del tema. Opcional: empieza la línea con R, N, V u O (rojo, naranja, verde, oro) y termina con * si entra en el próximo examen. Ejemplo: «N Campo gravitatorio *».'},{k:'course',l:'Curso al que pertenecen',t:'chips',o:[['1','1.º de Bachillerato'],['2','2.º de Bachillerato']],v:'2',h:'La PAU examina todo el temario acumulado: incluye también lo de 1.º.'},{k:'level',l:'Color de partida (si la línea no lo trae)',t:'chips',o:GL.LEVELS.map((l,i)=>[String(i),l]),v:'0'}],v=>{
   const have=new Set(sylOf(sid).map(t=>t.name.toLowerCase())),LV={R:0,N:1,V:2,O:3},rows=[];

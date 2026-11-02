@@ -5,6 +5,7 @@ const SEED_TEMAS={'Catalán':['La alegria que passa','En la meva mort','Històri
  'Historia de España':['Crisis del Antiguo Régimen (1808–1833)','Estado liberal y Sexenio Democrático (1833–1874)'],
  'Inglés':['Texto (examen tipo PAU)'],'Física':['Campo gravitatorio','Campo eléctrico'],
  'Química':['Contenidos básicos: formulación orgánica, gases, estequiometría y disoluciones','Química del carbono: isomería','Estructura de la materia: tabla periódica'],
+ 'Business':['Tema 1 · The Company and Its Environment','Unidad 2 · Types of Companies: Legal Form, Trade and Tax Legislation','Tema 5 · Production, Productivity and Efficiency (solo problemas, sin teoría)'],
  'Historia de la Filosofía':['Presocráticos','Sócrates','Platón'],'Matemáticas II':['Matrices y determinantes','Sistemas de ecuaciones lineales']};
 const sylOf=sid=>(S.syllabus||[]).filter(t=>t.subjectId===sid).sort((a,b)=>a.createdAt-b.createdAt||a.name.localeCompare(b.name));
 function linkTopic(t,old,df){return{id:old?old.id:uid(),name:t.name,size:old?old.size:3,difficulty:old?old.difficulty:df||3,mastery:old&&Math.round(old.mastery)===t.mastery?old.mastery:t.mastery,selfRating:t.mastery,explicit:true,sylId:t.id}}
@@ -18,8 +19,8 @@ function sylBump(w0,topicId){const w=S.works.find(x=>x.id===w0.id),y=w&&(w.topic
 function sylLink(sid,list){if(!list.length)return;const ts=sylOf(sid);S.works=S.works.map(w=>{if(w.kind!=='exam'||w.auto==='review'||w.subjectId!==sid||!(w.status==='pending'||w.status==='in_progress'))return w;
   const have=new Set((w.topics||[]).filter(t=>t.sylId).map(t=>t.sylId)),manual=(w.topics||[]).filter(t=>!t.auto&&!t.sylId),add=ts.filter(t=>list.includes(t.id)&&!have.has(t.id)).map(t=>linkTopic(t,null,w.difficulty));
   return add.length?{...w,topics:[...(w.topics||[]).filter(t=>t.sylId||!t.auto),...add].length?[...(w.topics||[]).filter(t=>t.sylId||!t.auto),...add]:add,autoEst:w.manualEstMin==null?true:w.autoEst}:w})}
-function migrateTemario(Sx){if(Sx.tmV>=1)return;Sx.tmV=1;if(!Array.isArray(Sx.syllabus))Sx.syllabus=[];const t=now().date,base=Date.now();let k=0;
- for(const s of Sx.subjects||[]){const L=SEED_TEMAS[s.name];if(!L||Sx.syllabus.some(x=>x.subjectId===s.id))continue;const add=L.map((nm,i)=>GL.newTopic(uid(),s.id,nm,0,t,base+(k++),2,0));Sx.syllabus=[...Sx.syllabus,...add];
+function migrateTemario(Sx){if(Sx.tmV>=2)return;const prev=Sx.tmV||0;Sx.tmV=2;if(!Array.isArray(Sx.syllabus))Sx.syllabus=[];const t=now().date,base=Date.now();let k=0;
+ for(const s of Sx.subjects||[]){const L=SEED_TEMAS[s.name];if(prev>=1&&s.name!=='Business')continue;if(!L||Sx.syllabus.some(x=>x.subjectId===s.id))continue;const add=L.map((nm,i)=>GL.newTopic(uid(),s.id,nm,0,t,base+(k++),2,0));Sx.syllabus=[...Sx.syllabus,...add];
   Sx.works=(Sx.works||[]).map(w=>{if(w.kind!=='exam'||w.auto==='review'||w.subjectId!==s.id||!(w.status==='pending'||w.status==='in_progress')||(w.topics||[]).some(x=>!x.auto))return w;return{...w,topics:add.map(x=>linkTopic(x,null,w.difficulty)),autoEst:w.manualEstMin==null?true:w.autoEst}})}}
 function topicsForm(sid){openForm('Añadir temas · '+sub(sid).name,[{k:'names',l:'Un tema por línea',t:'area',v:'',h:'Pon el nombre real del tema. Opcional: empieza la línea con R, N, V u O (rojo, naranja, verde, oro) y termina con * si entra en el próximo examen. Ejemplo: «N Campo gravitatorio *».'},{k:'course',l:'Curso al que pertenecen',t:'chips',o:[['1','1.º de Bachillerato'],['2','2.º de Bachillerato']],v:'2',h:'La PAU examina todo el temario acumulado: incluye también lo de 1.º.'},{k:'level',l:'Color de partida (si la línea no lo trae)',t:'chips',o:GL.LEVELS.map((l,i)=>[String(i),l]),v:'0'}],v=>{
   const have=new Set(sylOf(sid).map(t=>t.name.toLowerCase())),LV={R:0,N:1,V:2,O:3},rows=[];
