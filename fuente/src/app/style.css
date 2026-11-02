@@ -265,3 +265,9 @@ body.focusing{overflow:hidden}
 .arr{display:grid;gap:6px;padding:10px 0;border-top:1px solid var(--line)}.arr .an{display:flex;align-items:baseline;gap:10px}.arr .an small{color:var(--muted);margin-left:auto}
 .arr .ab{height:8px;border-radius:4px;background:var(--surface3)}.arr .ab i{display:block;height:100%;border-radius:4px;background:var(--c,var(--accent))}
 .arr .at{color:var(--muted)}.arr em{font-style:normal;font-weight:650}.arr em.ok{color:var(--ok)}.arr em.mid{color:var(--accent)}.arr em.low{color:var(--warn)}
+
+/* v30 · niveles con color */
+.lv button[data-k="0"].on{background:color-mix(in srgb,#A9564E 30%,var(--surface));border-color:#A9564E}
+.lv button[data-k="1"].on{background:color-mix(in srgb,#C08A45 30%,var(--surface));border-color:#C08A45}
+.lv button[data-k="2"].on{background:color-mix(in srgb,#6E9A6A 30%,var(--surface));border-color:#6E9A6A}
+.lv button[data-k="3"].on{background:color-mix(in srgb,var(--accent) 34%,var(--surface));border-color:var(--accent)}

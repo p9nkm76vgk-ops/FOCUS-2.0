@@ -44,7 +44,7 @@ test('temario: añadir temas en bloque sin duplicar, marcar nivel programa el pr
   assert.ok(a.S.works.some(w => w.auto === 'review' && w.topicRef === id), 'toca en ≤2 días → tarea de repaso creada');
   const rw = a.S.works.find(w => w.auto === 'review'); assert.match(rw.title, /^Repaso: Límites/); assert.ok(a.S.blocks.some(b => b.workId === rw.id && b.status === 'planned'), 'colocada en el calendario');
   await a.click('replan'); assert.equal(a.S.works.filter(w => w.auto === 'review').length, 1, 'sin duplicados al replanificar');
-  const v = a.t.V.tem(); assert.match(v, /Temario/); assert.match(v, /1 de 3 temas vistos/); assert.match(v, /aria-pressed=true/);
+  const v = a.t.V.tem(); assert.match(v, /Temario/); assert.match(v, /1 de 3 temas en naranja o mejor/); assert.match(v, /aria-pressed=true/);
   await a.click('lvl', id, '0'); assert.equal(a.S.syllabus[0].next, null); assert.ok(!a.S.works.some(w => w.auto === 'review' && w.status === 'pending'), 'sin ver: el repaso pendiente se retira');
 });
 test('completar un repaso con «Bien» sube el nivel y reprograma a +7 días; «Mal» lo repite mañana; se guarda la calidad de la sesión', async () => {

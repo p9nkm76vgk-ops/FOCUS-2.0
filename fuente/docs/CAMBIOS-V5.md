@@ -286,3 +286,10 @@ Causas halladas y corregidas:
 - Cada cambio (y cada apertura de la app) rehace de mañana en adelante las sesiones automáticas (`autoRegen` en `commit`); lo de hoy, lo hecho y lo manual no se tocan. Es determinista, así que repetirlo no cambia nada. Se quita el botón «Regenerar futuro» (y el de deshacer, que ya no hace falta).
 - Reparto equitativo entre exámenes: se recorta por fecha límite creciente y solo a los exámenes que vencen hasta una fecha que no cabe; los exámenes lejanos conservan sus horas.
 - `browser-final.py`: la estabilidad se comprueba llamando a `commit()` dos veces.
+
+## v30 — Temario único con colores (Rojo / Naranja / Verde / Oro)
+- Una sola lista de temas por asignatura (`Temario`). Niveles: Rojo (no sabría hacerlo), Naranja (a medias), Verde (me sale bien), Oro (perfecto y rápido). Sustituye «Sin ver / Visto…».
+- Los temas de un examen salen del temario; el color decide las horas; las sesiones se asignan a temas y al registrarlas se actualiza el nivel; repasos espaciados (2/7/21/45/90 días) para N/V/O; un tema fallado vuelve a Rojo.
+- «+ Temas»: pegar varias líneas `R/N/V/O Nombre`; un `*` final = entra en el próximo examen.
+- Migración única (`tmV`) que carga los temas indicados por el usuario en Rojo y los enlaza a los exámenes de noviembre.
+- Pruebas: npm test 295/295, estrés 6000 estados 0 fallos, Chromium v16/v18/final/v13/pages OK. Pendiente: Safari/iPad real.

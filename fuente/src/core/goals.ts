@@ -87,7 +87,7 @@ export const needPond = (cut: number, nmb: number, acceso: number) => r2((cut - 
 
 // ---------- Temario y repaso espaciado ----------
 export const INTERVALS = [2, 7, 21, 45, 90];
-export const LEVELS = ['Sin ver', 'Visto', 'Entendido', 'Dominado'];
+export const LEVELS = ['Rojo', 'Naranja', 'Verde', 'Oro']; // rojo: no sabría hacerlo · naranja: lo sacaría a medias · verde: me sale bien · oro: me sale perfecto y rápido
 export function newTopic(id: string, subjectId: string, name: string, mastery: number, today: string, createdAt = 0, course: 1 | 2 = 2, stagger = 0): Topic2 {
   const t = setMastery({ id, subjectId, name, course, mastery: 0, reviews: 0, last: null, next: null, createdAt }, mastery, today);
   return t.next && stagger > 0 ? { ...t, next: addDays(t.next, stagger) } : t; // altas en bloque: primeros repasos escalonados para no crear una avalancha
