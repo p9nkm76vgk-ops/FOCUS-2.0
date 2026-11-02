@@ -12,6 +12,7 @@ export interface Settings {
 }
 export interface Work {
   id: string; kind: WorkKind; subjectId: string; title: string;
+  planFrom?: string; // examen provisional de un trimestre futuro: no se planifica antes de esta fecha ni mientras caiga fuera del horizonte
   dueDate: string; dueMinute?: number; // fecha local YYYY-MM-DD
   estMin: number; difficulty: number; importance: number; readiness: number; // 1-5, 1-5, 0-100
   status: WorkStatus;

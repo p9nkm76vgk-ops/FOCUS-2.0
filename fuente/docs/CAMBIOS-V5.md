@@ -304,3 +304,9 @@ Causas halladas y corregidas:
 
 ## v33 — Eliminar exámenes/tareas desde el formulario
 - Antes: si el trabajo tenía sesiones completadas, «Eliminar» tras el confirm devolvía un aviso escondido al final del formulario y no borraba nada. Ahora «Eliminar» abre una pantalla propia (sin confirm nativo): con horas estudiadas ofrece Archivar (conserva horas y nota) o Eliminar del todo; sin horas, Eliminar. Siempre borra sus sesiones y el plan se recalcula.
+
+## v34 — Semanas de exámenes del 2.º y 3.er trimestre
+- Exámenes PROVISIONALES copiados de la semana del 1.er trimestre (9–13 nov 2026), cada uno el mismo día de la semana: 2.º trimestre mié 3–mar 9 feb 2027 (lun→8, mar→9, mié→3, jue→4, vie→5); 3.º vie 7–jue 13 may 2027 (vie→7, lun→10, mar→11, mié→12, jue→13). Migración única `triV`; ids estables `tri<n>:<id origen>`. No copia «lo llevo yo» (noPlan).
+- `planFrom`: el 2.º se planifica desde el 14 nov 2026; el 3.º desde el 10 feb 2027 y solo cuando entra en el horizonte (120 días). No alargan la pausa de entreno.
+- Semana de exámenes = racha de días con ≥3 exámenes y huecos ≤3 días (ya no «lunes–viernes de cualquier semana con ≥3»): las ventanas de mañana/tarde solo caen en días con examen, nunca en fines de semana.
+- Planificador: los exámenes lejanos (ventana ≥21 días) reparten sus sesiones por toda la ventana (antes: sesiones consecutivas desde hoy); los lejanos tampoco se amontonan en los primeros días cuando hay exceso de carga.

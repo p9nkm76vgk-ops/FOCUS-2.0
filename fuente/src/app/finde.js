@@ -16,26 +16,30 @@ function arrivalCard(){const td=now().date,ex=S.works.filter(w=>w.kind==='exam'&
 
 /* v24 · Semana de exámenes: lunes a viernes de una semana con 3 o más exámenes con fecha. Se sale a las 12:50: tarde libre desde las 13:30 y mañana de repaso 06:30–08:30. */
 const EXW={morning:[390,510],afternoonFrom:810};
-function examWeeks(Sx){const by={};for(const w of Sx.works||[]){if(w.kind!=='exam'||w.auto==='review'||isUndated(w)||!(w.status==='pending'||w.status==='in_progress')||!w.dueDate)continue;const mon=addDays(w.dueDate,-((weekday(w.dueDate)+6)%7));by[mon]=(by[mon]||0)+1}return Object.keys(by).filter(m=>by[m]>=3)}
+function examRuns(Sx){const c={};for(const w of Sx.works||[]){if(w.kind!=='exam'||w.auto==='review'||isUndated(w)||!(w.status==='pending'||w.status==='in_progress')||!w.dueDate)continue;c[w.dueDate]=(c[w.dueDate]||0)+1}
+ const ds=Object.keys(c).sort(),runs=[];for(const d of ds){const r=runs[runs.length-1];if(r&&(Date.parse(d+'T12:00:00Z')-Date.parse(r.to+'T12:00:00Z'))/864e5<=3){r.to=d;r.n+=c[d]}else runs.push({from:d,to:d,n:c[d]})}return runs.filter(r=>r.n>=3)}
+const mondayOfExam=d=>addDays(d,-((weekday(d)+6)%7));
+function examWeeks(Sx){const out=new Set();for(const r of examRuns(Sx))for(let m=mondayOfExam(r.from);m<=r.to;m=addDays(m,7))out.add(m);return[...out].sort()}
+function inExamRun(Sx,d){return examRuns(Sx).some(r=>d>=r.from&&d<=r.to)}
 function mergeWins(l){const by={};for(const e of l)(by[e.date]=by[e.date]||[]).push(e);const out=[];for(const d of Object.keys(by).sort()){const a=by[d].sort((x,y)=>x.start-y.start);let c=null;for(const e of a){if(c&&e.start<=c.end){c.end=Math.max(c.end,e.end);if(e.ex)c.ex=1}else{c={date:d,start:e.start,end:e.end};if(e.ex)c.ex=1;out.push(c)}}}return out}
-function examWeekWins(Sx,today){const out=[],av=(Sx.settings&&Sx.settings.availability)||{};for(const mon of examWeeks(Sx))for(let i=0;i<5;i++){const d=addDays(mon,i);if(d<today)continue;out.push({date:d,start:EXW.morning[0],end:EXW.morning[1],ex:1});const ws=(av[weekday(d)]||[]).filter(w=>w.end>EXW.afternoonFrom).sort((a,b)=>a.start-b.start),end=ws.length?Math.max(EXW.afternoonFrom,ws[0].start):EXW.afternoonFrom+120;if(end-EXW.afternoonFrom>=30&&(!ws.length||ws[0].start>EXW.afternoonFrom))out.push({date:d,start:EXW.afternoonFrom,end,ex:1})}return out}
+function examWeekWins(Sx,today){const out=[],av=(Sx.settings&&Sx.settings.availability)||{};for(const mon of examWeeks(Sx))for(let i=0;i<5;i++){const d=addDays(mon,i);if(d<today||!inExamRun(Sx,d))continue;out.push({date:d,start:EXW.morning[0],end:EXW.morning[1],ex:1});const ws=(av[weekday(d)]||[]).filter(w=>w.end>EXW.afternoonFrom).sort((a,b)=>a.start-b.start),end=ws.length?Math.max(EXW.afternoonFrom,ws[0].start):EXW.afternoonFrom+120;if(end-EXW.afternoonFrom>=30&&(!ws.length||ws[0].start>EXW.afternoonFrom))out.push({date:d,start:EXW.afternoonFrom,end,ex:1})}return out}
 
 /* v25 · Sin estudio fuera de horario salvo en la semana de exámenes (decisión del usuario): el refuerzo antiguo (06–07 / 22–23) se apaga una vez. Semana previa: un poco más de repaso (miércoles a viernes desde las 14:45). */
 function migrateRef(Sx){if(Sx.refV>=1)return;Sx.refV=1;if(Sx.refuerzo)Sx.refuerzo={...Sx.refuerzo,on:false}}
-function preWeekWins(Sx,today){const out=[];for(const mon of examWeeks(Sx)){const pm=addDays(mon,-7);for(let i=2;i<5;i++){const d=addDays(pm,i);if(d>=today)out.push({date:d,start:885,end:930})}}return out}
+function preWeekWins(Sx,today){const out=[];for(const mon of examRuns(Sx).map(r=>mondayOfExam(r.from))){const pm=addDays(mon,-7);for(let i=2;i<5;i++){const d=addDays(pm,i);if(d>=today)out.push({date:d,start:885,end:930})}}return out}
 
 /* v26 · Pausa de entrenamiento entre semana hasta el último examen; fines de semana: 1 h reservada (17:00–18:00). */
-function pausaHasta(Sx,today){const R=Sx.pausaEntreno;if(!R||!R.on)return null;const ds=(Sx.works||[]).filter(w=>w.kind==='exam'&&w.auto!=='review'&&!isUndated(w)&&(w.status==='pending'||w.status==='in_progress')&&w.dueDate>=today).map(w=>w.dueDate).sort();return ds.length?ds[ds.length-1]:addDays(today,14)}
+function pausaHasta(Sx,today){const R=Sx.pausaEntreno;if(!R||!R.on)return null;const ds=(Sx.works||[]).filter(w=>w.kind==='exam'&&w.auto!=='review'&&!isUndated(w)&&(w.status==='pending'||w.status==='in_progress')&&!w.planFrom&&w.dueDate>=today).map(w=>w.dueDate).sort();return ds.length?ds[ds.length-1]:addDays(today,14)}
 function noEntreno(d){const u=pausaHasta(S,now().date);return!!u&&d>=now().date&&d<=u&&weekday(d)>=1&&weekday(d)<=5}
 function trainWins(Sx,today){const out=[],u=pausaHasta(Sx,today),av=(Sx.settings&&Sx.settings.availability)||{};const libre=(d,a,b)=>{const ws=av[weekday(d)]||[];return!ws.some(w=>w.start<b&&w.end>a)&&ws.some(w=>w.end===a||w.start===b||w.end===1020||w.start===1080)};
  if(u)for(let d=today;d<=u;d=addDays(d,1)){const wd=weekday(d);if(wd>=1&&wd<=5&&libre(d,1020,1080))out.push({date:d,start:1020,end:1080})}
- for(const mon of examWeeks(Sx))for(let i=0;i<5;i++){const d=addDays(mon,i);if(d<today||(u&&d<=u))continue;if(libre(d,EJ_CORTO,1080))out.push({date:d,start:EJ_CORTO,end:1080})}return out}
+ for(const mon of examWeeks(Sx))for(let i=0;i<5;i++){const d=addDays(mon,i);if(d<today||(u&&d<=u)||!inExamRun(Sx,d))continue;if(libre(d,EJ_CORTO,1080))out.push({date:d,start:EJ_CORTO,end:1080})}return out}
 function ensureEntreno(Sx,today){const u=pausaHasta(Sx,today);if(!u)return;Sx.entrenoHecho=Sx.entrenoHecho||{};if(!Array.isArray(Sx.activities))Sx.activities=[];for(let d=today;d<=u;d=addDays(d,1)){const wd=weekday(d);if(wd!==0&&wd!==6)continue;if(Sx.entrenoHecho[d])continue;Sx.entrenoHecho[d]=1;if(Sx.activities.some(a=>a.category==='exercise'&&a.date===d&&a.status!=='skipped'))continue;Sx.activities.push({id:'act:ent-'+d,category:'exercise',type:'gimnasio',date:d,start:1020,end:1080,durMin:60,status:'planned',note:'Entrenamiento del fin de semana',createdAt:Date.now(),updatedAt:Date.now()})}}
 function migrateEntreno(Sx){if(!(Sx.trV>=1)){Sx.trV=1;Sx.pausaEntreno={on:true}}
  /* v28 · Entreno de 1 hora cada día (17:00–18:00); en semana de exámenes 30 min (17:00–17:30) y 17:30–18:00 para estudiar. Se quita la pausa. */
  if(Sx.trV>=2)return;Sx.trV=2;Sx.pausaEntreno={on:false};const av=Sx.settings&&Sx.settings.availability;if(av)for(const d of Object.keys(av))av[d]=(av[d]||[]).map(w=>w.start>=1020&&w.start<1080&&w.end>1080?{...w,start:1080}:w).filter(w=>w.end>w.start)}
 const EJ_CORTO=1050;
-function ejSemanaExamen(Sx,d){const wd=weekday(d);if(wd<1||wd>5)return false;const mon=addDays(d,-((wd+6)%7));return examWeeks(Sx).includes(mon)}
+function ejSemanaExamen(Sx,d){const wd=weekday(d);if(wd<1||wd>5)return false;const mon=addDays(d,-((wd+6)%7));return examWeeks(Sx).includes(mon)&&inExamRun(Sx,d)}
 function ejFin(Sx,d){return ejSemanaExamen(Sx,d)?EJ_CORTO:1080}
 function entrenoDias(Sx,today,n){const out=[];for(let i=0;i<n;i++){const d=addDays(today,i);const u=pausaHasta(Sx,today);if(u&&d<=u&&weekday(d)>=1&&weekday(d)<=5)continue;out.push({date:d,start:1020,end:ejFin(Sx,d)})}return out}
 function refWins(Sx,today){return mergeWins([...refWins0(Sx,today),...examWeekWins(Sx,today),...preWeekWins(Sx,today),...trainWins(Sx,today)])}

@@ -114,6 +114,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   const warnings: Warning[] = [], demands: Demand[] = [];
   const horizonEnd = addDays(now.date, s.horizonDays);
   for (const w of input.works.filter(active)) {
+    if (w.planFrom && w.dueDate > horizonEnd) continue; // examen provisional aún fuera del horizonte: sin sesiones todavía
     const done = w.estimate ? 0 /* el estimador ya descuenta el progreso */ : history.filter(b => b.workId === w.id && b.status === 'done').reduce((a, b) => a + (b.actualMin ?? dur(b)), 0);
     const manual = manualF.filter(b => b.workId === w.id).reduce((a, b) => a + dur(b), 0);
     const f = w.kind === 'exam' ? (input.boost?.[w.subjectId] ?? 1) : 1; // más horas de examen donde la brecha con el objetivo es mayor
@@ -126,13 +127,13 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     let last = overdue ? now.date : und ? addDays(now.date, UNDATED_SPAN - 1) : w.dueDate; const clipped = !und && last > horizonEnd; if (last > horizonEnd) last = horizonEnd;
     const key = und ? addDays(now.date, UNDATED_KEY) : last;
     const cutoff = overdue || clipped || und ? 1440 : w.kind === 'exam' ? (w.dueMinute ?? hm(9)) - EXAM_BUFFER_MIN : (w.dueMinute ?? 1440);
-    const base = { key, w, from: now.date, last, cutoff, prio: priority(w, now), clipped };
+    const base = { key, w, from: w.planFrom && w.planFrom > now.date ? w.planFrom : now.date, last, cutoff, prio: priority(w, now), clipped };
     const mainTo = addDays(w.dueDate, -(REVIEW_DAYS + 1));
     if (w.kind === 'exam' && !overdue && !clipped && need > 0 && mainTo >= now.date && Math.min(need, Math.round(need * REVIEW_SHARE / 5) * 5) >= 15 && need - Math.round(need * REVIEW_SHARE / 5) * 5 >= 15) {
       const sem = (s.extra ?? []).some(e => e.ex && e.date === addDays(w.dueDate, -1)); // semana de exámenes: el repaso de la víspera pesa más
       let review = Math.min(need, Math.round((sem ? Math.min(need * 0.6, Math.max(need * REVIEW_SHARE, 2 * VISPERA_MIN * 0.67)) : need * REVIEW_SHARE) / 5) * 5); if (review < 15 || need - review < 15) review = 0; // sin repaso ni sesiones principales diminutas
       demands.push({ ...base, part: 'main', need: need - review, to: mainTo, ext: last });
-      demands.push({ ...base, part: 'review', need: review, from: addDays(w.dueDate, -REVIEW_DAYS) > now.date ? addDays(w.dueDate, -REVIEW_DAYS) : now.date, to: last });
+      demands.push({ ...base, part: 'review', need: review, from: addDays(w.dueDate, -REVIEW_DAYS) > base.from ? addDays(w.dueDate, -REVIEW_DAYS) : base.from, to: last });
     } else demands.push({ ...base, part: 'main', need, to: last });
   }
   // Los repasos del temario (cortos) se colocan DESPUÉS de lo grande, para pegarse a los días que ya tienen estudio en vez de abrir días por su cuenta.
@@ -186,7 +187,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   }
 
   // 3) Cubrir lo que falta: sesiones repartidas por los días menos cargados
-  const placedOnce = new Set<Demand>();
+  const placedOnce = new Set<Demand>(), placedN = new Map<Demand, number>();
   const fill = (d: Demand, to: string, left: number, once = false): number => {
     const left0 = left;
     while (left > 0) {
@@ -215,11 +216,14 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
           let pick = opts[0]; for (const o of opts) if (score(o) < score(pick)) pick = o; // la mejor ventana del día (a igualdad, la primera en el orden)
           const eve = trimmed.size === 0 && d.w.kind === 'exam' && !rev && !isUndated(d.w) && dt === addDays(d.w.dueDate, -1) && (x.perWork.get(d.w.id) ?? 0) < VISPERA_MIN ? 0 : 1; // víspera: el examen de mañana se repasa a fondo (hasta VISPERA_MIN min)
           /* con exceso de carga, cada examen prefiere el último 60 % de su ventana (los días iniciales se dejan a los plazos más cercanos); si no hay sitio, usa los anteriores */
-          const tooEarly = trimmed.size > 0 && d.w.kind === 'exam' && !rev && !isUndated(d.w) && dt < addDays(now.date, Math.floor(0.4 * Math.max(0, daysBetween(now.date, d.w.dueDate)))) ? 1 : 0;
-          const load = trimmed.size > 0 && d.w.kind === 'exam' ? 0 : Math.round(10 * x.total / dayCap(dt)), /* con exceso de carga, los plazos más cercanos ocupan los primeros días y dejan los últimos a los demás */ noPack = hasStudy && !pick.packed ? 1 : 0, sameWork = eve === 0 ? 0 : x.perWork.get(d.w.id) ? 1 : 0;
+          const near14 = d.w.kind === 'exam' && daysBetween(now.date, d.w.dueDate) <= EXAM_FIRST_DAYS; /* los exámenes lejanos se reparten por carga, no se amontonan en los primeros días */
+          const tooEarly = trimmed.size > 0 && near14 && !rev && !isUndated(d.w) && dt < addDays(now.date, Math.floor(0.4 * Math.max(0, daysBetween(now.date, d.w.dueDate)))) ? 1 : 0;
+          const load = trimmed.size > 0 && near14 ? 0 : Math.round(10 * x.total / dayCap(dt)), /* con exceso de carga, los plazos más cercanos ocupan los primeros días y dejan los últimos a los demás */ noPack = hasStudy && !pick.packed ? 1 : 0, sameWork = eve === 0 ? 0 : x.perWork.get(d.w.id) ? 1 : 0;
           // Patrón: 1) no repetir el mismo trabajo el mismo día · 2) evitar franjas que fallas · 3) la franja de después de cenar solo como último recurso ·
           // 4) los repasos cortos se pegan a días que ya tienen estudio (no abren un día por sí solos) · 5) repartir por carga relativa · 6) sesiones seguidas, sin huecos · 7) alternar asignaturas
-          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, sameWork, pick.bad, pick.sec, pick.adj, tooEarly, load, noPack, dt] });
+          /* examen lejano (ventana ≥ 21 días): las sesiones se reparten a lo largo de toda la ventana en vez de ocupar los primeros días consecutivos */
+          const spread = d.w.kind === 'exam' && !rev && daysBetween(d.from, to) >= 21, nS = Math.max(1, Math.ceil(d.need / s.preferredMin)), tgt = Math.floor(((placedN.get(d) ?? 0) + 0.5) * (daysBetween(d.from, to) + 1) / nS), dist = spread ? Math.abs(daysBetween(d.from, dt) - tgt) : 0;
+          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, sameWork, pick.bad, pick.sec, pick.adj, tooEarly, dist, load, noPack, dt] });
         }
         if (cands.length) break;
       }
@@ -228,7 +232,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       const c = cands[0];
       let id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}`, k = 1; while (used.has(id)) id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}:r${k++}`; used.add(id);
       const b: Block = { id, workId: d.w.id, date: c.dt, start: c.start, end: c.start + c.L, status: 'planned', manual: false, part: d.part };
-      occupy(b); created.push(b); left -= c.L; placedOnce.add(d);
+      occupy(b); created.push(b); left -= c.L; placedOnce.add(d); placedN.set(d, (placedN.get(d) ?? 0) + 1);
       if (once) break;
     }
     return left;

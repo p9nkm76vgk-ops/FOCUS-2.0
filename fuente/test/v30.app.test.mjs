@@ -69,3 +69,29 @@ test('eliminar un examen desde su formulario funciona con y sin sesiones hechas 
   await a.click('editExam', e2.id); a.h.dlg.onclick(); assert.match(a.h.dlg.innerHTML, /Archivar/); assert.match(a.h.dlg.innerHTML, /estudiadas/);
   a.t.A.choice({ dataset: { i: 1 } }); await new Promise(r => setTimeout(r, 20)); assert.ok(!a.S.works.some(w => w.id === e2.id)); assert.equal(a.S.blocks.filter(b => b.workId === e2.id).length, 0);
 });
+
+test('semanas de exámenes del 2.º y 3.er trimestre: copia provisional de la semana de noviembre (mismo día de la semana), sin tocar el plan de noviembre ni alargar la pausa de entreno', async () => {
+  clock.t = new Date(2026, 10, 2, 17, 42).getTime(); const a = await boot();
+  const days = { 'Matemáticas II': '2026-11-09', 'Química': '2026-11-10', 'Business': '2026-11-11', 'Catalán': '2026-11-12', 'Física': '2026-11-13' };
+  for (const [n, d] of Object.entries(days)) await exam(a, n, d); await a.click('replan');
+  const st = JSON.parse(JSON.stringify(a.S)), base = await boot({ 'focusos.v1': JSON.stringify(st) }); // control: recarga sin provisionales
+  const nov = JSON.stringify(base.S.blocks.filter(b => b.date <= '2026-11-13').map(b => [b.id, b.date, b.start, b.end])); delete st.triV; const b = await boot({ 'focusos.v1': JSON.stringify(st) });
+  const tri = b.S.works.filter(w => w.provisional), by = (n, t) => tri.find(w => w.id === 'tri' + t + ':' + a.S.works.find(x => x.kind === 'exam' && x.subjectId === sid(a, n)).id);
+  assert.equal(tri.length, 10); assert.equal(b.S.triV, 1);
+  const exp2 = { 'Matemáticas II': '2027-02-08', 'Química': '2027-02-09', 'Business': '2027-02-03', 'Catalán': '2027-02-04', 'Física': '2027-02-05' }, exp3 = { 'Matemáticas II': '2027-05-10', 'Química': '2027-05-11', 'Business': '2027-05-12', 'Catalán': '2027-05-13', 'Física': '2027-05-07' };
+  for (const n of Object.keys(days)) { assert.equal(by(n, 2).dueDate, exp2[n], n + ' 2.º'); assert.equal(by(n, 3).dueDate, exp3[n], n + ' 3.º') }
+  assert.equal(JSON.stringify(b.S.blocks.filter(x => x.date <= '2026-11-13').map(x => [x.id, x.date, x.start, x.end])), nov, 'el plan de noviembre no cambia');
+  const t2 = tri.filter(w => w.id.startsWith('tri2')).map(w => w.id), t3 = tri.filter(w => w.id.startsWith('tri3')).map(w => w.id);
+  assert.ok(b.S.blocks.some(x => t2.includes(x.workId)), 'el 2.º trimestre se planifica'); assert.ok(b.S.blocks.filter(x => t2.includes(x.workId)).every(x => x.date >= '2026-11-14'), 'no antes del 14 de noviembre');
+  assert.ok(!b.S.blocks.some(x => t3.includes(x.workId)), 'el 3.º queda fuera del horizonte: sin sesiones aún');
+  b.S.pausaEntreno = { on: true }; assert.equal(b.t.pausaHasta(b.S, '2026-11-02'), '2026-11-13', 'la pausa de entreno no se alarga a febrero/mayo');
+  const ew = b.t.examWeekWins(b.S, '2026-11-02').map(x => x.date).filter(d => d >= '2027-01-01' && d < '2027-04-01'); const set = new Set(ew);
+  for (const d of ['2027-02-03', '2027-02-04', '2027-02-05', '2027-02-08', '2027-02-09']) assert.ok(set.has(d), 'ventana de semana de exámenes ' + d); for (const d of ['2027-02-01', '2027-02-02', '2027-02-06', '2027-02-07', '2027-02-10']) assert.ok(!set.has(d), 'sin ventana ' + d);
+  const c = await boot({ 'focusos.v1': JSON.stringify(b.S) }); assert.equal(c.S.works.filter(w => w.provisional).length, 10, 'sin duplicar al reabrir');
+});
+
+test('un examen lejano (95 días) reparte sus sesiones por toda la ventana y replanificar no cambia nada', async () => {
+  clock.t = new Date(2026, 10, 2, 17, 42).getTime(); const a = await boot(); await exam(a, 'Matemáticas II', '2027-02-05'); await a.click('replan');
+  const f = () => a.S.blocks.filter(b => b.status === 'planned' && b.date < '2027-02-01').map(b => [b.id, b.date, b.start, b.end]), s1 = JSON.stringify(f()); await a.click('replan'); assert.equal(JSON.stringify(f()), s1);
+  const ds = f().map(x => x[1]).sort(); assert.ok(ds.length >= 4); assert.ok(ds[ds.length - 1] > '2027-01-01' && ds[0] < '2026-12-01', `sesiones de ${ds[0]} a ${ds[ds.length - 1]}`);
+});
