@@ -40,11 +40,11 @@ test('temario: añadir temas en bloque sin duplicar, marcar nivel programa el pr
   const a = await boot(); const s = a.S.subjects[0].id; await a.click('addTopics', s);
   assert.equal(await a.submit({ names: 'Límites\nDerivadas\n\nlímites\n  Integrales ', level: '0' }), ''); assert.equal(J(a.S.syllabus.map(t => t.name)), J(['Límites', 'Derivadas', 'Integrales'])); assert.ok(a.S.syllabus.every(t => t.mastery === 0 && t.next === null));
   assert.match(await a.submit({ names: 'LÍMITES', level: '0' }), /al menos un tema nuevo/);
-  const id = a.S.syllabus[0].id; await a.click('lvl', id, '2'); assert.equal(a.S.syllabus[0].mastery, 2); assert.equal(a.S.syllabus[0].next, '2026-10-14');
+  const id = a.S.syllabus[0].id; await a.click('lvl', id, '3'); assert.equal(a.S.syllabus[0].mastery, 3); assert.equal(a.S.syllabus[0].next, '2026-10-14');
   assert.ok(a.S.works.some(w => w.auto === 'review' && w.topicRef === id), 'toca en ≤2 días → tarea de repaso creada');
   const rw = a.S.works.find(w => w.auto === 'review'); assert.match(rw.title, /^Repaso: Límites/); assert.ok(a.S.blocks.some(b => b.workId === rw.id && b.status === 'planned'), 'colocada en el calendario');
   await a.click('replan'); assert.equal(a.S.works.filter(w => w.auto === 'review').length, 1, 'sin duplicados al replanificar');
-  const v = a.t.V.tem(); assert.match(v, /Temario/); assert.match(v, /1 de 3 temas en naranja o mejor/); assert.match(v, /aria-pressed=true/);
+  const v = a.t.V.tem(); assert.match(v, /Temario/); assert.match(v, /1 de 3 temas en amarillo o mejor/); assert.match(v, /aria-pressed=true/);
   await a.click('lvl', id, '0'); assert.equal(a.S.syllabus[0].next, null); assert.ok(!a.S.works.some(w => w.auto === 'review' && w.status === 'pending'), 'sin ver: el repaso pendiente se retira');
 });
 test('completar un repaso con «Bien» sube el nivel y reprograma a +7 días; «Mal» lo repite mañana; se guarda la calidad de la sesión', async () => {
@@ -54,7 +54,7 @@ test('completar un repaso con «Bien» sube el nivel y reprograma a +7 días; «
   const w1 = rws.find(w => /Límites/.test(w.title)), w2 = rws.find(w => /Derivadas/.test(w.title)); const b1 = blk(w1.id), b2 = blk(w2.id);
   a.t.A.doneBlk({ dataset: { id: b1.id } }); assert.match(a.h.dlg.innerHTML, /¿Cómo ha ido la sesión\?/); assert.match(a.h.dlg.innerHTML, /value="3" checked/, 'repaso: «Bien» preseleccionado');
   assert.equal(await a.submit({ actualMin: '25', goalMet: '1', quality: '3', progress: '60', difficulty: '3', interrupted: '0' }), '');
-  const t1 = a.S.syllabus.find(t => t.id === w1.topicRef); assert.equal(t1.reviews, 1); assert.equal(t1.mastery, 2); assert.equal(t1.next, '2026-10-19'); assert.equal(a.S.works.find(w => w.id === w1.id).status, 'done'); assert.equal(a.S.blocks.find(b => b.id === b1.id).quality, 3);
+  const t1 = a.S.syllabus.find(t => t.id === w1.topicRef); assert.equal(t1.reviews, 1); assert.equal(t1.mastery, 3); assert.equal(t1.next, '2026-10-19'); assert.equal(a.S.works.find(w => w.id === w1.id).status, 'done'); assert.equal(a.S.blocks.find(b => b.id === b1.id).quality, 3);
   assert.ok(!a.S.works.some(w => w.auto === 'review' && w.topicRef === t1.id && w.status === 'pending'), 'el siguiente repaso aún no toca');
   a.t.A.doneBlk({ dataset: { id: b2.id } }); assert.equal(await a.submit({ actualMin: '25', goalMet: '0', quality: '1', progress: '20', difficulty: '4', interrupted: '0' }), '');
   const t2 = a.S.syllabus.find(t => t.id === w2.topicRef); assert.equal(t2.next, '2026-10-13'); assert.equal(t2.mastery, 1); assert.equal(a.S.blocks.find(b => b.id === b2.id).quality, 1);

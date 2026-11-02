@@ -87,22 +87,23 @@ export const needPond = (cut: number, nmb: number, acceso: number) => r2((cut - 
 
 // ---------- Temario y repaso espaciado ----------
 export const INTERVALS = [2, 7, 21, 45, 90];
-export const LEVELS = ['Rojo', 'Naranja', 'Verde', 'Oro']; // rojo: no sabría hacerlo · naranja: lo sacaría a medias · verde: me sale bien · oro: me sale perfecto y rápido
+/** Tres niveles visibles: Rojo (0) llego al examen sin saber nada · Amarillo (1) llego y me puedo defender · Verde (3) estoy preparado. El valor interno 2 ya no se usa (se trata como Verde). */
+export const LEVELS = ['Rojo', 'Amarillo', 'Verde', 'Verde'];
 export function newTopic(id: string, subjectId: string, name: string, mastery: number, today: string, createdAt = 0, course: 1 | 2 = 2, stagger = 0): Topic2 {
   const t = setMastery({ id, subjectId, name, course, mastery: 0, reviews: 0, last: null, next: null, createdAt }, mastery, today);
   return t.next && stagger > 0 ? { ...t, next: addDays(t.next, stagger) } : t; // altas en bloque: primeros repasos escalonados para no crear una avalancha
 }
 export function setMastery(t: Topic2, level: number, today: string): Topic2 {
-  const L = clamp(Math.round(level), 0, 3) as 0 | 1 | 2 | 3;
+  const L = (Math.round(level) === 2 ? 3 : clamp(Math.round(level), 0, 3)) as 0 | 1 | 2 | 3;
   if (L === 0) return { ...t, mastery: 0, reviews: 0, last: null, next: null };
   const first = t.mastery === 0;
   return { ...t, mastery: L, reviews: first ? 0 : t.reviews, last: first ? today : t.last, next: t.next ?? addDays(today, INTERVALS[Math.min(first ? 0 : t.reviews, INTERVALS.length - 1)]) };
 }
 /** Resultado de un repaso: bien → sube un nivel y espacia más; regular → repetir en 3 días; mal → baja y repetir mañana. */
 export function reviewDone(t: Topic2, rating: 'bien' | 'regular' | 'mal', today: string): Topic2 {
-  if (rating === 'bien') { const n = t.reviews + 1; return { ...t, reviews: n, mastery: Math.min(3, Math.max(1, t.mastery + 1)) as 1 | 2 | 3, last: today, next: addDays(today, INTERVALS[Math.min(n, INTERVALS.length - 1)]) }; }
+  if (rating === 'bien') { const n = t.reviews + 1; return { ...t, reviews: n, mastery: 3 as 1 | 2 | 3, last: today, next: addDays(today, INTERVALS[Math.min(n, INTERVALS.length - 1)]) }; }
   if (rating === 'regular') return { ...t, last: today, next: addDays(today, 3) };
-  return { ...t, reviews: Math.max(0, t.reviews - 1), mastery: Math.max(1, t.mastery - 1) as 1 | 2 | 3, last: today, next: addDays(today, 1) };
+  return { ...t, reviews: Math.max(0, t.reviews - 1), mastery: 1 as 1 | 2 | 3, last: today, next: addDays(today, 1) };
 }
 export const REVIEW_MIN = 25, REVIEW_LOOKAHEAD = 2, REVIEW_WINDOW = 3, REVIEW_MAX_ACTIVE = 8;
 /** Sincroniza las tareas automáticas de repaso con el temario. Idempotente: mismo estado → mismo resultado. Nunca borra trabajo con sesiones hechas (lo archiva). */

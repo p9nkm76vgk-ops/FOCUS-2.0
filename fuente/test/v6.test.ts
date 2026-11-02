@@ -74,11 +74,11 @@ test('planificador: evita dos sesiones de la misma asignatura pegadas cuando hay
 });
 test('repaso espaciado: primer repaso a +2 días; bien espacia 7/21/45/90 y sube nivel; regular +3; mal baja y +1', () => {
   let t = G.newTopic('t', 'a', 'Límites', 1, '2026-10-12'); assert.equal(t.next, '2026-10-14'); assert.equal(t.reviews, 0);
-  t = G.reviewDone(t, 'bien', '2026-10-14'); assert.equal(t.next, '2026-10-21'); assert.equal(t.mastery, 2);
+  t = G.reviewDone(t, 'bien', '2026-10-14'); assert.equal(t.next, '2026-10-21'); assert.equal(t.mastery, 3);
   t = G.reviewDone(t, 'bien', '2026-10-21'); assert.equal(t.next, '2026-11-11'); assert.equal(t.mastery, 3);
   t = G.reviewDone(t, 'bien', '2026-11-11'); assert.equal(t.next, '2026-12-26'); t = G.reviewDone(t, 'bien', '2026-12-26'); assert.equal(t.next, '2027-03-26'); t = G.reviewDone(t, 'bien', '2027-03-26'); assert.equal(t.next, '2027-06-24', 'tope 90 días'); assert.equal(t.mastery, 3);
   const r = G.reviewDone(t, 'regular', '2027-04-01'); assert.equal(r.next, '2027-04-04'); assert.equal(r.mastery, 3);
-  const m = G.reviewDone(t, 'mal', '2027-04-01'); assert.equal(m.next, '2027-04-02'); assert.equal(m.mastery, 2); assert.equal(m.reviews, t.reviews - 1);
+  const m = G.reviewDone(t, 'mal', '2027-04-01'); assert.equal(m.next, '2027-04-02'); assert.equal(m.mastery, 1); assert.equal(m.reviews, t.reviews - 1);
   assert.deepEqual(G.setMastery(t, 0, '2026-10-12'), { ...t, mastery: 0, reviews: 0, last: null, next: null });
   assert.equal(G.newTopic('u', 'a', 'x', 0, '2026-10-12').next, null, 'sin ver no programa repaso');
 });

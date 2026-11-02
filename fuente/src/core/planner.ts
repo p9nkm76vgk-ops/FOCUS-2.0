@@ -186,10 +186,11 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   }
 
   // 3) Cubrir lo que falta: sesiones repartidas por los días menos cargados
-  const fill = (d: Demand, to: string, left: number): number => {
+  const placedOnce = new Set<Demand>();
+  const fill = (d: Demand, to: string, left: number, once = false): number => {
     const left0 = left;
     while (left > 0) {
-      if (left < MIN_FRAG && left < left0) { left = 0; break; } // el resto de una demanda ya cubierta (<20 min) no merece otra sesión
+      if (left < MIN_FRAG && (left < left0 || (once && placedOnce.has(d)))) { left = 0; break; } // el resto de una demanda ya cubierta (<20 min) no merece otra sesión
       let len = Math.min(s.preferredMin, left);
       if (left - len > 0 && left - len < s.minSessionMin) len = Math.min(left, s.maxSessionMin);
       const cands: { dt: string; start: number; L: number; key: (number | string)[] }[] = [];
@@ -213,10 +214,12 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
           const hasStudy = x.total > 0, score = (o: typeof opts[0]) => o.bad * 8 + o.sec * 4 + o.adj * 2 + (hasStudy && !o.packed ? 1 : 0);
           let pick = opts[0]; for (const o of opts) if (score(o) < score(pick)) pick = o; // la mejor ventana del día (a igualdad, la primera en el orden)
           const eve = trimmed.size === 0 && d.w.kind === 'exam' && !rev && !isUndated(d.w) && dt === addDays(d.w.dueDate, -1) && (x.perWork.get(d.w.id) ?? 0) < VISPERA_MIN ? 0 : 1; // víspera: el examen de mañana se repasa a fondo (hasta VISPERA_MIN min)
+          /* con exceso de carga, cada examen prefiere el último 60 % de su ventana (los días iniciales se dejan a los plazos más cercanos); si no hay sitio, usa los anteriores */
+          const tooEarly = trimmed.size > 0 && d.w.kind === 'exam' && !rev && !isUndated(d.w) && dt < addDays(now.date, Math.floor(0.4 * Math.max(0, daysBetween(now.date, d.w.dueDate)))) ? 1 : 0;
           const load = trimmed.size > 0 && d.w.kind === 'exam' ? 0 : Math.round(10 * x.total / dayCap(dt)), /* con exceso de carga, los plazos más cercanos ocupan los primeros días y dejan los últimos a los demás */ noPack = hasStudy && !pick.packed ? 1 : 0, sameWork = eve === 0 ? 0 : x.perWork.get(d.w.id) ? 1 : 0;
           // Patrón: 1) no repetir el mismo trabajo el mismo día · 2) evitar franjas que fallas · 3) la franja de después de cenar solo como último recurso ·
           // 4) los repasos cortos se pegan a días que ya tienen estudio (no abren un día por sí solos) · 5) repartir por carga relativa · 6) sesiones seguidas, sin huecos · 7) alternar asignaturas
-          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, sameWork, pick.bad, pick.sec, pick.adj, load, noPack, dt] });
+          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, sameWork, pick.bad, pick.sec, pick.adj, tooEarly, load, noPack, dt] });
         }
         if (cands.length) break;
       }
@@ -225,14 +228,30 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       const c = cands[0];
       let id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}`, k = 1; while (used.has(id)) id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}:r${k++}`; used.add(id);
       const b: Block = { id, workId: d.w.id, date: c.dt, start: c.start, end: c.start + c.L, status: 'planned', manual: false, part: d.part };
-      occupy(b); created.push(b); left -= c.L;
+      occupy(b); created.push(b); left -= c.L; placedOnce.add(d);
+      if (once) break;
     }
     return left;
   };
   const deficit = new Map<string, number>([...trimmed]), clippedW = new Set<string>();
+  /* Reparto por rondas: dentro de cada nivel de prioridad, cada demanda coloca UNA sesión por ronda (en el orden de siempre). Así los exámenes avanzan a la vez por los días libres
+   * y el último examen no se queda solo con los huecos de la víspera. Las más grandes (temas en rojo) siguen recibiendo más sesiones porque tardan más rondas en cubrirse. Determinista. */
+  const lefts = new Map<Demand, number>(demands.map(d => [d, rem.get(d)!]));
+  for (const tr of [0, 1, 2]) {
+    const grp = demands.filter(d => tier(d) === tr), stuck = new Set<Demand>();
+    for (let guard = 0; guard < 2000; guard++) {
+      let moved = false;
+      for (const d of grp) {
+        const l0 = lefts.get(d)!; if (l0 <= 0 || stuck.has(d)) continue;
+        let l = fill(d, d.to, l0, true);
+        if (l === l0 && l > 0 && d.ext && d.ext > d.to) l = fill(d, d.ext, l, true);
+        lefts.set(d, l); if (l < l0) moved = true; else stuck.add(d);
+      }
+      if (!moved) break;
+    }
+  }
   for (const d of demands) {
-    let left = fill(d, d.to, rem.get(d)!);
-    if (left > 0 && d.ext && d.ext > d.to) left = fill(d, d.ext, left);
+    const left = lefts.get(d)!;
     if (left > 0 && !d.clipped) deficit.set(d.w.id, (deficit.get(d.w.id) ?? 0) + left);
     if (d.clipped) clippedW.add(d.w.id);
   }

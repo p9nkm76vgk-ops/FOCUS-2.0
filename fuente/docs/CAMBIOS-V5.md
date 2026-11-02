@@ -297,3 +297,7 @@ Causas halladas y corregidas:
 ## v30.1 / v31
 - v30.1: temas de Business (Tema 1, Unidad 2, Tema 5 «solo problemas») añadidos al temario (migración `tmV` 2).
 - v31: objetivo declarado: admisión 12,5 mínimo (ideal 12,75), media 9,1, acceso 8,5, mínimo 9 en Matemáticas II y Business (migración única `obV`). La tarjeta muestra la media necesaria en las dos materias ponderables para el mínimo y para el ideal.
+
+## v32 — Tres colores y reparto por rondas
+- Niveles del temario: Rojo (llego sin saber nada) · Amarillo (llego y me defiendo) · Verde (preparado). Se elimina Oro. Internamente 0/1/3 (el 2 antiguo se trata como Verde; migración `tmV` 3: Verde(2)→Verde(3); Naranja→Amarillo). Verde = dominio 100 %, así que un tema en verde no pide más horas ni baja el porcentaje de dominio. Repaso «Bien» → Verde; «Mal» → Amarillo.
+- Planificador: dentro de cada nivel de prioridad, las demandas colocan una sesión por ronda (ya no se llena un examen entero antes de empezar el siguiente), y con exceso de carga cada examen prefiere el último 60 % de su ventana. Evita que el último examen se quede con los huecos de la víspera. Determinista e idempotente (test).

@@ -268,6 +268,6 @@ body.focusing{overflow:hidden}
 
 /* v30 · niveles con color */
 .lv button[data-k="0"].on{background:color-mix(in srgb,#A9564E 30%,var(--surface));border-color:#A9564E}
-.lv button[data-k="1"].on{background:color-mix(in srgb,#C08A45 30%,var(--surface));border-color:#C08A45}
+.lv button[data-k="1"].on{background:color-mix(in srgb,#C9A94B 30%,var(--surface));border-color:#C9A94B}
 .lv button[data-k="2"].on{background:color-mix(in srgb,#6E9A6A 30%,var(--surface));border-color:#6E9A6A}
-.lv button[data-k="3"].on{background:color-mix(in srgb,var(--accent) 34%,var(--surface));border-color:var(--accent)}
+.lv button[data-k="3"].on{background:color-mix(in srgb,#6E9A6A 30%,var(--surface));border-color:#6E9A6A}

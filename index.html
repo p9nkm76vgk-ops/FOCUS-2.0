@@ -268,9 +268,9 @@ body.focusing{overflow:hidden}
 
 /* v30 · niveles con color */
 .lv button[data-k="0"].on{background:color-mix(in srgb,#A9564E 30%,var(--surface));border-color:#A9564E}
-.lv button[data-k="1"].on{background:color-mix(in srgb,#C08A45 30%,var(--surface));border-color:#C08A45}
+.lv button[data-k="1"].on{background:color-mix(in srgb,#C9A94B 30%,var(--surface));border-color:#C9A94B}
 .lv button[data-k="2"].on{background:color-mix(in srgb,#6E9A6A 30%,var(--surface));border-color:#6E9A6A}
-.lv button[data-k="3"].on{background:color-mix(in srgb,var(--accent) 34%,var(--surface));border-color:var(--accent)}
+.lv button[data-k="3"].on{background:color-mix(in srgb,#6E9A6A 30%,var(--surface));border-color:#6E9A6A}
 </style></head><body>
 <div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b><button id=topSearch data-a=search aria-label="Buscar"><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button></div>
 <nav id=tabs aria-label="Secciones principales"></nav><aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
@@ -464,10 +464,11 @@ function plan(input                                                             
   }
 
   // 3) Cubrir lo que falta: sesiones repartidas por los días menos cargados
-  const fill = (d        , to        , left        )         => {
+  const placedOnce = new Set        ();
+  const fill = (d        , to        , left        , once = false)         => {
     const left0 = left;
     while (left > 0) {
-      if (left < MIN_FRAG && left < left0) { left = 0; break; } // el resto de una demanda ya cubierta (<20 min) no merece otra sesión
+      if (left < MIN_FRAG && (left < left0 || (once && placedOnce.has(d)))) { left = 0; break; } // el resto de una demanda ya cubierta (<20 min) no merece otra sesión
       let len = Math.min(s.preferredMin, left);
       if (left - len > 0 && left - len < s.minSessionMin) len = Math.min(left, s.maxSessionMin);
       const cands                                                                       = [];
@@ -491,10 +492,12 @@ function plan(input                                                             
           const hasStudy = x.total > 0, score = (o                ) => o.bad * 8 + o.sec * 4 + o.adj * 2 + (hasStudy && !o.packed ? 1 : 0);
           let pick = opts[0]; for (const o of opts) if (score(o) < score(pick)) pick = o; // la mejor ventana del día (a igualdad, la primera en el orden)
           const eve = trimmed.size === 0 && d.w.kind === 'exam' && !rev && !isUndated(d.w) && dt === addDays(d.w.dueDate, -1) && (x.perWork.get(d.w.id) ?? 0) < VISPERA_MIN ? 0 : 1; // víspera: el examen de mañana se repasa a fondo (hasta VISPERA_MIN min)
+          /* con exceso de carga, cada examen prefiere el último 60 % de su ventana (los días iniciales se dejan a los plazos más cercanos); si no hay sitio, usa los anteriores */
+          const tooEarly = trimmed.size > 0 && d.w.kind === 'exam' && !rev && !isUndated(d.w) && dt < addDays(now.date, Math.floor(0.4 * Math.max(0, daysBetween(now.date, d.w.dueDate)))) ? 1 : 0;
           const load = trimmed.size > 0 && d.w.kind === 'exam' ? 0 : Math.round(10 * x.total / dayCap(dt)), /* con exceso de carga, los plazos más cercanos ocupan los primeros días y dejan los últimos a los demás */ noPack = hasStudy && !pick.packed ? 1 : 0, sameWork = eve === 0 ? 0 : x.perWork.get(d.w.id) ? 1 : 0;
           // Patrón: 1) no repetir el mismo trabajo el mismo día · 2) evitar franjas que fallas · 3) la franja de después de cenar solo como último recurso ·
           // 4) los repasos cortos se pegan a días que ya tienen estudio (no abren un día por sí solos) · 5) repartir por carga relativa · 6) sesiones seguidas, sin huecos · 7) alternar asignaturas
-          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, sameWork, pick.bad, pick.sec, pick.adj, load, noPack, dt] });
+          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, sameWork, pick.bad, pick.sec, pick.adj, tooEarly, load, noPack, dt] });
         }
         if (cands.length) break;
       }
@@ -503,14 +506,30 @@ function plan(input                                                             
       const c = cands[0];
       let id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}`, k = 1; while (used.has(id)) id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}:r${k++}`; used.add(id);
       const b        = { id, workId: d.w.id, date: c.dt, start: c.start, end: c.start + c.L, status: 'planned', manual: false, part: d.part };
-      occupy(b); created.push(b); left -= c.L;
+      occupy(b); created.push(b); left -= c.L; placedOnce.add(d);
+      if (once) break;
     }
     return left;
   };
   const deficit = new Map                ([...trimmed]), clippedW = new Set        ();
+  /* Reparto por rondas: dentro de cada nivel de prioridad, cada demanda coloca UNA sesión por ronda (en el orden de siempre). Así los exámenes avanzan a la vez por los días libres
+   * y el último examen no se queda solo con los huecos de la víspera. Las más grandes (temas en rojo) siguen recibiendo más sesiones porque tardan más rondas en cubrirse. Determinista. */
+  const lefts = new Map                (demands.map(d => [d, rem.get(d) ]));
+  for (const tr of [0, 1, 2]) {
+    const grp = demands.filter(d => tier(d) === tr), stuck = new Set        ();
+    for (let guard = 0; guard < 2000; guard++) {
+      let moved = false;
+      for (const d of grp) {
+        const l0 = lefts.get(d) ; if (l0 <= 0 || stuck.has(d)) continue;
+        let l = fill(d, d.to, l0, true);
+        if (l === l0 && l > 0 && d.ext && d.ext > d.to) l = fill(d, d.ext, l, true);
+        lefts.set(d, l); if (l < l0) moved = true; else stuck.add(d);
+      }
+      if (!moved) break;
+    }
+  }
   for (const d of demands) {
-    let left = fill(d, d.to, rem.get(d) );
-    if (left > 0 && d.ext && d.ext > d.to) left = fill(d, d.ext, left);
+    const left = lefts.get(d) ;
     if (left > 0 && !d.clipped) deficit.set(d.w.id, (deficit.get(d.w.id) ?? 0) + left);
     if (d.clipped) clippedW.add(d.w.id);
   }
@@ -1484,22 +1503,23 @@ const needPond = (cut        , nmb        , acceso        ) => r2((cut - 0.6 * n
 
 // ---------- Temario y repaso espaciado ----------
 const INTERVALS = [2, 7, 21, 45, 90];
-const LEVELS = ['Rojo', 'Naranja', 'Verde', 'Oro']; // rojo: no sabría hacerlo · naranja: lo sacaría a medias · verde: me sale bien · oro: me sale perfecto y rápido
+/** Tres niveles visibles: Rojo (0) llego al examen sin saber nada · Amarillo (1) llego y me puedo defender · Verde (3) estoy preparado. El valor interno 2 ya no se usa (se trata como Verde). */
+const LEVELS = ['Rojo', 'Amarillo', 'Verde', 'Verde'];
 function newTopic(id        , subjectId        , name        , mastery        , today        , createdAt = 0, course        = 2, stagger = 0)         {
   const t = setMastery({ id, subjectId, name, course, mastery: 0, reviews: 0, last: null, next: null, createdAt }, mastery, today);
   return t.next && stagger > 0 ? { ...t, next: addDays(t.next, stagger) } : t; // altas en bloque: primeros repasos escalonados para no crear una avalancha
 }
 function setMastery(t        , level        , today        )         {
-  const L = clamp(Math.round(level), 0, 3)                 ;
+  const L = (Math.round(level) === 2 ? 3 : clamp(Math.round(level), 0, 3))                 ;
   if (L === 0) return { ...t, mastery: 0, reviews: 0, last: null, next: null };
   const first = t.mastery === 0;
   return { ...t, mastery: L, reviews: first ? 0 : t.reviews, last: first ? today : t.last, next: t.next ?? addDays(today, INTERVALS[Math.min(first ? 0 : t.reviews, INTERVALS.length - 1)]) };
 }
 /** Resultado de un repaso: bien → sube un nivel y espacia más; regular → repetir en 3 días; mal → baja y repetir mañana. */
 function reviewDone(t        , rating                            , today        )         {
-  if (rating === 'bien') { const n = t.reviews + 1; return { ...t, reviews: n, mastery: Math.min(3, Math.max(1, t.mastery + 1))             , last: today, next: addDays(today, INTERVALS[Math.min(n, INTERVALS.length - 1)]) }; }
+  if (rating === 'bien') { const n = t.reviews + 1; return { ...t, reviews: n, mastery: 3             , last: today, next: addDays(today, INTERVALS[Math.min(n, INTERVALS.length - 1)]) }; }
   if (rating === 'regular') return { ...t, last: today, next: addDays(today, 3) };
-  return { ...t, reviews: Math.max(0, t.reviews - 1), mastery: Math.max(1, t.mastery - 1)             , last: today, next: addDays(today, 1) };
+  return { ...t, reviews: Math.max(0, t.reviews - 1), mastery: 1             , last: today, next: addDays(today, 1) };
 }
 const REVIEW_MIN = 25, REVIEW_LOOKAHEAD = 2, REVIEW_WINDOW = 3, REVIEW_MAX_ACTIVE = 8;
 /** Sincroniza las tareas automáticas de repaso con el temario. Idempotente: mismo estado → mismo resultado. Nunca borra trabajo con sesiones hechas (lo archiva). */
@@ -1736,7 +1756,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='c5b8981302',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='7f6c5a7d2b',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2044,7 +2064,7 @@ document.addEventListener('submit',e=>{if(e.target.id!=='sf')return;e.preventDef
 function render(){const [r,arg]=route.split(':');renderNav();$('#main').innerHTML=(V[r]||V.hoy)(arg);$('#topTitle').textContent=r==='asg'&&arg?sub(arg).name:NAVT[r]||'Focus OS'}
 const tick=()=>{if(S&&!$('#dlg').open&&route!=='aj'&&route!=='rut'){extendRoutine();commit({quiet:true})}};
 const dl=(txt,name,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:type||'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)};
-const fresh=()=>({weV:1,nivV:1,refV:1,trV:2,fiV:1,hzV:1,tmV:2,obV:1,timetable:[],patternV:2,cenaV:1,ejV:1,metV:2,goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
+const fresh=()=>({weV:1,nivV:1,refV:1,trV:2,fiV:1,hzV:1,tmV:3,obV:1,timetable:[],patternV:2,cenaV:1,ejV:1,metV:2,goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
 function recovery(err){S=null;$('#main').innerHTML=`<h1>Datos no válidos</h1><div class="card warn">${esc(err)}</div><p class=m>No se ha sobrescrito nada: la copia dañada sigue guardada en este navegador. Puedes descargarla, importar una copia JSON válida o empezar de cero (la dañada se conserva aparte).</p><div class=row style="justify-content:flex-start"><button data-a=dlBad>Descargar copia dañada</button><button class=danger data-a=fresh>Empezar de cero</button></div><label>Importar copia JSON<input type=file id=imp accept=".json,application/json"></label>`}
 function importText(text){let o;try{o=JSON.parse(text)}catch{toast('El archivo no es un JSON válido.');return'json'}
  const e=validate(o);if(e){toast('Copia no válida: '+e);return e}
@@ -2476,8 +2496,8 @@ async function commit(o){autoRegen();const r=scheduleOf(S,true);finish(S,r);retu
 function migrateHorizonte(Sx){if(Sx.hzV>=1)return;Sx.hzV=1;if(Sx.settings&&!(Sx.settings.horizonDays>28))Sx.settings.horizonDays=120}
 {const c=V.cal;V.cal=a=>c(a).replace('<button data-a=replan>Regenerar futuro</button>','').replace('<button data-a=undoRegen>Deshacer última regeneración</button>','')}
 
-/* v30 · Temario único con colores (Rojo / Naranja / Verde / Oro). Los temas de un examen salen del temario de la asignatura y su color decide las horas. */
-const LV_Q=['No sabría hacerlo','Lo sacaría a medias','Me sale bien','Me sale perfecto y rápido'];
+/* v30 · Temario único con colores (Rojo / Amarillo / Verde). Los temas de un examen salen del temario de la asignatura y su color decide las horas. */
+const LV_Q=['Llego al examen sin saber nada','Llego y me puedo defender','Llego y me puedo defender','Estoy preparado'];
 const SEED_TEMAS={'Catalán':['La alegria que passa','En la meva mort','Història d’un soldat','Gramática','Sociolingüística','Comentar una noticia'],
  'Lengua Castellana':['La Regenta','Antonio Machado: «Campos de Castilla»','Antonio Machado: «A José María Palacios»','Luces de Bohemia','Sintaxis','Comentario de texto','Perífrasis'],
  'Historia de España':['Crisis del Antiguo Régimen (1808–1833)','Estado liberal y Sexenio Democrático (1833–1874)'],
@@ -2488,24 +2508,24 @@ const SEED_TEMAS={'Catalán':['La alegria que passa','En la meva mort','Històri
 const sylOf=sid=>(S.syllabus||[]).filter(t=>t.subjectId===sid).sort((a,b)=>a.createdAt-b.createdAt||a.name.localeCompare(b.name));
 function linkTopic(t,old,df){return{id:old?old.id:uid(),name:t.name,size:old?old.size:3,difficulty:old?old.difficulty:df||3,mastery:old&&Math.round(old.mastery)===t.mastery?old.mastery:t.mastery,selfRating:t.mastery,explicit:true,sylId:t.id}}
 function sylFields(w,sid0){const sid=(w&&w.subjectId)||sid0,ts=sylOf(sid);if(!ts.length)return[];const linked=new Set(((w&&w.topics)||[]).filter(t=>t.sylId).map(t=>t.sylId));
- return[{t:'note',v:'Temas del temario que entran en este examen. Su color decide las horas (rojo = muchas, oro = casi nada). Si no marcas ninguno, se usa la lista de arriba.'},...ts.map(t=>({k:'sy_'+t.id,l:t.name+' · '+GL.LEVELS[t.mastery],t:'check',v:linked.has(t.id)}))]}
+ return[{t:'note',v:'Temas del temario que entran en este examen. Su color decide las horas (rojo = muchas, verde = solo repaso). Si no marcas ninguno, se usa la lista de arriba.'},...ts.map(t=>({k:'sy_'+t.id,l:t.name+' · '+GL.LEVELS[t.mastery],t:'check',v:linked.has(t.id)}))]}
 function sylApply(v,sid,topics,w){const ts=sylOf(sid).filter(t=>v['sy_'+t.id]);if(!ts.length)return null;const old=new Map(((w&&w.topics)||[]).filter(t=>t.sylId).map(t=>[t.sylId,t])),names=new Set(sylOf(sid).map(t=>t.name.toLowerCase()));
  return[...ts.map(t=>linkTopic(t,old.get(t.id),w&&w.difficulty)),...(topics||[]).filter(t=>!t.sylId&&!t.auto&&!names.has(String(t.name).toLowerCase()))]}
 function syncSyl(Sx){const by=new Map((Sx.syllabus||[]).map(t=>[t.id,t]));let ch=false;const out=(Sx.works||[]).map(w=>{if(w.kind!=='exam'||!(w.topics||[]).some(t=>t.sylId))return w;
   const tp=w.topics.map(t=>{const s=t.sylId&&by.get(t.sylId);if(!s)return t;const m=Math.round(t.mastery)===s.mastery?t.mastery:s.mastery;if(m===t.mastery&&t.name===s.name&&t.selfRating===s.mastery)return t;ch=true;return{...t,mastery:m,name:s.name,selfRating:s.mastery}});return tp.some((t,i)=>t!==w.topics[i])?{...w,topics:tp}:w});return ch?out:Sx.works}
-function sylBump(w0,topicId){const w=S.works.find(x=>x.id===w0.id),y=w&&(w.topics||[]).find(t=>t.id===topicId);if(!y||!y.sylId)return;const lv=Math.round(y.mastery),s=(S.syllabus||[]).find(t=>t.id===y.sylId);if(s&&lv>s.mastery)S.syllabus=S.syllabus.map(t=>t.id===s.id?GL.setMastery(t,lv,now().date):t)}
+function sylBump(w0,topicId){const w=S.works.find(x=>x.id===w0.id),y=w&&(w.topics||[]).find(t=>t.id===topicId);if(!y||!y.sylId)return;const lv=y.mastery>=2.6?3:y.mastery>=0.5?1:0,s=(S.syllabus||[]).find(t=>t.id===y.sylId);if(s&&lv>s.mastery)S.syllabus=S.syllabus.map(t=>t.id===s.id?GL.setMastery(t,lv,now().date):t)}
 function sylLink(sid,list){if(!list.length)return;const ts=sylOf(sid);S.works=S.works.map(w=>{if(w.kind!=='exam'||w.auto==='review'||w.subjectId!==sid||!(w.status==='pending'||w.status==='in_progress'))return w;
   const have=new Set((w.topics||[]).filter(t=>t.sylId).map(t=>t.sylId)),manual=(w.topics||[]).filter(t=>!t.auto&&!t.sylId),add=ts.filter(t=>list.includes(t.id)&&!have.has(t.id)).map(t=>linkTopic(t,null,w.difficulty));
   return add.length?{...w,topics:[...(w.topics||[]).filter(t=>t.sylId||!t.auto),...add].length?[...(w.topics||[]).filter(t=>t.sylId||!t.auto),...add]:add,autoEst:w.manualEstMin==null?true:w.autoEst}:w})}
-function migrateTemario(Sx){if(Sx.tmV>=2)return;const prev=Sx.tmV||0;Sx.tmV=2;if(!Array.isArray(Sx.syllabus))Sx.syllabus=[];const t=now().date,base=Date.now();let k=0;
- for(const s of Sx.subjects||[]){const L=SEED_TEMAS[s.name];if(prev>=1&&s.name!=='Business')continue;if(!L||Sx.syllabus.some(x=>x.subjectId===s.id))continue;const add=L.map((nm,i)=>GL.newTopic(uid(),s.id,nm,0,t,base+(k++),2,0));Sx.syllabus=[...Sx.syllabus,...add];
+function migrateTemario(Sx){if(Sx.tmV>=3)return;const prev=Sx.tmV||0;Sx.tmV=3;if(prev>=1&&Array.isArray(Sx.syllabus)){Sx.syllabus=Sx.syllabus.map(t=>t.mastery===2?GL.setMastery({...t,mastery:1},3,now().date):t)}if(!Array.isArray(Sx.syllabus))Sx.syllabus=[];const t=now().date,base=Date.now();let k=0;
+ for(const s of Sx.subjects||[]){const L=SEED_TEMAS[s.name];if(prev>=2||(prev===1&&s.name!=='Business'))continue;if(!L||Sx.syllabus.some(x=>x.subjectId===s.id))continue;const add=L.map((nm,i)=>GL.newTopic(uid(),s.id,nm,0,t,base+(k++),2,0));Sx.syllabus=[...Sx.syllabus,...add];
   Sx.works=(Sx.works||[]).map(w=>{if(w.kind!=='exam'||w.auto==='review'||w.subjectId!==s.id||!(w.status==='pending'||w.status==='in_progress')||(w.topics||[]).some(x=>!x.auto))return w;return{...w,topics:add.map(x=>linkTopic(x,null,w.difficulty)),autoEst:w.manualEstMin==null?true:w.autoEst}})}}
-function topicsForm(sid){openForm('Añadir temas · '+sub(sid).name,[{k:'names',l:'Un tema por línea',t:'area',v:'',h:'Pon el nombre real del tema. Opcional: empieza la línea con R, N, V u O (rojo, naranja, verde, oro) y termina con * si entra en el próximo examen. Ejemplo: «N Campo gravitatorio *».'},{k:'course',l:'Curso al que pertenecen',t:'chips',o:[['1','1.º de Bachillerato'],['2','2.º de Bachillerato']],v:'2',h:'La PAU examina todo el temario acumulado: incluye también lo de 1.º.'},{k:'level',l:'Color de partida (si la línea no lo trae)',t:'chips',o:GL.LEVELS.map((l,i)=>[String(i),l]),v:'0'}],v=>{
-  const have=new Set(sylOf(sid).map(t=>t.name.toLowerCase())),LV={R:0,N:1,V:2,O:3},rows=[];
-  for(const raw of String(v.names).split('\n').map(x=>x.trim()).filter(Boolean)){let l=raw,lv=+v.level,star=false;const m=/^([RNVOrnvo])[\s:·\-–]+(.+)$/.exec(l);if(m){lv=LV[m[1].toUpperCase()];l=m[2].trim()}if(/\*\s*$/.test(l)){star=true;l=l.replace(/\s*\*+\s*$/,'')}if(l&&!rows.some(r=>r.nm.toLowerCase()===l.toLowerCase())&&!have.has(l.toLowerCase()))rows.push({nm:l.slice(0,120),lv,star})}
+function topicsForm(sid){openForm('Añadir temas · '+sub(sid).name,[{k:'names',l:'Un tema por línea',t:'area',v:'',h:'Pon el nombre real del tema. Opcional: empieza la línea con R, A o V (rojo, amarillo, verde) y termina con * si entra en el próximo examen. Ejemplo: «A Campo gravitatorio *».'},{k:'course',l:'Curso al que pertenecen',t:'chips',o:[['1','1.º de Bachillerato'],['2','2.º de Bachillerato']],v:'2',h:'La PAU examina todo el temario acumulado: incluye también lo de 1.º.'},{k:'level',l:'Color de partida (si la línea no lo trae)',t:'chips',o:[['0','Rojo'],['1','Amarillo'],['3','Verde']],v:'0'}],v=>{
+  const have=new Set(sylOf(sid).map(t=>t.name.toLowerCase())),LV={R:0,A:1,N:1,V:3,O:3},rows=[];
+  for(const raw of String(v.names).split('\n').map(x=>x.trim()).filter(Boolean)){let l=raw,lv=+v.level,star=false;const m=/^([RANVOranvo])[\s:·\-–]+(.+)$/.exec(l);if(m){lv=LV[m[1].toUpperCase()];l=m[2].trim()}if(/\*\s*$/.test(l)){star=true;l=l.replace(/\s*\*+\s*$/,'')}if(l&&!rows.some(r=>r.nm.toLowerCase()===l.toLowerCase())&&!have.has(l.toLowerCase()))rows.push({nm:l.slice(0,120),lv,star})}
   if(!rows.length)return'Escribe al menos un tema nuevo.';const base=Date.now(),made=rows.slice(0,60).map((r,i)=>({t:GL.newTopic(uid(),sid,r.nm,r.lv,now().date,base+i,v.course==='1'?1:2,Math.floor(i/3)),star:r.star}));
   S.syllabus=[...S.syllabus,...made.map(x=>x.t)];sylLink(sid,made.filter(x=>x.star).map(x=>x.t.id));commit({quiet:true})})}
-{const tm=V.tem;V.tem=a=>tm(a).replace(/<small>Sin ver/g,'<small>Rojo').replace(/temas vistos/g,'temas en naranja o mejor').replace(/<p class=m>Apunta los temas[\s\S]*?<\/p>/,`<p class=m>Apunta los temas de cada asignatura y pon el color que te corresponde: <b>rojo</b> (no sabría hacerlo), <b>naranja</b> (lo sacaría a medias), <b>verde</b> (me sale bien) u <b>oro</b> (me sale perfecto y rápido). El color decide cuántas horas pide cada tema en los exámenes, y los temas naranja, verde y oro reciben repasos espaciados.</p>`).replace(/<button data-a=lvl data-id="([^"]+)" data-k=(\d)/g,(m,id,k)=>`<button title="${LV_Q[+k]}" data-a=lvl data-id="${id}" data-k=${k}`)}
+{const tm=V.tem;V.tem=a=>tm(a).replace(/<small>Sin ver/g,'<small>Rojo').replace(/temas vistos/g,'temas en amarillo o mejor').replace(/<p class=m>Apunta los temas[\s\S]*?<\/p>/,`<p class=m>Apunta los temas de cada asignatura y pon el color que te corresponde: <b>rojo</b> (llegaría al examen sin saber nada), <b>amarillo</b> (llegaría y me podría defender) o <b>verde</b> (estoy preparado). El color decide cuántas horas pide cada tema en los exámenes; los temas amarillos y verdes reciben repasos espaciados, y uno en verde solo pide mantenimiento.</p>`).replace(/<button data-a=lvl data-id="[^"]+" data-k=2 [^>]*>[^<]*<\/button>/g,'').replace(/<button data-a=lvl data-id="([^"]+)" data-k=(\d)/g,(m,id,k)=>`<button title="${LV_Q[+k]}" data-a=lvl data-id="${id}" data-k=${k}`)}
 
 /* Búsqueda global: pantallas, acciones, tareas, exámenes, temas y asignaturas. Atajo: «/» o Ctrl/⌘+K. */
 const SCR=[['hoy','Hoy','inicio resumen sesiones'],['cal','Calendario','semana agenda horario bloques'],['tar','Tareas','deberes entregas pendientes'],['exa','Exámenes','examen parcial prueba'],['tem','Temario','temas guion materia'],['met','Método de estudio','fases guion memorizar autopsia reparto'],['obj','Notas y objetivo','notas nota media objetivo evaluación'],['cur','Curso hasta la PAU','pau selectividad fases'],['seg','Progreso','estadísticas seguimiento cumplimiento horas gráficos'],['rut','Rutina semanal','hábitos rutina regenerar'],['est','Estimaciones','estimador tiempo minutos'],['aj','Ajustes','configuración horario clases copia exportar importar cuenta']];
