@@ -293,3 +293,7 @@ Causas halladas y corregidas:
 - «+ Temas»: pegar varias líneas `R/N/V/O Nombre`; un `*` final = entra en el próximo examen.
 - Migración única (`tmV`) que carga los temas indicados por el usuario en Rojo y los enlaza a los exámenes de noviembre.
 - Pruebas: npm test 295/295, estrés 6000 estados 0 fallos, Chromium v16/v18/final/v13/pages OK. Pendiente: Safari/iPad real.
+
+## v30.1 / v31
+- v30.1: temas de Business (Tema 1, Unidad 2, Tema 5 «solo problemas») añadidos al temario (migración `tmV` 2).
+- v31: objetivo declarado: admisión 12,5 mínimo (ideal 12,75), media 9,1, acceso 8,5, mínimo 9 en Matemáticas II y Business (migración única `obV`). La tarjeta muestra la media necesaria en las dos materias ponderables para el mínimo y para el ideal.

@@ -32,3 +32,12 @@ test('migración del temario: quien ya migró con v30 recibe solo los 3 temas de
   const bz = sid(b, 'Business'); assert.equal(b.S.syllabus.length, 3); assert.ok(b.S.syllabus.every(t => t.subjectId === bz && t.mastery === 0));
   assert.equal(b.S.tmV, 2);
 });
+
+test('objetivo declarado: 12,5 mínimo, ideal 12,75, 9,1 de media, 8,5 de acceso y 9 en Matemáticas II y Business (una vez)', async () => {
+  clock.t = new Date(2026, 10, 2, 17, 0).getTime(); const a = await boot();
+  const st = JSON.parse(JSON.stringify(a.S)); delete st.obV; st.goals.prevAvg = 9.11; st.goals.admTarget = 12.41;
+  const b = await boot({ 'focusos.v1': JSON.stringify(st) }); const g = b.S.goals;
+  assert.equal(g.admTarget, 12.5); assert.equal(g.admIdeal, 12.75); assert.equal(g.prevAvg, 9.1); assert.equal(g.pauExpected, 8.5);
+  assert.equal(g.subjTarget[sid(b, 'Matemáticas II')], 9); assert.equal(g.subjTarget[sid(b, 'Business')], 9);
+  g.admTarget = 13; const c = await boot({ 'focusos.v1': JSON.stringify(b.S) }); assert.equal(c.S.goals.admTarget, 13, 'no se repite');
+});
