@@ -70,15 +70,15 @@ test('eliminar un examen desde su formulario funciona con y sin sesiones hechas 
   a.t.A.choice({ dataset: { i: 1 } }); await new Promise(r => setTimeout(r, 20)); assert.ok(!a.S.works.some(w => w.id === e2.id)); assert.equal(a.S.blocks.filter(b => b.workId === e2.id).length, 0);
 });
 
-test('semanas de exámenes del 2.º y 3.er trimestre: copia provisional de la semana de noviembre (mismo día de la semana), sin tocar el plan de noviembre ni alargar la pausa de entreno', async () => {
+test('semanas de exámenes del 2.º y 3.er trimestre: copia provisional de la semana de noviembre (mismo orden de días lectivos), sin tocar el plan de noviembre ni alargar la pausa de entreno', async () => {
   clock.t = new Date(2026, 10, 2, 17, 42).getTime(); const a = await boot();
   const days = { 'Matemáticas II': '2026-11-09', 'Química': '2026-11-10', 'Business': '2026-11-11', 'Catalán': '2026-11-12', 'Física': '2026-11-13' };
   for (const [n, d] of Object.entries(days)) await exam(a, n, d); await a.click('replan');
   const st = JSON.parse(JSON.stringify(a.S)), base = await boot({ 'focusos.v1': JSON.stringify(st) }); // control: recarga sin provisionales
   const nov = JSON.stringify(base.S.blocks.filter(b => b.date <= '2026-11-13').map(b => [b.id, b.date, b.start, b.end])); delete st.triV; const b = await boot({ 'focusos.v1': JSON.stringify(st) });
   const tri = b.S.works.filter(w => w.provisional), by = (n, t) => tri.find(w => w.id === 'tri' + t + ':' + a.S.works.find(x => x.kind === 'exam' && x.subjectId === sid(a, n)).id);
-  assert.equal(tri.length, 10); assert.equal(b.S.triV, 1);
-  const exp2 = { 'Matemáticas II': '2027-02-08', 'Química': '2027-02-09', 'Business': '2027-02-03', 'Catalán': '2027-02-04', 'Física': '2027-02-05' }, exp3 = { 'Matemáticas II': '2027-05-10', 'Química': '2027-05-11', 'Business': '2027-05-12', 'Catalán': '2027-05-13', 'Física': '2027-05-07' };
+  assert.equal(tri.length, 10); assert.equal(b.S.triV, 2);
+  const exp2 = { 'Matemáticas II': '2027-02-03', 'Química': '2027-02-04', 'Business': '2027-02-05', 'Catalán': '2027-02-08', 'Física': '2027-02-09' }, exp3 = { 'Matemáticas II': '2027-05-07', 'Química': '2027-05-10', 'Business': '2027-05-11', 'Catalán': '2027-05-12', 'Física': '2027-05-13' };
   for (const n of Object.keys(days)) { assert.equal(by(n, 2).dueDate, exp2[n], n + ' 2.º'); assert.equal(by(n, 3).dueDate, exp3[n], n + ' 3.º') }
   assert.equal(JSON.stringify(b.S.blocks.filter(x => x.date <= '2026-11-13').map(x => [x.id, x.date, x.start, x.end])), nov, 'el plan de noviembre no cambia');
   const t2 = tri.filter(w => w.id.startsWith('tri2')).map(w => w.id), t3 = tri.filter(w => w.id.startsWith('tri3')).map(w => w.id);
@@ -94,4 +94,13 @@ test('un examen lejano (95 días) reparte sus sesiones por toda la ventana y rep
   clock.t = new Date(2026, 10, 2, 17, 42).getTime(); const a = await boot(); await exam(a, 'Matemáticas II', '2027-02-05'); await a.click('replan');
   const f = () => a.S.blocks.filter(b => b.status === 'planned' && b.date < '2027-02-01').map(b => [b.id, b.date, b.start, b.end]), s1 = JSON.stringify(f()); await a.click('replan'); assert.equal(JSON.stringify(f()), s1);
   const ds = f().map(x => x[1]).sort(); assert.ok(ds.length >= 4); assert.ok(ds[ds.length - 1] > '2027-01-01' && ds[0] < '2026-12-01', `sesiones de ${ds[0]} a ${ds[ds.length - 1]}`);
+});
+
+test('v34 → v35: los provisionales colocados por día de la semana se rehacen por orden si no los has tocado, y los editados se respetan', async () => {
+  clock.t = new Date(2026, 10, 2, 17, 53).getTime(); const a = await boot();
+  const days = { 'Matemáticas II': '2026-11-09', 'Química': '2026-11-10', 'Física': '2026-11-13' }; for (const [n, d] of Object.entries(days)) await exam(a, n, d);
+  const st = JSON.parse(JSON.stringify(a.S)); st.triV = 1; const old = a.S.works.find(w => w.subjectId === sid(a, 'Matemáticas II'));
+  const mk = (id, due, upd) => ({ ...old, id, title: 'x · 2.º trim.', dueDate: due, planFrom: '2026-11-14', provisional: true, createdAt: 5, updatedAt: upd }); st.works.push(mk('tri2:' + old.id, '2027-02-08', 5), mk('tri3:' + old.id, '2027-05-10', 9));
+  const b = await boot({ 'focusos.v1': JSON.stringify(st) }); const g = id => b.S.works.find(w => w.id === id);
+  assert.equal(g('tri2:' + old.id).dueDate, '2027-02-03', 'sin tocar: se rehace por orden'); assert.equal(g('tri3:' + old.id).dueDate, '2027-05-10', 'editado: se respeta'); assert.equal(b.S.works.filter(w => w.provisional).length, 6);
 });

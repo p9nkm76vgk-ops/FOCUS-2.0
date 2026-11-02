@@ -310,3 +310,6 @@ Causas halladas y corregidas:
 - `planFrom`: el 2.º se planifica desde el 14 nov 2026; el 3.º desde el 10 feb 2027 y solo cuando entra en el horizonte (120 días). No alargan la pausa de entreno.
 - Semana de exámenes = racha de días con ≥3 exámenes y huecos ≤3 días (ya no «lunes–viernes de cualquier semana con ≥3»): las ventanas de mañana/tarde solo caen en días con examen, nunca en fines de semana.
 - Planificador: los exámenes lejanos (ventana ≥21 días) reparten sus sesiones por toda la ventana (antes: sesiones consecutivas desde hoy); los lejanos tampoco se amontonan en los primeros días cuando hay exceso de carga.
+
+## v35 — Provisionales por orden de día lectivo (corrige v34)
+- v34 los colocaba por día de la semana (lunes→lunes). Como las semanas nuevas no son lunes–viernes (3–9 feb = mié–mar; 7–13 may = vie–jue), ahora cada día de exámenes de noviembre va al día lectivo del mismo lugar: 2.º trim. mié 3, jue 4, vie 5, lun 8, mar 9; 3.er trim. vie 7, lun 10, mar 11, mié 12, jue 13. Migración `triV` 2: rehace los provisionales de v34 que no se hayan editado.
