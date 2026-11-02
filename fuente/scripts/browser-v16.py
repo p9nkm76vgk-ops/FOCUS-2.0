@@ -14,7 +14,7 @@ with sync_playwright() as p:
         pg = c.new_page(); pg.set_default_timeout(5000); pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None); pg.on('pageerror', lambda e: errs.append(str(e)))
         pg.clock.set_fixed_time(datetime.fromisoformat('2026-10-13T17:00:00')); pg.goto('http://127.0.0.1:8779/'); pg.wait_for_selector('#main h1'); return pg
     pg = page(1180, 820)
-    ck('menú plano: 12 destinos visibles sin desplegar nada', pg.locator('#nav button.nv[data-r]').count() == 12 and all(pg.locator(f'#nav [data-r="{r}"]').is_visible() for r in ['tem', 'met', 'obj', 'aj', 'rut']))
+    ck('menú plano: 11 destinos visibles sin desplegar nada', pg.locator('#nav button.nv[data-r]').count() == 11 and all(pg.locator(f'#nav [data-r="{r}"]').is_visible() for r in ['tem', 'met', 'obj', 'aj']))
     ck('barra de pestañas oculta en horizontal', not pg.locator('#tabs').is_visible())
     pg.click('#nav .srch'); pg.wait_for_selector('#sq')
     ck('el buscador se abre con el foco en el campo', pg.evaluate("document.activeElement&&document.activeElement.id")=='sq')

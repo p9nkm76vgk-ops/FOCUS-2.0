@@ -53,15 +53,14 @@ test('minutos exactos y ritmo personal siguen disponibles como corrección opcio
   await a.click('addTask'); assert.equal(await a.submit(opts(a, { pace: '1.3' })), ''); assert.equal(a.S.works[1].pace, 1.3); const slow = a.S.works[1].estimate.totalMin;
   await a.click('addTask'); await a.submit(opts(a, { pace: '0.8' })); assert.ok(a.S.works[2].estimate.totalMin < slow);
 });
-test('calendario sencillo: solo «Obligatorio» y «Sugerido», sin etiquetas antiguas; tocar un bloque abre sus acciones', async () => {
-  const a = await boot(); a.t.A.rutOn(); a.t.A.choice({ dataset: { i: '0' } }); await a.tick(); await a.click('addTask'); await a.submit(opts(a, { when: '3' })); await a.tick(); if (/Cambios propuestos/.test(a.h.dlg.innerHTML)) { a.t.A.choice({ dataset: { i: '0' } }); await a.tick(); }
-  a.t.A.nav({ dataset: { r: 'cal' } }); const cal = a.t.V.cal(); assert.match(cal, /Obligatorio/); assert.match(cal, /Sugerido/); assert.match(cal, /class=lg>/); assert.match(cal, /class="ev ob planned( sm)?"/); assert.match(cal, /class="ev hab planned( sm)?"/);
+test('calendario sencillo (v36): sin «Obligatorio/Sugerido», sin crear sesiones a mano ni tocar huecos; tocar un bloque abre sus acciones', async () => {
+  const a = await boot(); await a.click('addTask'); await a.submit(opts(a, { when: '3' })); await a.tick();
+  a.t.A.nav({ dataset: { r: 'cal' } }); const cal = a.t.V.cal(); assert.match(cal, /class=lg>/); assert.doesNotMatch(cal, /Obligatorio|Sugerido|toca un hueco|\+ Sesión|class="ev hab/); assert.match(cal, /class="ev ob planned( sm)?"/);
   for (const old of ['Obligación', 'Rutina · sugerido', 'class="tag ob"', 'class="tag rt"', 'borde discontinuo']) assert.ok(!cal.includes(old), old);
-  assert.doesNotMatch(cal, /data-a=doneBlk|data-a=habDone/, 'el calendario no se llena de botones'); assert.match(cal, /data-a=blkMenu data-t=ob/); assert.match(cal, /data-a=blkMenu data-t=hab/);
+  assert.doesNotMatch(cal, /data-a=doneBlk|data-a=habDone/, 'el calendario no se llena de botones'); assert.match(cal, /data-a=blkMenu data-t=ob/);
   const id = a.S.blocks.find(b => b.status === 'planned').id; a.t.A.blkMenu({ dataset: { id, t: 'ob' } }); assert.match(a.h.dlg.innerHTML, />Hecha tal cual</); assert.match(a.h.dlg.innerHTML, />Mover</);
   a.t.A.choice({ dataset: { i: '1' } }); await a.tick(); assert.match(a.h.dlg.innerHTML, /Registrar sesión/);
-  const hab = a.S.habit.find(h => h.status === 'planned').id; a.t.A.blkMenu({ dataset: { id: hab, t: 'hab' } }); assert.match(a.h.dlg.innerHTML, />Fijar</); assert.match(a.h.dlg.innerHTML, />Omitir</);
-  assert.match(a.t.V.hoy(), /data-a=doneBlk/, 'en Hoy las acciones siguen a la vista');
+  assert.match(a.t.V.hoy(), /data-a=doneBlk/, 'en Hoy las acciones siguen a la vista'); assert.doesNotMatch(a.t.V.hoy(), /\+ Sesión|Rutina semanal de estudio/);
 });
 test('Explorar eliminado: sin ruta, sin vista, sin módulo; los datos antiguos de Explorar se conservan al importar', async () => {
   const a = await boot(); assert.equal(a.t.V.exp, undefined); assert.doesNotMatch(a.h.nav.innerHTML, /Explorar|data-r="?exp/); assert.doesNotMatch(a.t.V.hoy(), /Explorar/);

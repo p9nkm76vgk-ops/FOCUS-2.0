@@ -36,20 +36,20 @@ try:
     b = pw.chromium.launch()
     # ---- A: datos nuevos y aislados ----
     c = newctx(b); p = newpage(c)
-    p.evaluate("document.querySelectorAll('details.more').forEach(d=>d.open=true)"); hoy = p.inner_text('#main').lower(); ck('Hoy sin trabajo: muestra sugerencias opcionales etiquetadas', 'tiempo libre' in hoy and 'opcional' in hoy and 0 < p.locator('button[data-a=suggStart]').count() <= 3)
-    ck('Aviso de descanso, sin obligar', 'no hace falta ocupar cada minuto' in hoy)
+    p.evaluate("document.querySelectorAll('details.more').forEach(d=>d.open=true)"); hoy = p.inner_text('#main').lower(); ck('v36: Hoy sin trabajo no muestra sugerencias ni rutina', 'tiempo libre' not in hoy and 'rutina semanal' not in hoy and p.locator('button[data-a=suggStart]').count() == 0)
+    ck('Hoy sin trabajo: mensaje de descanso', 'nada que estudiar hoy' in hoy)
     go(p, 'tar'); ck('Estado vacío de tareas comprensible', p.locator('#main .empty, #main p.m').count() > 0 and 'Aún no hay tareas' in p.inner_text('#main'))
-    go(p, 'hoy'); first = p.locator('button[data-a=suggStart]').first; first.click(); p.wait_for_timeout(250); ck('Iniciar → «En curso» (no completada)', 'En curso' in p.inner_text('#main'))
-    p.click('button[data-a=suggDone]'); fill_form(p, minutes='12'); st = ls(p); ck('Terminar registra minutos', any(l['status'] == 'done' and l['minutes'] == 12 for l in st['suggestionLog']))
-    p.locator('button[data-a=suggDrop]').first.click(); p.wait_for_timeout(200); (p.locator('button[data-a=suggSwap]').first.click() if p.locator('button[data-a=suggSwap]').count() else None); p.wait_for_timeout(200)
-    st = ls(p); ck('Sugerencias NO crean tareas, sesiones ni actividades', len(st['works']) == 0 and len(st['blocks']) == 0 and len(st['activities']) == 0)
-    n_log = len(st['suggestionLog']); p.reload(); p.wait_for_selector('#main h1'); ck('Tras recargar: log persistido y sin duplicados', len(ls(p)['suggestionLog']) == n_log)
+
+
+
+
+
     go(p, 'hoy'); p.click('button[data-a=addTask]'); fill_form(p, title='Prueba aislada', dueDate='2026-10-20', estOverride='120'); st = ls(p)
     ck('Tarea creada con sesiones planificadas', len(st['works']) == 1 and len(st['blocks']) > 0)
     go(p, 'cal'); blk = p.evaluate("(()=>{const e=document.querySelector('#main .tg .ev.planned');return e?[getComputedStyle(e).borderLeftColor,e.closest('.tg')?e.innerText:'']:null})()")
     ck('Calendario: bloque con el color de Matemáticas II (#4A7BA3) y su nombre', blk and blk[0] == 'rgb(74, 123, 163)' and ('Matemáticas II' in blk[1] or 'Mates II' in blk[1]), str(blk))
     go(p, 'exa'); p.click('button[data-a=addExam]'); fill_form(p, title='Parcial prueba', dueDate='2026-10-14', topics='Límites; 5; 5; 0; 12\nDerivadas; 5; 5; 0'); 
-    go(p, 'hoy'); h = p.inner_text('#main').lower(); ck('Trabajo urgente sin cubrir: «Trabajo real primero» y sin botones de sugerencia', 'trabajo real primero' in h and p.locator('button[data-a=suggStart]').count() == 0)
+    go(p, 'hoy'); h = p.inner_text('#main').lower(); ck('Trabajo urgente sin cubrir: sin botones de sugerencia', p.locator('button[data-a=suggStart]').count() == 0)
     ck('Sin avisos de déficit en Hoy (decisión del usuario v13)', 'no caben' not in h and 'déficit' not in h)
     go(p, 'exa'); p.click('.wr[data-a=editExam]'); p.wait_for_selector('#dlg button[data-a=upgradeV2]'); p.click('#dlg button[data-a=upgradeV2]'); p.wait_for_timeout(200)
     t = p.inner_text('#dlg'); ck('Comparación v1/v2 visible antes de aplicar', 'v1 (actual)' in t and 'v2' in t and 'copia de seguridad' in t)
@@ -93,12 +93,8 @@ try:
     p.reload(); p.wait_for_selector('#main h1'); ck('Sin conexión: abre y conserva el dato', 'Dato del usuario' in (p.evaluate("localStorage.getItem('focusos.v1')") or '')); c.close()
     # ---- E: rutina semanal, reorganización, Explorar, bienestar (Chromium real) ----
     MON = '2026-10-12T08:00:00'
-    c = newctx(b); p = newpage(c, MON); go(p, 'rut'); ck('Rutina desactivada por defecto con botón de activar', 'Rutina desactivada' in p.inner_text('#main') and ls(p)['habit'] == [])
-    p.click('#main button[data-a=rutOn]'); p.wait_for_selector('#dlg button[data-a=choice]'); t = p.inner_text('#dlg'); ck('Activar muestra comparación antes/propuesto y permite cancelar', 'Antes' in t and 'Propuesto' in t and 'Cancelar' in t)
-    p.click('#dlg button[data-i="1"]'); p.wait_for_timeout(200); ck('Cancelar la activación no cambia nada', ls(p)['habit'] == [] and ls(p)['routine']['enabled'] is False)
-    p.click('#main button[data-a=rutOn]'); p.click('#dlg button.pri'); p.wait_for_timeout(400); st = ls(p); ck('Rutina activada: bloques sugeridos persistidos, sin crear obligaciones', st['routine']['enabled'] and len(st['habit']) >= 10 and not st['works'] and not st['blocks'])
-    ok = all(a['date'] != bb['date'] or a['end'] <= bb['start'] or bb['end'] <= a['start'] for a in st['habit'] for bb in st['habit'] if a is not bb); ck('Sin solapamientos entre bloques de rutina', ok)
-    go(p, 'cal'); ck('Calendario distingue Obligatorio y Sugerido (solo dos tipos, el sugerido solo con contorno)', p.locator('#main .ev.hab').count() > 0 and p.evaluate("parseFloat(getComputedStyle(document.querySelector('#main .ev.hab')).borderTopWidth)>=1"))
+    c = newctx(b); p = newpage(c, MON); go(p, 'cal'); st = ls(p)
+    ck('v36: sin «Rutina semanal» en el menú, sin «Sugerido» y sin crear sesiones a mano', p.locator('#nav [data-r="rut"]').count() == 0 and 'Sugerido' not in p.inner_text('#main') and p.locator('#main button[data-a=addBlk]').count() == 0 and st['habit'] == [])
     sid = {s['name']: s['id'] for s in st['subjects']}
     def snap(pp): s_ = ls(pp); return json.dumps([s_['habit'], s_['blocks']], sort_keys=True)
     def clash(s_): xs = [x for x in s_['habit'] + s_['blocks'] if x['status'] in ('planned', 'done') and x['date'] >= '2026-10-12']; return any(x is not y and x['date'] == y['date'] and x['start'] < y['end'] and y['start'] < x['end'] for x in xs for y in xs)

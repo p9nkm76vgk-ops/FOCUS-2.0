@@ -313,3 +313,6 @@ Causas halladas y corregidas:
 
 ## v35 — Provisionales por orden de día lectivo (corrige v34)
 - v34 los colocaba por día de la semana (lunes→lunes). Como las semanas nuevas no son lunes–viernes (3–9 feb = mié–mar; 7–13 may = vie–jue), ahora cada día de exámenes de noviembre va al día lectivo del mismo lugar: 2.º trim. mié 3, jue 4, vie 5, lun 8, mar 9; 3.er trim. vie 7, lun 10, mar 11, mié 12, jue 13. Migración `triV` 2: rehace los provisionales de v34 que no se hayan editado.
+
+## v36 — Todo fijado por la app
+- Quitados: «Rutina semanal» (página, menú, tarjeta en Hoy, búsqueda), «Tiempo libre · sugerencias», los bloques «Sugerido», las etiquetas «Obligatorio/Sugerido» del calendario, «+ Sesión» (Hoy y Calendario), «Nueva sesión» en el buscador y tocar un hueco del calendario para fijar una asignatura. Migración `rtV`: apaga la rutina y borra los bloques de rutina futuros no hechos (se conservan los hechos para las estadísticas). «Mover» y «No la haré» de una sesión existente siguen disponibles.
