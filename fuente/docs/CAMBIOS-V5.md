@@ -280,3 +280,9 @@ Causas halladas y corregidas:
 ## v27 — Regenerar sin sorpresas y «lo llevo yo»
 - «Regenerar futuro» ya no toca lo que queda de hoy (se regenera de mañana en adelante) y guarda una copia (`S.deshacer`): botón «Deshacer última regeneración» en Calendario, visible el mismo día.
 - Examen con «Sesiones automáticas: No, lo llevo yo» (`noPlan`): sin sesiones ni repasos del temario de esa asignatura mientras esté pendiente (`planWorks`). Migración única (`fiV`): el examen de Filosofía de hoy o mañana queda así.
+
+## v29 — Plan siempre al día (integra v28 de entreno diario, publicado por separado)
+- Horizonte de planificación 28 → 120 días (migración única `hzV` solo si seguía en ≤ 28).
+- Cada cambio (y cada apertura de la app) rehace de mañana en adelante las sesiones automáticas (`autoRegen` en `commit`); lo de hoy, lo hecho y lo manual no se tocan. Es determinista, así que repetirlo no cambia nada. Se quita el botón «Regenerar futuro» (y el de deshacer, que ya no hace falta).
+- Reparto equitativo entre exámenes: se recorta por fecha límite creciente y solo a los exámenes que vencen hasta una fecha que no cabe; los exámenes lejanos conservan sus horas.
+- `browser-final.py`: la estabilidad se comprueba llamando a `commit()` dos veces.

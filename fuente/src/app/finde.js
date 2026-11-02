@@ -51,4 +51,9 @@ Object.assign(A,{replan:async()=>{const n=now(),fut=b=>b.status==='planned'&&!b.
  await commit({quiet:true});toast('Regenerado de mañana en adelante. Lo de hoy se mantiene. Puedes deshacerlo en Calendario.')},
  undoRegen:async()=>{const u=S.deshacer;if(!u)return;const n=now(),fut=b=>b.status==='planned'&&!b.manual&&(b.date>n.date||(b.date===n.date&&b.start>=n.minute));
   S.blocks=[...S.blocks.filter(b=>!fut(b)),...u.blocks.filter(b=>b.date>=n.date&&!S.blocks.some(x=>x.id===b.id&&!fut(x)))];S.habit=u.habit;S.deshacer=undefined;await commit({quiet:true});toast('Planificación anterior restaurada')}});
-{const c=V.cal;V.cal=a=>{const h=c(a),u=S.deshacer;return u&&u.date===now().date?h.replace('<button data-a=replan>Regenerar futuro</button>','<button data-a=replan>Regenerar futuro</button><button data-a=undoRegen>Deshacer última regeneración</button>'):h}}
+
+/* v28 · Plan siempre al día: cada cambio (y cada vez que se abre la app) rehace de mañana en adelante lo automático; lo de hoy, lo hecho y lo manual no se tocan. Horizonte de 120 días. Sin botón «Regenerar». */
+function autoRegen(){const n=now();S.blocks=S.blocks.filter(b=>!(b.status==='planned'&&!b.manual&&b.date>n.date))}
+async function commit(o){autoRegen();const r=scheduleOf(S,true);finish(S,r);return persist()}
+function migrateHorizonte(Sx){if(Sx.hzV>=1)return;Sx.hzV=1;if(Sx.settings&&!(Sx.settings.horizonDays>28))Sx.settings.horizonDays=120}
+{const c=V.cal;V.cal=a=>c(a).replace('<button data-a=replan>Regenerar futuro</button>','').replace('<button data-a=undoRegen>Deshacer última regeneración</button>','')}

@@ -282,7 +282,7 @@ const we        = [{ start: hm(10), end: hm(13, 30) }, { start: hm(16), end: EJE
 /** Valores iniciales editables. Lun/Mar descuentan llegada a casa (16:30 / 17:10). */
 const DEFAULT_SETTINGS           = {
   availability: { 0: we, 1: [{ start: EJERCICIO.end, end: hm(20, 30) }], 2: [{ start: EJERCICIO.end, end: hm(20, 30) }], 3: wk, 4: wk, 5: wk, 6: we },
-  blockedDates: [], maxDayMin: 240, preferredMin: 50, maxSessionMin: 90, minSessionMin: 25, minGapMin: 10, horizonDays: 28,
+  blockedDates: [], maxDayMin: 240, preferredMin: 50, maxSessionMin: 90, minSessionMin: 25, minGapMin: 10, horizonDays: 120,
 };
 /** Función de prioridad: desempate entre demandas con el mismo plazo. Ajustable. */
 const PRIORITY_WEIGHTS = { importance: 2, difficulty: 1, exam: 3, unreadiness: 2, urgency: 10, undated: 4 };
@@ -425,11 +425,16 @@ function plan(input                                                             
       const lastOf = new Map                (); for (const d of exD) lastOf.set(d.w.id, !lastOf.has(d.w.id) || d.last > lastOf.get(d.w.id)  ? d.last : lastOf.get(d.w.id) );
       const lasts = [...new Set(lastOf.values())].sort(), capTo = new Map                ();
       for (const L of lasts) { let c = 0; for (let dt = now.date; dt <= L; dt = addDays(dt, 1)) c += Math.max(0, Math.min(maxOf(dt) - day(dt).total, free(dt, true).reduce((a, f) => a + f.end - f.start, 0))); capTo.set(L, Math.floor(c * 0.8 / 5) * 5); }
-      const fits = (T        ) => lasts.every(L => ids.reduce((a, id) => a + (lastOf.get(id)  <= L ? Math.min(tot.get(id) , T) : 0), 0) <= capTo.get(L) );
-      const need = [...tot.values()].reduce((a, b) => a + b, 0), top = Math.max(...tot.values());
-      if (!fits(top)) {
-        let lo = 0, hi = top; while (hi - lo > 5) { let mid = Math.floor((lo + hi) / 10) * 5; if (mid <= lo) mid = lo + 5; if (mid >= hi) break; if (fits(mid)) lo = mid; else hi = mid; }
-        const T = new Map                (); for (const id of ids) T.set(id, Math.min(tot.get(id) , lo));
+      // Se recorren las fechas límite de menor a mayor: si lo que vence hasta L no cabe, se recorta con «llenado por nivel» SOLO a los exámenes que vencen hasta L (los lejanos no se tocan sin necesidad).
+      const T = new Map                (); for (const id of ids) T.set(id, tot.get(id) );
+      let trimAny = false;
+      for (const L of lasts) {
+        const P = ids.filter(id => lastOf.get(id)  <= L), capL = capTo.get(L) , sum = (lv        ) => P.reduce((a, id) => a + Math.min(T.get(id) , lv), 0);
+        if (sum(Infinity) <= capL) continue;
+        let lo = 0, hi = Math.max(...P.map(id => T.get(id) )); while (hi - lo > 5) { let mid = Math.floor((lo + hi) / 10) * 5; if (mid <= lo) mid = lo + 5; if (mid >= hi) break; if (sum(mid) <= capL) lo = mid; else hi = mid; }
+        for (const id of P) T.set(id, Math.min(T.get(id) , lo)); trimAny = true;
+      }
+      if (trimAny) {
         for (const id of ids) {
           const t = T.get(id) , all = tot.get(id) ; if (t >= all) continue;
           const ds = exD.filter(d => d.w.id === id); let left = t;
@@ -1725,7 +1730,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='af91123751',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='cf4a8a46ae',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2032,7 +2037,7 @@ document.addEventListener('submit',e=>{if(e.target.id!=='sf')return;e.preventDef
 function render(){const [r,arg]=route.split(':');renderNav();$('#main').innerHTML=(V[r]||V.hoy)(arg);$('#topTitle').textContent=r==='asg'&&arg?sub(arg).name:NAVT[r]||'Focus OS'}
 const tick=()=>{if(S&&!$('#dlg').open&&route!=='aj'&&route!=='rut'){extendRoutine();commit({quiet:true})}};
 const dl=(txt,name,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:type||'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)};
-const fresh=()=>({weV:1,nivV:1,refV:1,trV:2,fiV:1,timetable:[],patternV:2,cenaV:1,ejV:1,metV:2,goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
+const fresh=()=>({weV:1,nivV:1,refV:1,trV:2,fiV:1,hzV:1,timetable:[],patternV:2,cenaV:1,ejV:1,metV:2,goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
 function recovery(err){S=null;$('#main').innerHTML=`<h1>Datos no válidos</h1><div class="card warn">${esc(err)}</div><p class=m>No se ha sobrescrito nada: la copia dañada sigue guardada en este navegador. Puedes descargarla, importar una copia JSON válida o empezar de cero (la dañada se conserva aparte).</p><div class=row style="justify-content:flex-start"><button data-a=dlBad>Descargar copia dañada</button><button class=danger data-a=fresh>Empezar de cero</button></div><label>Importar copia JSON<input type=file id=imp accept=".json,application/json"></label>`}
 function importText(text){let o;try{o=JSON.parse(text)}catch{toast('El archivo no es un JSON válido.');return'json'}
  const e=validate(o);if(e){toast('Copia no válida: '+e);return e}
@@ -2047,7 +2052,7 @@ const v2Block=w=>{const e=w.estimateV2;if(w.estimatorVersion!==2||!e)return`<br>
  return`<hr><b>Estimador 2.0</b> · ${e.interval.kind==='calibrado'?'intervalo calibrado':'rango orientativo y heurístico'} ${hr(e.interval.p10)}–${hr(e.interval.p90)} (central ${hr(e.interval.p50)}) · confianza ${esc(e.confidence)} · evidencia de dominio: ${e.evidenceLevel}${e.provisional?' · provisional':''}<br>${e.phases.filter(p=>p.minutes).map(p=>p.phase+' '+hr(p.minutes)).join(' · ')}${(e.perTopic||[]).length?'<br>'+e.perTopic.map(x=>esc(x.name)+': dominio ~'+Math.round(x.mastery*100)+'% ('+x.evidenceLevel+(x.unknownExtent?', extensión desconocida':'')+')').join('<br>'):''}<br>${e.factors.map(esc).join('<br>')}${v?'<br><b>'+VIAB[v.status]+'</b>'+(v.deficitP50?' · déficit estimado '+hr(v.deficitP50)+' (escenario alto: '+hr(v.deficitP90)+'). Prioriza los temas de menor dominio, amplía disponibilidad o baja el objetivo.':v.deficitP90?' · en el escenario alto faltarían '+hr(v.deficitP90):''):''}<br><button type=button data-a=revertV1 data-id="${w.id}">Volver a estimador v1</button>`};
 const estNote=w=>(w.estimate?estNote1(w):'<b>Estimador v1:</b> se usan tus minutos manuales.')+v2Block(w);
 async function boot(){applyTheme();let r;try{r=await repo.load()}catch(e){r={error:e.message}}if(r.error)return recovery(r.error);
- S=r.state||fresh();if(r.state&&typeof applyPlan==='function')applyPlan(S);if(r.state&&typeof migrateWeekend==='function')migrateWeekend(S);if(r.state&&typeof migrateNivel==='function')migrateNivel(S);if(!S.refuerzo)S.refuerzo={on:!!(S.works&&S.works.length),until:addDays(now().date,13),morning:true,night:true};if(r.state&&typeof migrateRef==='function')migrateRef(S);if(r.state&&typeof migrateEntreno==='function')migrateEntreno(S);if(r.state&&typeof migrateFilo==='function')migrateFilo(S);if(!Array.isArray(S.activities))S.activities=[];if(!Array.isArray(S.suggestionLog))S.suggestionLog=[];if(!S.routine)S.routine={...DEFAULT_ROUTINE};if(!Array.isArray(S.habit))S.habit=[];if(!S.explore||!Array.isArray(S.explore.log))S.explore={log:[]};if(r.warn)toast(r.warn);try{navigator.storage.persist()}catch{}extendRoutine();if(S.patternV!==2){regenFuture();S.patternV=2}if(S.cenaV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.CENA])]));S.cenaV=1;if(!r.warn)0}if(S.ejV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.EJERCICIO])]));S.ejV=1;}if(S.metV!==2){regenAll();S.metV=2}await commit({quiet:true});try{const dl=$('#dlg');dl.addEventListener&&dl.addEventListener('close',()=>{CHOOSING=false;if(PENDING){PENDING=false;S=JSON.parse(LAST);render()}})}catch{}try{SY.init()}catch{}try{if('serviceWorker' in navigator&&isSecureContext){const had=!!navigator.serviceWorker.controller;let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had||rl)return;rl=true;const go=()=>{const d=document.getElementById('dlg');if(d&&d.open)return setTimeout(go,4000);location.reload()};setTimeout(go,300)});navigator.serviceWorker.register('sw.js').then(r=>{r.update&&r.update()}).catch(()=>{})}}catch{}
+ S=r.state||fresh();if(r.state&&typeof applyPlan==='function')applyPlan(S);if(r.state&&typeof migrateWeekend==='function')migrateWeekend(S);if(r.state&&typeof migrateNivel==='function')migrateNivel(S);if(!S.refuerzo)S.refuerzo={on:!!(S.works&&S.works.length),until:addDays(now().date,13),morning:true,night:true};if(r.state&&typeof migrateRef==='function')migrateRef(S);if(r.state&&typeof migrateEntreno==='function')migrateEntreno(S);if(r.state&&typeof migrateFilo==='function')migrateFilo(S);if(r.state&&typeof migrateHorizonte==='function')migrateHorizonte(S);if(!Array.isArray(S.activities))S.activities=[];if(!Array.isArray(S.suggestionLog))S.suggestionLog=[];if(!S.routine)S.routine={...DEFAULT_ROUTINE};if(!Array.isArray(S.habit))S.habit=[];if(!S.explore||!Array.isArray(S.explore.log))S.explore={log:[]};if(r.warn)toast(r.warn);try{navigator.storage.persist()}catch{}extendRoutine();if(S.patternV!==2){regenFuture();S.patternV=2}if(S.cenaV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.CENA])]));S.cenaV=1;if(!r.warn)0}if(S.ejV!==1){S.settings.availability=Object.fromEntries(Object.entries(S.settings.availability).map(([d,w])=>[d,P.subtract(w,[P.EJERCICIO])]));S.ejV=1;}if(S.metV!==2){regenAll();S.metV=2}await commit({quiet:true});try{const dl=$('#dlg');dl.addEventListener&&dl.addEventListener('close',()=>{CHOOSING=false;if(PENDING){PENDING=false;S=JSON.parse(LAST);render()}})}catch{}try{SY.init()}catch{}try{if('serviceWorker' in navigator&&isSecureContext){const had=!!navigator.serviceWorker.controller;let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!had||rl)return;rl=true;const go=()=>{const d=document.getElementById('dlg');if(d&&d.open)return setTimeout(go,4000);location.reload()};setTimeout(go,300)});navigator.serviceWorker.register('sw.js').then(r=>{r.update&&r.update()}).catch(()=>{})}}catch{}
  setInterval(tick,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick()})}
 
 /* ===== Objetivos, notas, temario, curso hasta la PAU y revisión semanal (v6). Todo se calcula en src/core/goals.ts; aquí solo hay pantallas. ===== */
@@ -2453,7 +2458,12 @@ Object.assign(A,{replan:async()=>{const n=now(),fut=b=>b.status==='planned'&&!b.
  await commit({quiet:true});toast('Regenerado de mañana en adelante. Lo de hoy se mantiene. Puedes deshacerlo en Calendario.')},
  undoRegen:async()=>{const u=S.deshacer;if(!u)return;const n=now(),fut=b=>b.status==='planned'&&!b.manual&&(b.date>n.date||(b.date===n.date&&b.start>=n.minute));
   S.blocks=[...S.blocks.filter(b=>!fut(b)),...u.blocks.filter(b=>b.date>=n.date&&!S.blocks.some(x=>x.id===b.id&&!fut(x)))];S.habit=u.habit;S.deshacer=undefined;await commit({quiet:true});toast('Planificación anterior restaurada')}});
-{const c=V.cal;V.cal=a=>{const h=c(a),u=S.deshacer;return u&&u.date===now().date?h.replace('<button data-a=replan>Regenerar futuro</button>','<button data-a=replan>Regenerar futuro</button><button data-a=undoRegen>Deshacer última regeneración</button>'):h}}
+
+/* v28 · Plan siempre al día: cada cambio (y cada vez que se abre la app) rehace de mañana en adelante lo automático; lo de hoy, lo hecho y lo manual no se tocan. Horizonte de 120 días. Sin botón «Regenerar». */
+function autoRegen(){const n=now();S.blocks=S.blocks.filter(b=>!(b.status==='planned'&&!b.manual&&b.date>n.date))}
+async function commit(o){autoRegen();const r=scheduleOf(S,true);finish(S,r);return persist()}
+function migrateHorizonte(Sx){if(Sx.hzV>=1)return;Sx.hzV=1;if(Sx.settings&&!(Sx.settings.horizonDays>28))Sx.settings.horizonDays=120}
+{const c=V.cal;V.cal=a=>c(a).replace('<button data-a=replan>Regenerar futuro</button>','').replace('<button data-a=undoRegen>Deshacer última regeneración</button>','')}
 
 /* Búsqueda global: pantallas, acciones, tareas, exámenes, temas y asignaturas. Atajo: «/» o Ctrl/⌘+K. */
 const SCR=[['hoy','Hoy','inicio resumen sesiones'],['cal','Calendario','semana agenda horario bloques'],['tar','Tareas','deberes entregas pendientes'],['exa','Exámenes','examen parcial prueba'],['tem','Temario','temas guion materia'],['met','Método de estudio','fases guion memorizar autopsia reparto'],['obj','Notas y objetivo','notas nota media objetivo evaluación'],['cur','Curso hasta la PAU','pau selectividad fases'],['seg','Progreso','estadísticas seguimiento cumplimiento horas gráficos'],['rut','Rutina semanal','hábitos rutina regenerar'],['est','Estimaciones','estimador tiempo minutos'],['aj','Ajustes','configuración horario clases copia exportar importar cuenta']];

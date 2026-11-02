@@ -10,7 +10,7 @@ const we: Win[] = [{ start: hm(10), end: hm(13, 30) }, { start: hm(16), end: EJE
 /** Valores iniciales editables. Lun/Mar descuentan llegada a casa (16:30 / 17:10). */
 export const DEFAULT_SETTINGS: Settings = {
   availability: { 0: we, 1: [{ start: EJERCICIO.end, end: hm(20, 30) }], 2: [{ start: EJERCICIO.end, end: hm(20, 30) }], 3: wk, 4: wk, 5: wk, 6: we },
-  blockedDates: [], maxDayMin: 240, preferredMin: 50, maxSessionMin: 90, minSessionMin: 25, minGapMin: 10, horizonDays: 28,
+  blockedDates: [], maxDayMin: 240, preferredMin: 50, maxSessionMin: 90, minSessionMin: 25, minGapMin: 10, horizonDays: 120,
 };
 /** Función de prioridad: desempate entre demandas con el mismo plazo. Ajustable. */
 export const PRIORITY_WEIGHTS = { importance: 2, difficulty: 1, exam: 3, unreadiness: 2, urgency: 10, undated: 4 };
@@ -153,11 +153,16 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       const lastOf = new Map<string, string>(); for (const d of exD) lastOf.set(d.w.id, !lastOf.has(d.w.id) || d.last > lastOf.get(d.w.id)! ? d.last : lastOf.get(d.w.id)!);
       const lasts = [...new Set(lastOf.values())].sort(), capTo = new Map<string, number>();
       for (const L of lasts) { let c = 0; for (let dt = now.date; dt <= L; dt = addDays(dt, 1)) c += Math.max(0, Math.min(maxOf(dt) - day(dt).total, free(dt, true).reduce((a, f) => a + f.end - f.start, 0))); capTo.set(L, Math.floor(c * 0.8 / 5) * 5); }
-      const fits = (T: number) => lasts.every(L => ids.reduce((a, id) => a + (lastOf.get(id)! <= L ? Math.min(tot.get(id)!, T) : 0), 0) <= capTo.get(L)!);
-      const need = [...tot.values()].reduce((a, b) => a + b, 0), top = Math.max(...tot.values());
-      if (!fits(top)) {
-        let lo = 0, hi = top; while (hi - lo > 5) { let mid = Math.floor((lo + hi) / 10) * 5; if (mid <= lo) mid = lo + 5; if (mid >= hi) break; if (fits(mid)) lo = mid; else hi = mid; }
-        const T = new Map<string, number>(); for (const id of ids) T.set(id, Math.min(tot.get(id)!, lo));
+      // Se recorren las fechas límite de menor a mayor: si lo que vence hasta L no cabe, se recorta con «llenado por nivel» SOLO a los exámenes que vencen hasta L (los lejanos no se tocan sin necesidad).
+      const T = new Map<string, number>(); for (const id of ids) T.set(id, tot.get(id)!);
+      let trimAny = false;
+      for (const L of lasts) {
+        const P = ids.filter(id => lastOf.get(id)! <= L), capL = capTo.get(L)!, sum = (lv: number) => P.reduce((a, id) => a + Math.min(T.get(id)!, lv), 0);
+        if (sum(Infinity) <= capL) continue;
+        let lo = 0, hi = Math.max(...P.map(id => T.get(id)!)); while (hi - lo > 5) { let mid = Math.floor((lo + hi) / 10) * 5; if (mid <= lo) mid = lo + 5; if (mid >= hi) break; if (sum(mid) <= capL) lo = mid; else hi = mid; }
+        for (const id of P) T.set(id, Math.min(T.get(id)!, lo)); trimAny = true;
+      }
+      if (trimAny) {
         for (const id of ids) {
           const t = T.get(id)!, all = tot.get(id)!; if (t >= all) continue;
           const ds = exD.filter(d => d.w.id === id); let left = t;

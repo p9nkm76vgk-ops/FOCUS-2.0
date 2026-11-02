@@ -143,3 +143,18 @@ test('regenerar mantiene lo de hoy, se puede deshacer; un examen «lo llevo yo»
   assert.equal(a.S.blocks.filter(b => b.workId === lunes.id && b.status === 'planned').length, 0, 'sin sesiones automáticas si lo lleva él');
   const n = a.S.deshacer.blocks.length; await a.click('undoRegen'); assert.equal(a.S.deshacer, undefined); assert.ok(n >= 0 && antes.length > 0);
 });
+
+test('plan siempre al día: horizonte > 4 semanas, una tarea nueva entra sola en el plan y no existe el botón «Regenerar futuro»', async () => {
+  clock.t = new Date(2026, 10, 2, 16, 35).getTime();
+  const a = await boot();
+  assert.ok(a.S.settings.horizonDays > 28);
+  await a.click('addExam'); await a.submit({ title: '', subjectId: a.S.subjects[0].id, dueDate: '2027-01-12', time: '', estOverride: '', difficulty: '3', importance: '4', prep: '0', status: 'pending', notes: '' });
+  const ex = a.S.works.find(w => w.kind === 'exam');
+  assert.ok(a.S.blocks.some(b => b.workId === ex.id && b.date > '2026-12-10'), 'un examen a 10 semanas ya tiene sesiones');
+  await a.click('addTask'); await a.submit({ title: 'Ensayo', subjectId: a.S.subjects[1].id, dueDate: '2026-11-20', time: '', estOverride: '120', difficulty: '3', importance: '3', status: 'pending', notes: '' });
+  const t = a.S.works.find(w => w.kind === 'task');
+  assert.ok(a.S.blocks.filter(b => b.workId === t.id && b.status === 'planned').reduce((x, b) => x + b.end - b.start, 0) >= 110, 'la tarea se incorpora sola');
+  assert.doesNotMatch(a.t.V.cal(), /Regenerar futuro/);
+  const snap = JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()); await a.t.commit(); await a.t.commit();
+  assert.equal(JSON.stringify(a.S.blocks.map(b => [b.id, b.start, b.end]).sort()), snap, 'idempotente');
+});
