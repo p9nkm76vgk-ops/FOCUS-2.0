@@ -301,3 +301,6 @@ Causas halladas y corregidas:
 ## v32 — Tres colores y reparto por rondas
 - Niveles del temario: Rojo (llego sin saber nada) · Amarillo (llego y me defiendo) · Verde (preparado). Se elimina Oro. Internamente 0/1/3 (el 2 antiguo se trata como Verde; migración `tmV` 3: Verde(2)→Verde(3); Naranja→Amarillo). Verde = dominio 100 %, así que un tema en verde no pide más horas ni baja el porcentaje de dominio. Repaso «Bien» → Verde; «Mal» → Amarillo.
 - Planificador: dentro de cada nivel de prioridad, las demandas colocan una sesión por ronda (ya no se llena un examen entero antes de empezar el siguiente), y con exceso de carga cada examen prefiere el último 60 % de su ventana. Evita que el último examen se quede con los huecos de la víspera. Determinista e idempotente (test).
+
+## v33 — Eliminar exámenes/tareas desde el formulario
+- Antes: si el trabajo tenía sesiones completadas, «Eliminar» tras el confirm devolvía un aviso escondido al final del formulario y no borraba nada. Ahora «Eliminar» abre una pantalla propia (sin confirm nativo): con horas estudiadas ofrece Archivar (conserva horas y nota) o Eliminar del todo; sin horas, Eliminar. Siempre borra sus sesiones y el plan se recalcula.

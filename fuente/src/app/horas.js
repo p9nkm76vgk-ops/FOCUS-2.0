@@ -12,3 +12,11 @@ Object.assign(A,{examQuit:t=>{const w=S.works.find(x=>x.id===t.dataset.id);if(!w
   ...(w.status!=='archived'?[{l:'Archivar (conserva horas y nota)',c:'pri',fn:()=>{w.status='archived';commit({quiet:true})}}]:[]),
   {l:'Eliminar del todo',c:'danger',fn:()=>{if(confirm('Se borran el examen y sus sesiones (también las horas estudiadas). La nota que apuntaste se conserva. ¿Seguro?')){S.works=S.works.filter(x=>x.id!==w.id);S.blocks=S.blocks.filter(b=>b.workId!==w.id);commit({quiet:true})}}},
   {l:'Cancelar',fn:()=>{}}])}});
+
+/* v33 · Eliminar un examen/tarea desde su formulario: siempre funciona, con una pantalla propia (sin confirm nativo) que explica qué se pierde; si hay horas estudiadas, se ofrece archivar */
+function delAsk(id){const w=S.works.find(x=>x.id===id);if(!w)return;const hrs=studyOf(w),np=S.blocks.filter(b=>b.workId===id&&b.status==='planned').length,E=w.kind==='exam';
+ const info=hrs.n?`Tienes ${hr(hrs.min)} estudiadas en ${hrs.n} sesión${hrs.n>1?'es':''} de este ${E?'examen':'trabajo'}. Si lo eliminas del todo, esas horas dejan de contar en tus estadísticas.`:`Se quitan también sus ${np} sesiones planificadas y el plan se recalcula sin ${E?'él':'ello'}.`;
+ choose('Eliminar «'+w.title+'»',`<p class=m>${info}</p>`,[
+  ...(hrs.n&&w.status!=='archived'?[{l:'Archivar (conserva horas y nota)',c:'pri',fn:()=>{w.status='archived';w.updatedAt=Date.now();commit({quiet:true})}}]:[]),
+  {l:hrs.n?'Eliminar del todo':'Eliminar',c:'danger',fn:()=>{S.works=S.works.filter(x=>x.id!==id);S.blocks=S.blocks.filter(b=>b.workId!==id);commit({quiet:true})}},
+  {l:'Cancelar',fn:()=>{}}])}

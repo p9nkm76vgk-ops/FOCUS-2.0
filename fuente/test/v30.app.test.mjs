@@ -58,3 +58,14 @@ test('semana saturada con todo en rojo: ningún examen grande deja más del 60 %
   const add = (d, n) => { const x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10) };
   for (const w of a.S.works.filter(x => x.kind === 'exam')) { const bl = a.S.blocks.filter(b => b.workId === w.id && b.status === 'planned'), tot = bl.reduce((x, b) => x + b.end - b.start, 0); if (tot < 240) continue; const eve = bl.filter(b => b.date === add(w.dueDate, -1)).reduce((x, b) => x + b.end - b.start, 0); assert.ok(eve <= 0.6 * tot, `víspera ${w.dueDate}: ${eve}/${tot}`); assert.ok(new Set(bl.map(b => b.date)).size >= 3, `repartido en ≥3 días ${w.dueDate}`) }
 });
+
+test('eliminar un examen desde su formulario funciona con y sin sesiones hechas (archivar o eliminar), sin confirm nativo y sin dejar sesiones huérfanas', async () => {
+  clock.t = new Date(2026, 10, 2, 17, 34).getTime(); const a = await boot(); a.h.confirm = false;
+  const ex = await exam(a, 'Inglés', '2026-11-12'); await a.click('replan'); assert.ok(a.S.blocks.some(b => b.workId === ex.id));
+  await a.click('editExam', ex.id); a.h.dlg.onclick(); assert.match(a.h.dlg.innerHTML, /Eliminar «/); assert.match(a.h.dlg.innerHTML, /sesiones planificadas/);
+  a.t.A.choice({ dataset: { i: 0 } }); await new Promise(r => setTimeout(r, 20));
+  assert.ok(!a.S.works.some(w => w.id === ex.id)); assert.equal(a.S.blocks.filter(b => b.workId === ex.id).length, 0);
+  const e2 = await exam(a, 'Inglés', '2026-11-12'); await a.click('replan'); const b0 = a.S.blocks.find(b => b.workId === e2.id && b.status === 'planned'); b0.status = 'done'; b0.actualMin = 30;
+  await a.click('editExam', e2.id); a.h.dlg.onclick(); assert.match(a.h.dlg.innerHTML, /Archivar/); assert.match(a.h.dlg.innerHTML, /estudiadas/);
+  a.t.A.choice({ dataset: { i: 1 } }); await new Promise(r => setTimeout(r, 20)); assert.ok(!a.S.works.some(w => w.id === e2.id)); assert.equal(a.S.blocks.filter(b => b.workId === e2.id).length, 0);
+});
