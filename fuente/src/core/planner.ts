@@ -40,6 +40,7 @@ export const examGuard = (works: { kind: string; status: string; auto?: string; 
   for (const w of works) if (w.kind === 'exam' && w.auto !== 'review' && (w.status === 'pending' || w.status === 'in_progress')) { const d = daysBetween(date, w.dueDate); if (d >= 0 && d <= guardDays(w)) g.add(w.subjectId); }
   return g;
 };
+export const TRIM_GAMMA = 0.5;
 export const EXAM_BUFFER_MIN = 60;  // margen antes de la hora del examen el mismo día
 
 export const addDays = (d: string, n: number) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
@@ -97,7 +98,8 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   const day = (d: string) => { let x = days.get(d); if (!x) { x = { occ: [], total: 0, perWork: new Map() }; days.set(d, x); } return x; };
   const avail = (d: string): Win[] => availOf(s, d), maxOf = (d: string): number => maxOfS(s, d);
   const dayCap = (d: string) => Math.max(60, Math.min(maxOf(d), avail(d).reduce((a, w) => a + dur(w), 0)));
-  const occupy = (b: Block) => { const x = day(b.date); x.occ.push({ start: b.start, end: b.end, sub: byId.get(b.workId)?.subjectId }); x.total += dur(b); x.perWork.set(b.workId, (x.perWork.get(b.workId) ?? 0) + dur(b)); };
+  const capCache = new Map<string, number>();
+  const occupy = (b: Block) => { capCache.delete(b.date); const x = day(b.date); x.occ.push({ start: b.start, end: b.end, sub: byId.get(b.workId)?.subjectId }); x.total += dur(b); x.perWork.set(b.workId, (x.perWork.get(b.workId) ?? 0) + dur(b)); };
   history.filter(b => b.status === 'done').forEach(occupy);
   manualF.forEach(occupy);
   // Sesiones que el usuario ha dicho que NO hará (hoy o más adelante): ese hueco es suyo (cena, descanso…); no se vuelve a rellenar con estudio.
@@ -157,11 +159,15 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       // Se recorren las fechas límite de menor a mayor: si lo que vence hasta L no cabe, se recorta con «llenado por nivel» SOLO a los exámenes que vencen hasta L (los lejanos no se tocan sin necesidad).
       const T = new Map<string, number>(); for (const id of ids) T.set(id, tot.get(id)!);
       let trimAny = false;
+      /* Reparto con rendimientos decrecientes: cada examen recibe como mucho min(necesidad, λ·necesidad^TRIM_GAMMA). Con γ=0 sería «mismas horas para todos»; con γ=1, «mismo porcentaje de cobertura».
+       * Con γ=0,5 quien más trabajo tiene (temas en rojo) recibe más horas, pero no a costa de dejar sin cubrir a los que necesitan poco (una hora extra rinde menos donde ya hay base). */
+      const wt = (id: string) => Math.pow(tot.get(id)!, TRIM_GAMMA);
       for (const L of lasts) {
-        const P = ids.filter(id => lastOf.get(id)! <= L), capL = capTo.get(L)!, sum = (lv: number) => P.reduce((a, id) => a + Math.min(T.get(id)!, lv), 0);
+        const P = ids.filter(id => lastOf.get(id)! <= L), capL = capTo.get(L)!, sum = (lv: number) => P.reduce((a, id) => a + Math.min(T.get(id)!, lv * wt(id)), 0);
         if (sum(Infinity) <= capL) continue;
-        let lo = 0, hi = Math.max(...P.map(id => T.get(id)!)); while (hi - lo > 5) { let mid = Math.floor((lo + hi) / 10) * 5; if (mid <= lo) mid = lo + 5; if (mid >= hi) break; if (sum(mid) <= capL) lo = mid; else hi = mid; }
-        for (const id of P) T.set(id, Math.min(T.get(id)!, lo)); trimAny = true;
+        let lo = 0, hi = Math.max(...P.map(id => T.get(id)! / wt(id)));
+        for (let it = 0; it < 40 && hi - lo > 1e-6; it++) { const mid = (lo + hi) / 2; if (sum(mid) <= capL) lo = mid; else hi = mid; }
+        for (const id of P) T.set(id, Math.min(T.get(id)!, Math.floor(lo * wt(id) / 5) * 5)); trimAny = true;
       }
       if (trimAny) {
         for (const id of ids) {
@@ -186,9 +192,31 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const r = d.need - have; rem.set(d, have > 0 && r < MIN_FRAG ? 0 : r); // resto diminuto tras conservar sesiones: se da por cubierto
   }
 
+  // 2b) Guardia de factibilidad (solo exámenes con ventana desde hoy): una sesión de un examen no puede ocupar un día si, al hacerlo, a algún examen con plazo igual o anterior
+  //     ya no le cabría lo que le falta (condición de Hall para ventanas anidadas: para cada plazo, lo pendiente de los exámenes que vencen hasta él ≤ capacidad restante hasta él).
+  //     Así los exámenes más lejanos pueden repartirse por toda su ventana sin quitar sitio a los más cercanos.
+  const gR = new Map<string, number>(), gLast = new Map<string, string>(); let gDl: string[] = [];
+  for (const d of demands) if (d.w.kind === 'exam' && d.w.auto !== 'review' && !d.clipped && d.from === now.date && (rem.get(d) ?? 0) > 0) { gR.set(d.w.id, (gR.get(d.w.id) ?? 0) + rem.get(d)!); gLast.set(d.w.id, d.last); }
+  gDl = [...new Set(gLast.values())].sort();
+  const GUARD_SLACK = 0.92;
+  const capG = (dt: string): number => { let c = capCache.get(dt); if (c === undefined) { const x = day(dt); c = Math.floor(Math.max(0, Math.min(maxOf(dt) - x.total, free(dt, true).reduce((a, f) => a + dur(f), 0))) * GUARD_SLACK); capCache.set(dt, c); } return c; };
+  const guardOK = (d: Demand, dt: string, L: number): boolean => {
+    if (!gDl.length || !gR.has(d.w.id)) return true;
+    const mine = gLast.get(d.w.id)!;
+    for (const D of gDl) {
+      if (dt >= D) continue;
+      let need = 0; for (const [id, r] of gR) if (gLast.get(id)! <= D) need += r;
+      if (mine <= D) need -= L;
+      let cap = 0; for (let x = now.date; x < D; x = addDays(x, 1)) cap += capG(x);
+      cap -= L; // el hueco del día dt baja L
+      if (need > cap) return false;
+    }
+    return true;
+  };
+
   // 3) Cubrir lo que falta: sesiones repartidas por los días menos cargados
   const placedOnce = new Set<Demand>(), placedN = new Map<Demand, number>();
-  const fill = (d: Demand, to: string, left: number, once = false): number => {
+  const fill = (d: Demand, to: string, left: number, once = false, guard = false): number => {
     const left0 = left;
     while (left > 0) {
       if (left < MIN_FRAG && (left < left0 || (once && placedOnce.has(d)))) { left = 0; break; } // el resto de una demanda ya cubierta (<20 min) no merece otra sesión
@@ -223,6 +251,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
           // 4) los repasos cortos se pegan a días que ya tienen estudio (no abren un día por sí solos) · 5) repartir por carga relativa · 6) sesiones seguidas, sin huecos · 7) alternar asignaturas
           /* examen lejano (ventana ≥ 21 días): las sesiones se reparten a lo largo de toda la ventana en vez de ocupar los primeros días consecutivos */
           const spread = d.w.kind === 'exam' && !rev && daysBetween(d.from, to) >= 21, nS = Math.max(1, Math.ceil(d.need / s.preferredMin)), tgt = Math.floor(((placedN.get(d) ?? 0) + 0.5) * (daysBetween(d.from, to) + 1) / nS), dist = spread ? Math.abs(daysBetween(d.from, dt) - tgt) : 0;
+          if (guard && !guardOK(d, dt, pick.L)) continue;
           cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, sameWork, pick.bad, pick.sec, pick.adj, tooEarly, dist, load, noPack, dt] });
         }
         if (cands.length) break;
@@ -232,7 +261,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       const c = cands[0];
       let id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}`, k = 1; while (used.has(id)) id = `auto:${d.w.id}:${d.part}:${c.dt}:${c.start}:r${k++}`; used.add(id);
       const b: Block = { id, workId: d.w.id, date: c.dt, start: c.start, end: c.start + c.L, status: 'planned', manual: false, part: d.part };
-      occupy(b); created.push(b); left -= c.L; placedOnce.add(d); placedN.set(d, (placedN.get(d) ?? 0) + 1);
+      occupy(b); created.push(b); left -= c.L; placedOnce.add(d); if (gR.has(d.w.id)) gR.set(d.w.id, Math.max(0, gR.get(d.w.id)! - c.L)); placedN.set(d, (placedN.get(d) ?? 0) + 1);
       if (once) break;
     }
     return left;
@@ -242,16 +271,19 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
    * y el último examen no se queda solo con los huecos de la víspera. Las más grandes (temas en rojo) siguen recibiendo más sesiones porque tardan más rondas en cubrirse. Determinista. */
   const lefts = new Map<Demand, number>(demands.map(d => [d, rem.get(d)!]));
   for (const tr of [0, 1, 2]) {
-    const grp = demands.filter(d => tier(d) === tr), stuck = new Set<Demand>();
-    for (let guard = 0; guard < 2000; guard++) {
-      let moved = false;
-      for (const d of grp) {
-        const l0 = lefts.get(d)!; if (l0 <= 0 || stuck.has(d)) continue;
-        let l = fill(d, d.to, l0, true);
-        if (l === l0 && l > 0 && d.ext && d.ext > d.to) l = fill(d, d.ext, l, true);
-        lefts.set(d, l); if (l < l0) moved = true; else stuck.add(d);
+    const grp = demands.filter(d => tier(d) === tr);
+    for (const guarded of [true, false]) { // primero con guardia de factibilidad (reparto), después sin ella (aprovechar lo que quede, por plazo)
+      const stuck = new Set<Demand>();
+      for (let iter = 0; iter < 2000; iter++) {
+        let moved = false;
+        for (const d of grp) {
+          const l0 = lefts.get(d)!; if (l0 <= 0 || stuck.has(d)) continue;
+          let l = fill(d, d.to, l0, true, guarded);
+          if (l === l0 && l > 0 && d.ext && d.ext > d.to) l = fill(d, d.ext, l, true, guarded);
+          lefts.set(d, l); if (l < l0) moved = true; else stuck.add(d);
+        }
+        if (!moved) break;
       }
-      if (!moved) break;
     }
   }
   for (const d of demands) {

@@ -316,3 +316,9 @@ Causas halladas y corregidas:
 
 ## v36 — Todo fijado por la app
 - Quitados: «Rutina semanal» (página, menú, tarjeta en Hoy, búsqueda), «Tiempo libre · sugerencias», los bloques «Sugerido», las etiquetas «Obligatorio/Sugerido» del calendario, «+ Sesión» (Hoy y Calendario), «Nueva sesión» en el buscador y tocar un hueco del calendario para fijar una asignatura. Migración `rtV`: apaga la rutina y borra los bloques de rutina futuros no hechos (se conservan los hechos para las estadísticas). «Mover» y «No la haré» de una sesión existente siguen disponibles.
+
+## v37 — Planificador: reparto con rendimientos decrecientes y reserva de capacidad
+- Recorte por plazo (cuando no cabe todo): cada examen recibe min(necesidad, λ·necesidad^0,5) (`TRIM_GAMMA`). Quien tiene más trabajo (temas en rojo) recibe más horas, pero no a costa de dejar a cero a los exámenes pequeños.
+- Guardia de viabilidad (condición de Hall) en el reparto por rondas: primero se colocan solo sesiones que no impiden cubrir los plazos anteriores; después, sin guardia.
+- Auditoría `node --no-warnings scripts/audit-plan.mjs` (escenarios hipotéticos): sesiones en la víspera máx. 62 % → 41 %; cobertura mínima 0,44 → 0,45–0,47; media 0,90.
+- Pruebas ejecutadas: npm test 303/303; estrés 6000 estados, 0 fallos. Pendientes: Safari/iPad real; los escenarios son hipotéticos, no tus datos.
