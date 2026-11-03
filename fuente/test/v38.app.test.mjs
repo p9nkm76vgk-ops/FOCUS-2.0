@@ -63,3 +63,14 @@ test('mínimos semanales (v46): Hoy muestra horas hechas+previstas frente al mí
   await a.ctx.__t.A.nav({ dataset: { r: 'cur' } }); const cur = a.h.main.innerHTML;
   const wk = a.t ? 0 : 0; assert.match(cur, /Horas mínimas por asignatura/); assert.match(cur, /no caben|faltan/);
 });
+
+test('sesión diaria dice qué hacer (v47): tema concreto y actividad según su nivel; sin temas lo dice claro', async () => {
+  const a = await base(); const t = a.t; const mates = a.S.subjects.find(s => s.name === 'Matemáticas II');
+  const blk = a.S.blocks.find(b => b.status === 'planned' && a.S.works.find(w => w.id === b.workId)?.daily);
+  const info0 = t.HY.info({ t: 'ob', b: blk }); assert.match(info0.title, /Sin tema asignado/); assert.match(info0.how, /Temario/);
+  const w = a.S.works.find(x => x.id === blk.workId); a.S.syllabus = [{ id: 'tp1', subjectId: w.subjectId, name: 'Límites y continuidad', course: 2, mastery: 0, reviews: 0, last: null, next: null, createdAt: 1 }];
+  const b2 = { ...blk, label: 'Límites y continuidad' }; const i1 = t.HY.info({ t: 'ob', b: b2 });
+  assert.equal(i1.title, 'Límites y continuidad'); assert.equal(i1.ph.label, 'Aprender'); assert.match(i1.how, /Límites y continuidad/);
+  a.S.syllabus[0].mastery = 3; assert.equal(t.HY.info({ t: 'ob', b: b2 }).ph.label, 'Repasar');
+  assert.ok(mates);
+});

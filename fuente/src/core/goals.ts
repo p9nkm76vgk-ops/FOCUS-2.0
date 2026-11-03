@@ -70,13 +70,14 @@ export function accessInfo(g: Goals | undefined, media2: number | null) {
   return { nmb, access, needMedia, feasible: needMedia == null ? null : needMedia <= 10 };
 }
 
-// ---------- Plan de admisión (documento de ingeniería: GITI UPM/UC3M, Madrid) ----------
+// ---------- Plan de admisión (objetivo desde 3-nov-2026: Economía, Economía + Matemáticas o Ciencia de Datos; Ingeniería Informática descartada) ----------
 /** Puntos de NOTA DE ADMISIÓN (0–14) que suma 1 punto más en cada asignatura de 2.º (aprox.):
  *  - Bachillerato: 0,6 × (1/2 de la media de 2.º) × (1/9 asignaturas) ≈ 0,033 en todas.
  *  - Fase de acceso (5 exámenes, 0,4 × 1/5 = 0,08): Matemáticas II, Lengua, Catalán, Inglés y Hª de la Filosofía (si se elige Filosofía).
  *  - Ponderación 0,2 en la fase de admisión: las dos mejores de Matemáticas II, Física, Química y Business (Mates cuenta en ambas).
+ *  Valores aproximados para Economía / Economía + Mates / Ciencia de Datos (las tablas cambian por universidad y grado; comprobar la de la universidad destino): Matemáticas II y Business (Empresa y Diseño de Modelos de Negocio) son las ponderables fuertes; Física y Química pasan a segundo plano (0,1 habitual).
  *  Business se presenta como optativa y pondera 0,2: entra en la carrera por las dos mejores ponderables junto con Matemáticas II, Física y Química. Hª de España no suma en el acceso ni pondera (solo la media de Bachillerato). Es un cálculo aproximado, no una cifra oficial. */
-export const PAU_VALUE: Record<string, number> = { 'Matemáticas II': 0.31, 'Física': 0.23, 'Química': 0.23, 'Lengua Castellana': 0.11, 'Catalán': 0.11, 'Inglés': 0.11, 'Historia de la Filosofía': 0.11, 'Business': 0.23, 'Historia de España': 0.03 };
+export const PAU_VALUE: Record<string, number> = { 'Matemáticas II': 0.31, 'Física': 0.18, 'Química': 0.13, 'Lengua Castellana': 0.11, 'Catalán': 0.11, 'Inglés': 0.11, 'Historia de la Filosofía': 0.11, 'Business': 0.23, 'Historia de España': 0.03 };
 /** Factor heurístico de horas de examen según ese valor (no se baja de 0,92 porque las notas de 2.º siguen contando en la media). */
 export const PERSONAL: Record<string, number> = { 'Business': 1.2, 'Catalán': 1.06, 'Historia de España': 1.06, 'Lengua Castellana': 1.12, 'Inglés': 0.8, 'Historia de la Filosofía': 1 };
 export const valueFactor = (name?: string): number => { if (name && name in PERSONAL) return PERSONAL[name]; const v = name ? PAU_VALUE[name] : undefined; return v == null ? 1 : v >= 0.3 ? 1.15 : v >= 0.2 ? 1.08 : 1; };

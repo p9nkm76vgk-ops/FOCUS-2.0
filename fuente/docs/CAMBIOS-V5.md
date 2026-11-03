@@ -369,3 +369,8 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 - Curso hasta la PAU: si no caben los mínimos de esta semana o la próxima, dice cuánto falta y de qué asignaturas (con la disponibilidad actual faltan unas 3 h/semana: lunes y martes solo tienen una ventana).
 - Del informe NO aplicado todavía (altera horas o falta verificar): reparto por valor marginal (Mates 4,5 / Física 4), pesos UIB (Business no pondera en Informática UIB; comprobar tabla 2027-28), FSRS completo, X−21 por trimestre.
 - Pruebas: npm test 312/312, estrés 6000 estados 0 fallos, Chromium 42/42.
+
+## v47 (3-nov-2026) — qué hacer en cada sesión y nuevo objetivo de carrera
+- Las sesiones de «Estudio diario» muestran el **tema concreto** (el menos dominado de la asignatura, según Temario) y la actividad según su nivel: rojo → Aprender, amarillo → Practicar, verde → Repasar, con el método de cada asignatura. Si la asignatura no tiene temas: «Sin tema asignado» y se indica añadirlos en Temario. Antes el nombre del tema se guardaba pero no se enseñaba.
+- Objetivo desde hoy: Economía, Economía + Matemáticas o Ciencia de Datos (Ingeniería Informática descartada). Pesos de valor aproximados (no verificados por universidad): Matemáticas II y Business arriba; Física 0,18 y Química 0,13 (antes 0,23). Solo cambian las horas extra de examen; las cuotas mínimas por asignatura no se tocan.
+- Pruebas: npm test 313/313, estrés 0 fallos, Chromium 42/42 (ejecutadas). Pendiente: comprobar en el iPad y la tabla oficial de ponderaciones de la universidad destino.

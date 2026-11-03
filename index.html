@@ -1769,13 +1769,14 @@ function accessInfo(g                   , media2               ) {
   return { nmb, access, needMedia, feasible: needMedia == null ? null : needMedia <= 10 };
 }
 
-// ---------- Plan de admisión (documento de ingeniería: GITI UPM/UC3M, Madrid) ----------
+// ---------- Plan de admisión (objetivo desde 3-nov-2026: Economía, Economía + Matemáticas o Ciencia de Datos; Ingeniería Informática descartada) ----------
 /** Puntos de NOTA DE ADMISIÓN (0–14) que suma 1 punto más en cada asignatura de 2.º (aprox.):
  *  - Bachillerato: 0,6 × (1/2 de la media de 2.º) × (1/9 asignaturas) ≈ 0,033 en todas.
  *  - Fase de acceso (5 exámenes, 0,4 × 1/5 = 0,08): Matemáticas II, Lengua, Catalán, Inglés y Hª de la Filosofía (si se elige Filosofía).
  *  - Ponderación 0,2 en la fase de admisión: las dos mejores de Matemáticas II, Física, Química y Business (Mates cuenta en ambas).
+ *  Valores aproximados para Economía / Economía + Mates / Ciencia de Datos (las tablas cambian por universidad y grado; comprobar la de la universidad destino): Matemáticas II y Business (Empresa y Diseño de Modelos de Negocio) son las ponderables fuertes; Física y Química pasan a segundo plano (0,1 habitual).
  *  Business se presenta como optativa y pondera 0,2: entra en la carrera por las dos mejores ponderables junto con Matemáticas II, Física y Química. Hª de España no suma en el acceso ni pondera (solo la media de Bachillerato). Es un cálculo aproximado, no una cifra oficial. */
-const PAU_VALUE                         = { 'Matemáticas II': 0.31, 'Física': 0.23, 'Química': 0.23, 'Lengua Castellana': 0.11, 'Catalán': 0.11, 'Inglés': 0.11, 'Historia de la Filosofía': 0.11, 'Business': 0.23, 'Historia de España': 0.03 };
+const PAU_VALUE                         = { 'Matemáticas II': 0.31, 'Física': 0.18, 'Química': 0.13, 'Lengua Castellana': 0.11, 'Catalán': 0.11, 'Inglés': 0.11, 'Historia de la Filosofía': 0.11, 'Business': 0.23, 'Historia de España': 0.03 };
 /** Factor heurístico de horas de examen según ese valor (no se baja de 0,92 porque las notas de 2.º siguen contando en la media). */
 const PERSONAL                         = { 'Business': 1.2, 'Catalán': 1.06, 'Historia de España': 1.06, 'Lengua Castellana': 1.12, 'Inglés': 0.8, 'Historia de la Filosofía': 1 };
 const valueFactor = (name         )         => { if (name && name in PERSONAL) return PERSONAL[name]; const v = name ? PAU_VALUE[name] : undefined; return v == null ? 1 : v >= 0.3 ? 1.15 : v >= 0.2 ? 1.08 : 1; };
@@ -2039,7 +2040,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='135c0cfbaf',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='1500f7e40c',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2568,7 +2569,7 @@ Object.assign(A,{ttSave:()=>{const all=[];for(const d of [1,2,3,4,5]){const el=d
 const HY={open:{},
  items(n){const o=S.blocks.filter(b=>b.date===n.date&&b.status!=='rescheduled').map(b=>({t:'ob',id:b.id,start:b.start,end:b.end,st:b.status,b})),
   h=(S.habit||[]).filter(x=>x.date===n.date&&(x.status==='planned'||x.status==='done')).map(x=>({t:'hab',id:x.id,start:x.start,end:x.end,st:x.status,h:x}));return[...o,...h].sort((a,b)=>a.start-b.start||a.end-b.end)},
- info(it){if(it.t==='ob'){const w=wk(it.b.workId)||{},s=sub(w.subjectId),ph=phaseOf(it.b);return{s,title:(w.title||'')+(it.b.part==='review'?' · repaso':'')+(it.b.topicId?' · '+wTopic(it.b):''),ph,how:howOf(it.b,s)}}
+ info(it){if(it.t==='ob'){const w=wk(it.b.workId)||{},s=sub(w.subjectId),ph=phaseOf(it.b);return{s,title:(w.title||'')+(it.b.part==='review'?' · repaso':'')+(it.b.topicId||it.b.label?' · '+wTopic(it.b):''),ph,how:howOf(it.b,s)}}
   const s=sub(it.h.subjectId);return{s,title:it.h.title.replace(s.name+': ',''),ph:undefined,how:it.h.detail?it.h.title.replace(s.name+': ','')+': '+it.h.detail:''}},
  btns(it,big){const id=esc(it.id),c=big?' big':'';return it.t==='ob'?`<button class="pri${c}" data-a=quickDone data-id="${id}">✓ Hecho</button><button class="${c.trim()}" data-a=noHecho data-id="${id}">No hecho</button>`:`<button class="pri${c}" data-a=habQuick data-id="${id}">✓ Hecho</button><button class="${c.trim()}" data-a=habSkip data-id="${id}">No hecho</button>`},
  hero(n,it){const i=HY.info(it),now_=it.start<=n.minute,dur=it.end-it.start,sp=i.how.indexOf(': '),ht=sp>0?i.how.slice(0,sp):'',hd=sp>0?i.how.slice(sp+2):i.how;
@@ -2626,6 +2627,12 @@ V.exa=a=>{const old=exOld(a),tm=/<h2>Próximas semanas<\/h2>[\s\S]*?(?=<h2>Exám
 
 /* Progreso: la explicación de la fórmula, plegada. */
 {const s0=V.seg;if(s0)V.seg=a=>s0(a).replace(/<p class=m>(Cumplimiento = [^<]*)<\/p>/,(m,t)=>`<details class=more data-k=fml${HY.open.fml?' open':''}><summary>Cómo se calcula el cumplimiento</summary><p class=m>${t}</p></details>`)}
+
+/* v47: las sesiones de "Estudio diario" dicen QUÉ hacer: el tema concreto (el menos dominado de la asignatura) y la actividad según su nivel (rojo: aprender; amarillo: practicar; verde: repasar). */
+{const i0=HY.info;HY.info=it=>{const r=i0(it);if(it.t!=='ob')return r;const w=wk(it.b.workId)||{};if(!w.daily)return r;const s=r.s,tp=it.b.label?(S.syllabus||[]).find(t=>t.subjectId===w.subjectId&&t.name===it.b.label):null;
+ if(!it.b.label)return{...r,title:'Sin tema asignado',ph:undefined,how:'Añade los temas de '+s.name+' en Temario: así cada sesión te dirá qué tema estudiar. Mientras tanto, elige el que peor lleves: '+howOf(it.b,s)};
+ const lv=tp?tp.mastery:0,act=lv>=3?'Repasar':lv===1?'Practicar':'Aprender',how=MET.howFor(s.name,s.colorKey,{review:lv>=3});
+ return{...r,title:it.b.label,ph:{id:'daily',label:act,i:0,n:0},how:act+' «'+it.b.label+'»: '+(how.indexOf(': ')>0?how.slice(how.indexOf(': ')+2):how)}}}
 
 /* Fases por asignatura (editables), autopsia del examen, confianza previa y estados de guion por tema. Todo vive en el estado: S.methodCfg, S.autopsies, w.confidence, topic.gs. */
 const autos=()=>Array.isArray(S.autopsies)?S.autopsies:(S.autopsies=[]);

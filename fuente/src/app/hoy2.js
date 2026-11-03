@@ -4,7 +4,7 @@
 const HY={open:{},
  items(n){const o=S.blocks.filter(b=>b.date===n.date&&b.status!=='rescheduled').map(b=>({t:'ob',id:b.id,start:b.start,end:b.end,st:b.status,b})),
   h=(S.habit||[]).filter(x=>x.date===n.date&&(x.status==='planned'||x.status==='done')).map(x=>({t:'hab',id:x.id,start:x.start,end:x.end,st:x.status,h:x}));return[...o,...h].sort((a,b)=>a.start-b.start||a.end-b.end)},
- info(it){if(it.t==='ob'){const w=wk(it.b.workId)||{},s=sub(w.subjectId),ph=phaseOf(it.b);return{s,title:(w.title||'')+(it.b.part==='review'?' · repaso':'')+(it.b.topicId?' · '+wTopic(it.b):''),ph,how:howOf(it.b,s)}}
+ info(it){if(it.t==='ob'){const w=wk(it.b.workId)||{},s=sub(w.subjectId),ph=phaseOf(it.b);return{s,title:(w.title||'')+(it.b.part==='review'?' · repaso':'')+(it.b.topicId||it.b.label?' · '+wTopic(it.b):''),ph,how:howOf(it.b,s)}}
   const s=sub(it.h.subjectId);return{s,title:it.h.title.replace(s.name+': ',''),ph:undefined,how:it.h.detail?it.h.title.replace(s.name+': ','')+': '+it.h.detail:''}},
  btns(it,big){const id=esc(it.id),c=big?' big':'';return it.t==='ob'?`<button class="pri${c}" data-a=quickDone data-id="${id}">✓ Hecho</button><button class="${c.trim()}" data-a=noHecho data-id="${id}">No hecho</button>`:`<button class="pri${c}" data-a=habQuick data-id="${id}">✓ Hecho</button><button class="${c.trim()}" data-a=habSkip data-id="${id}">No hecho</button>`},
  hero(n,it){const i=HY.info(it),now_=it.start<=n.minute,dur=it.end-it.start,sp=i.how.indexOf(': '),ht=sp>0?i.how.slice(0,sp):'',hd=sp>0?i.how.slice(sp+2):i.how;
@@ -62,3 +62,9 @@ V.exa=a=>{const old=exOld(a),tm=/<h2>Próximas semanas<\/h2>[\s\S]*?(?=<h2>Exám
 
 /* Progreso: la explicación de la fórmula, plegada. */
 {const s0=V.seg;if(s0)V.seg=a=>s0(a).replace(/<p class=m>(Cumplimiento = [^<]*)<\/p>/,(m,t)=>`<details class=more data-k=fml${HY.open.fml?' open':''}><summary>Cómo se calcula el cumplimiento</summary><p class=m>${t}</p></details>`)}
+
+/* v47: las sesiones de "Estudio diario" dicen QUÉ hacer: el tema concreto (el menos dominado de la asignatura) y la actividad según su nivel (rojo: aprender; amarillo: practicar; verde: repasar). */
+{const i0=HY.info;HY.info=it=>{const r=i0(it);if(it.t!=='ob')return r;const w=wk(it.b.workId)||{};if(!w.daily)return r;const s=r.s,tp=it.b.label?(S.syllabus||[]).find(t=>t.subjectId===w.subjectId&&t.name===it.b.label):null;
+ if(!it.b.label)return{...r,title:'Sin tema asignado',ph:undefined,how:'Añade los temas de '+s.name+' en Temario: así cada sesión te dirá qué tema estudiar. Mientras tanto, elige el que peor lleves: '+howOf(it.b,s)};
+ const lv=tp?tp.mastery:0,act=lv>=3?'Repasar':lv===1?'Practicar':'Aprender',how=MET.howFor(s.name,s.colorKey,{review:lv>=3});
+ return{...r,title:it.b.label,ph:{id:'daily',label:act,i:0,n:0},how:act+' «'+it.b.label+'»: '+(how.indexOf(': ')>0?how.slice(how.indexOf(': ')+2):how)}}}
