@@ -1,9 +1,11 @@
 /* ===== Estudio diario hasta la PAU (v38): ningún día queda vacío. Todo el cálculo está en src/core/planner.ts (paso 3c); aquí solo se prepara el dato y se muestra la proyección. ===== */
 /** Datos para el planificador: asignaturas con su peso (valor para la nota × lo que falta por dominar) y sus temas, de los menos dominados a los más. */
+/** Horas por semana por asignatura (acordadas con el usuario el 3-nov-2026): periodo normal, se inclinan a +10 % ahora y -15 % hacia la PAU. */
+const QUOTA_H={'Matemáticas II':3,'Business':3,'Física':3,'Química':3,'Lengua Castellana':3,'Catalán':3,'Historia de España':3,'Historia de la Filosofía':2,'Inglés':1};
 function planDiario(Sx,today){const g=Sx.goals;if(!g||!g.pauDate||g.dailyOff||g.pauDate<today)return undefined;
  const subs=(Sx.subjects||[]).filter(s=>!s.archived);if(!subs.length)return undefined;
- return{until:g.pauDate,subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
-  return{id:s.id,w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
+ return{until:g.pauDate,wk:180,we:300,len:60,tilt:[1.1,.85],subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
+  return{id:s.id,q:Math.round(60*((g.quotaH&&g.quotaH[s.name])??QUOTA_H[s.name]??2)),w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
 /** Un trabajo oculto por asignatura (auto:'review' + daily:true: ninguna pantalla lo lista como tarea). Idempotente. */
 function syncDaily(Sx){const g=Sx.goals,on=planDiario(Sx,now().date),have=new Map((Sx.works||[]).filter(w=>w.daily).map(w=>[w.id,w])),want=new Set(on?on.subjects.map(u=>u.id):[]);let out=Sx.works;
  for(const sid of want){const id='daily:'+sid,w=have.get(id);

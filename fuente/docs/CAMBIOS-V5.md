@@ -359,3 +359,6 @@ Tipografía ligera (Avenir Next / SF Rounded, pesos 300-400), saludo «Hola, est
 
 ## v44b · Tipografía Manrope (recomendada por ChatGPT)
 Títulos 400, subtítulos 500, texto 400, cifras 600, botones 600, etiquetas 500. Se carga desde Google Fonts (única excepción a «sin recursos externos»); sin conexión usa Avenir Next / SF del sistema. No se pudo incrustar el archivo de la fuente porque el entorno no alcanza los registros de paquetes: pendiente si se aporta el .woff2.
+
+## v45 · Cuotas semanales por asignatura (acordadas con el usuario)
+El relleno diario deja de ser «una sesión en días vacíos»: ahora completa cada día hasta el objetivo de horas (3 h entre semana, 5 h sábado y domingo, limitado por el máximo diario y las ventanas libres) eligiendo la asignatura a la que más falta para su cuota semanal (relativa). Cuotas en horas/semana: Matemáticas II 3, Business 3, Física 3, Química 3, Lengua 3, Catalán 3, Historia de España 3, Filosofía 2, Inglés 1 (≈24 h). Inclinación: +10 % ahora, −15 % hacia la PAU. Business sube su factor de horas de examen a 1,2 (necesita un 10). Varias sesiones por día permitidas; el trabajo real (exámenes, tareas) sigue mandando y el relleno solo completa. Pendiente: «temario aprendido 3 semanas antes de cada semana de exámenes» (requiere fechas de los exámenes de trimestre). Tests 311/311.

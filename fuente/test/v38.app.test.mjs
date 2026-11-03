@@ -12,8 +12,7 @@ test('estudio diario: hasta la PAU no queda ningún día sin sesión (salvo bloq
   for (let d = '2026-11-04'; d <= pau; d = add(d, 1)) if (!m.get(d)) vacios.push(d);
   assert.equal(vacios.length, 0, 'días vacíos: ' + vacios.slice(0, 5).join(','));
   const dl = a.S.works.filter(w => w.daily); assert.ok(dl.length >= 9 && dl.every(w => w.auto === 'review' && w.status === 'pending'));
-  // ningún día mezcla relleno con trabajo real
-  for (const [d, bs] of m) { const dy = bs.filter(b => a.S.works.find(w => w.id === b.workId).daily); if (dy.length) assert.equal(dy.length, bs.length, 'relleno + trabajo real el ' + d); assert.ok(dy.length <= 1); }
+  // v45: el relleno completa el objetivo de horas del día con el trabajo real (puede haber varias sesiones por día)
   // no solapan ni caen en el pasado
   for (const bs of m.values()) { const s = [...bs].sort((x, y) => x.start - y.start); for (let i = 1; i < s.length; i++) assert.ok(s[i].start >= s[i - 1].end); }
 });
@@ -47,4 +46,13 @@ test('Progreso 2.0: con sesiones hechas muestra horas, racha y reparto calculado
   a.S.blocks.push({ id: 's1', workId: w.id, date: d(1), start: 900, end: 960, status: 'done', manual: false, part: 'main' }, { id: 's2', workId: w.id, date: d(2), start: 900, end: 990, status: 'done', manual: false, part: 'main' }, { id: 's3', workId: w.id, date: d(3), start: 900, end: 930, status: 'skipped', manual: false, part: 'main' });
   await a.ctx.__t.A.anRange({ dataset: { id: 'w' } }); const h = a.t.V.seg();
   assert.match(h, /2,5 h/, 'horas hechas = 60 + 90 min'); assert.match(h, /2 días/, 'racha de 2 días'); assert.match(h, /Cumplimiento 83 %/); assert.doesNotMatch(h, /NaN|undefined/);
+});
+test('cuotas semanales (v45): todas las asignaturas cada semana, Inglés poco, Business y ciencias arriba, sin pasar el máximo diario', async () => {
+  const a = await base(); const wk = (id) => a.S.works.find(w => w.id === id).subjectId, nm = (id) => a.S.subjects.find(s => s.id === id).name;
+  const mon = (d) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7)); return t.toISOString().slice(0, 10); };
+  const week = {}, day = {}; for (const b of a.S.blocks) { if (b.status !== 'planned' && b.status !== 'done') continue; const n = nm(wk(b.workId)); if (mon(b.date) === '2026-12-14') week[n] = (week[n] ?? 0) + b.end - b.start; day[b.date] = (day[b.date] ?? 0) + b.end - b.start; }
+  assert.equal(Object.keys(week).length, 9, 'las nueve asignaturas esa semana: ' + Object.keys(week).join(','));
+  assert.ok(week['Inglés'] >= 45 && week['Inglés'] <= 90, 'Inglés ≈ 1 h: ' + week['Inglés']);
+  assert.ok(week['Business'] >= week['Historia de la Filosofía'] && week['Matemáticas II'] >= 120, 'Business y Matemáticas por encima de Filosofía');
+  assert.ok(Object.values(day).every(m => m <= 480), 'ningún día pasa de 8 h');
 });

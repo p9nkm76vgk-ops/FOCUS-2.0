@@ -305,34 +305,46 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const dl = s.daily, until = dl.until < addDays(now.date, 400) ? dl.until : addDays(now.date, 400), L0 = Math.max(s.minSessionMin, dl.min ?? DAILY_MIN);
     const isD = (b: Block) => !!byId.get(b.workId)?.daily;
     const skipDay = new Set<string>([...history, ...missed].filter(isD).map(b => b.date));
-    const oldD = new Map<string, Block>(); for (const b of autoF.filter(isD).sort(cmp)) if (!oldD.has(b.date)) oldD.set(b.date, b);
     const credit = new Map<string, number>(), nTop = new Map<string, number>();
     for (const dt of [...skipDay]) { const hb = history.find(b => isD(b) && b.date === dt); if (hb) { const sid = byId.get(hb.workId)!.subjectId; nTop.set(sid, (nTop.get(sid) ?? 0) + 1); } }
     const avH = new Set(input.avoid?.hours ?? []), avD = new Set(input.avoid?.days ?? []);
+    // Cuotas semanales por asignatura (minutos/semana, ya inclinadas hacia el principio): el relleno cubre lo que falta de cada una hasta alcanzar el objetivo de horas del día.
+    const hasQ = dl.subjects.some(u => (u.q ?? 0) > 0), t0 = now.date, span = Math.max(1, daysBetween(t0, until));
+    const tiltAt = (dt: string) => { const t = dl.tilt ?? [1, 1]; return t[0] + (t[1] - t[0]) * Math.min(1, Math.max(0, daysBetween(t0, dt) / span)); };
+    const weekMin = (dt: string, sid: string) => { const m = addDays(dt, -((weekday(dt) + 6) % 7)); let t = 0; for (let i = 0; i < 7; i++) for (const o of day(addDays(m, i)).occ) if (o.sub === sid) t += o.end - o.start; return t; };
+    const oldMulti = new Map<string, Block[]>(); for (const b of autoF.filter(isD).sort(cmp)) oldMulti.set(b.date, [...(oldMulti.get(b.date) ?? []), b]);
+    const dayTarget = (dt: string) => { const we = weekday(dt) === 0 || weekday(dt) === 6; return Math.min(maxOf(dt), (we ? dl.we : dl.wk) ?? (hasQ ? 0 : 1)); };
     for (let dt = now.date; dt <= until; dt = addDays(dt, 1)) {
-      const x = day(dt); if (x.total > 0 || skipDay.has(dt) || maxOf(dt) - x.total <= 0) continue;
+      let x = day(dt); if (skipDay.has(dt)) continue;
+      const tgt = hasQ ? dayTarget(dt) : 1; if (hasQ ? x.total >= tgt - 20 : x.total > 0) continue; if (maxOf(dt) - x.total <= 0) continue;
       // Examen ese mismo día: esa asignatura ya no se repasa; el relleno va antes del examen o ≥ 3 h después de su inicio (nunca durante).
       const gd = examGuard(input.works, dt), today = new Set<string>(); let cut = 1440, after = 1440;
       for (const w of input.works) if (active(w) && w.kind === 'exam' && w.auto !== 'review' && w.dueDate === dt) { today.add(w.subjectId); const st = w.dueMinute ?? hm(9); cut = Math.min(cut, st - EXAM_BUFFER_MIN); after = Math.min(after, st + 180); }
       let cand = dl.subjects.filter(u => (!gd.size || gd.has(u.id)) && !today.has(u.id)); if (!cand.length) cand = dl.subjects.filter(u => !today.has(u.id));
       if (!cand.length) continue;
       const tw = cand.reduce((a, u) => a + u.w, 0); for (const u of cand) credit.set(u.id, (credit.get(u.id) ?? 0) + u.w);
-      const wins = free(dt, true).flatMap(f => today.size ? [{ start: up5(f.start), end: Math.min(f.end, cut) }, { start: up5(Math.max(f.start, after)), end: f.end }] : [{ start: up5(f.start), end: f.end }]).filter(f => f.end - f.start >= Math.min(L0, s.minSessionMin)), capLeft = maxOf(dt) - x.total;
-      const ok = (b: Block) => wins.some(f => f.start <= b.start && b.end <= f.end) && dur(b) <= capLeft;
-      const o = oldD.get(dt), oSub = o ? byId.get(o.workId)!.subjectId : '';
-      if (o && cand.some(u => u.id === oSub) && ok(o)) { // sesión diaria anterior aún válida: se conserva (sin cambios innecesarios)
-        occupy(o); kept.push(o); credit.set(oSub, (credit.get(oSub) ?? 0) - tw); nTop.set(oSub, (nTop.get(oSub) ?? 0) + 1); continue;
+      const keepOld = oldMulti.get(dt) ?? [];
+      for (let guard = 0; guard < 8; guard++) {
+        x = day(dt); const capLeft = maxOf(dt) - x.total; if (capLeft <= 0) break; if (hasQ ? x.total >= tgt - 20 : guard > 0) break;
+        const wins = free(dt, true).flatMap(f => today.size ? [{ start: up5(f.start), end: Math.min(f.end, cut) }, { start: up5(Math.max(f.start, after)), end: f.end }] : [{ start: up5(f.start), end: f.end }]).filter(f => f.end - f.start >= Math.min(L0, s.minSessionMin));
+        if (!wins.length) break;
+        const ok = (b: Block) => wins.some(f => f.start <= b.start && b.end <= f.end) && dur(b) <= capLeft && (!hasQ || x.total + dur(b) <= tgt + 20);
+        const o = keepOld.find(b => cand.some(u => u.id === byId.get(b.workId)!.subjectId) && ok(b));
+        if (o) { const oSub = byId.get(o.workId)!.subjectId; keepOld.splice(keepOld.indexOf(o), 1); occupy(o); kept.push(o); credit.set(oSub, (credit.get(oSub) ?? 0) - tw); nTop.set(oSub, (nTop.get(oSub) ?? 0) + 1); continue; }
+        // Asignatura: la que más le falta para su cuota semanal (otra distinta a las ya puestas hoy si es posible); sin cuotas, rotación por crédito.
+        let pickS = cand[0];
+        if (hasQ) { const inDay = new Set(x.occ.map(q => q.sub)); const sc = (u: typeof cand[number]) => { const q = (u.q ?? 0) * tiltAt(dt); return (q > 0 ? 100 * (q - weekMin(dt, u.id)) / q : -100) + (inDay.has(u.id) ? -12 : 0) + (u.w * 0.01); }; for (const u of cand) if (sc(u) > sc(pickS) + 1e-9) pickS = u; if ((pickS.q ?? 0) * tiltAt(dt) - weekMin(dt, pickS.id) <= 0 && x.total > 0) break; }
+        else for (const u of cand) if ((credit.get(u.id) ?? 0) > (credit.get(pickS.id) ?? 0) + 1e-9) pickS = u;
+        const LL = Math.max(L0, Math.min(dl.len ?? L0, s.maxSessionMin));
+        let best: { start: number; L: number; sc: number } | null = null;
+        for (const f of wins) { const L = Math.min(LL, f.end - f.start, capLeft, s.maxSessionMin); if (L < Math.min(L0, s.minSessionMin)) continue; const sc = (avH.has(hourBucket(f.start)) || avD.has(weekday(dt)) ? 8 : 0) + (f.start >= LATE_FROM ? 4 : 0); if (!best || sc < best.sc) best = { start: f.start, L, sc }; }
+        if (!best) break;
+        const wid = `daily:${pickS.id}`; if (!byId.has(wid)) break;
+        const n = nTop.get(pickS.id) ?? 0, tp = pickS.topics.length ? pickS.topics[n % pickS.topics.length] : null;
+        let id = `auto:${wid}:main:${dt}:${best.start}`, k = 1; while (used.has(id)) id = `auto:${wid}:main:${dt}:${best.start}:r${k++}`; used.add(id);
+        const b: Block = { id, workId: wid, date: dt, start: best.start, end: best.start + best.L, status: 'planned', manual: false, part: 'main', ...(tp ? { label: tp.name } : {}) };
+        occupy(b); created.push(b); credit.set(pickS.id, (credit.get(pickS.id) ?? 0) - tw); nTop.set(pickS.id, n + 1);
       }
-      if (!wins.length) continue;
-      let pickS = cand[0]; for (const u of cand) if ((credit.get(u.id) ?? 0) > (credit.get(pickS.id) ?? 0) + 1e-9) pickS = u;
-      let best: { start: number; L: number; sc: number } | null = null;
-      for (const f of wins) { const L = Math.min(L0, f.end - f.start, capLeft, s.maxSessionMin); if (L < Math.min(L0, s.minSessionMin)) continue; const sc = (avH.has(hourBucket(f.start)) || avD.has(weekday(dt)) ? 8 : 0) + (f.start >= LATE_FROM ? 4 : 0); if (!best || sc < best.sc) best = { start: f.start, L, sc }; }
-      if (!best) continue;
-      const wid = `daily:${pickS.id}`; if (!byId.has(wid)) continue;
-      const n = nTop.get(pickS.id) ?? 0, tp = pickS.topics.length ? pickS.topics[n % pickS.topics.length] : null;
-      let id = `auto:${wid}:main:${dt}:${best.start}`, k = 1; while (used.has(id)) id = `auto:${wid}:main:${dt}:${best.start}:r${k++}`; used.add(id);
-      const b: Block = { id, workId: wid, date: dt, start: best.start, end: best.start + best.L, status: 'planned', manual: false, part: 'main', ...(tp ? { label: tp.name } : {}) };
-      occupy(b); created.push(b); credit.set(pickS.id, (credit.get(pickS.id) ?? 0) - tw); nTop.set(pickS.id, n + 1);
     }
   }
 
