@@ -329,3 +329,8 @@ Causas halladas y corregidas:
 - **Proyección de horas** (Curso hasta la PAU): horas hechas + previstas hasta la PAU, por mes y por asignatura, calculada sobre una copia con horizonte hasta la PAU (no cambia tu plan).
 - **Business** pondera 0,2 como optativa: valor 0,23 (como Física/Química) y factor de horas 1,08; textos del plan de admisión actualizados.
 - Pruebas ejecutadas: `npm test` 308/308 (5 nuevas en `test/v38.app.test.mjs`), estrés 6000 estados 0 fallos, Chromium 42/42. Pendiente: Safari/iPad real.
+
+## v39 — Progreso 2.0 (panel de análisis con gráficos propios)
+- Pantalla Progreso rehecha con SVG propio (sin librerías): selector Semana / Mes / 3 meses / Curso; tarjeta «Camino a la semana de exámenes» (días, temario rojo/amarillo/verde, estudio previsto, entreno); horas con variación frente al periodo anterior y anillo hecho/planificado; barras hecho vs planificado con media; racha (actual y mejor); semana en curso; tendencia de 12 semanas con media móvil; reparto por asignatura (donut); mapa de constancia de 14 semanas; mejor día y franja; dominio del temario por asignatura; preparación de los próximos exámenes; notas frente a objetivo; entrenamiento de 14 días; «Lo que aprende el planificador» se conserva.
+- Todo sale de bloques, temario, notas y actividades persistidos; sin datos muestra estado vacío (sin ejemplos). Planificado futuro no se mezcla con lo hecho (las barras se cortan en hoy).
+- Pruebas: npm test 310/310 (2 nuevas de Progreso; 4 antiguas adaptadas al nuevo diseño), estrés 6000 estados 0 fallos, Chromium 42/42. Capturas revisadas en iPad y móvil con datos de prueba (no reales). Pendiente: Safari/iPad real.

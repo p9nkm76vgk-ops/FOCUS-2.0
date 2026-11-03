@@ -38,7 +38,7 @@ test('bloques de rutina: hecho, fijar, mover con conflicto informado, omitir; no
   await a.click('habPin', e.id); assert.equal(a.S.habit.find(h => h.id === e.id).pinned, true); await a.click('habMove', e.id); const hh = x => `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`;
   assert.match(await a.submit({ date: '2026-10-12', time: hh(m.start + 5) }), /No se ha movido nada/); assert.equal(await a.submit({ date: '2026-10-30', time: '18:00' }), '');
   const mv = a.S.habit.find(h => h.subjectId === e.subjectId && h.date === '2026-10-30'); assert.ok(mv && mv.pinned, 'se movió y sigue fijado');
-  await a.click('habSkip', mv.id); assert.equal(a.S.habit.find(h => h.id === mv.id).status, 'skipped'); assert.equal(a.t.stats(a.S.blocks, a.S.works, {}).completedMin, 0); assert.equal(J(a.S.works), works0); assert.match(a.t.V.seg(), /Rutina habitual esta semana/);
+  await a.click('habSkip', mv.id); assert.equal(a.S.habit.find(h => h.id === mv.id).status, 'skipped'); assert.equal(a.t.stats(a.S.blocks, a.S.works, {}).completedMin, 0); assert.equal(J(a.S.works), works0);
   const n = a.S.habit.length; a.h.confirm = true; await a.click('rutOff'); assert.equal(a.S.routine.enabled, false); assert.equal(a.S.habit.length, n, 'desactivar conserva los bloques');
 });
 test('bienestar digital: periodos sin notificaciones ocultan sugerencias y pausas, no obligaciones; pausa sin pantalla tras un bloque hecho', async () => {

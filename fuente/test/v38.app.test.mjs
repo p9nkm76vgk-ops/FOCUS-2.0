@@ -38,3 +38,13 @@ test('estudio diario: no aparece en Tareas ni en Asignaturas y se puede quitar',
 test('Business pondera 0,2 como optativa', async () => {
   const a = await base(); assert.equal(a.t.GL.PAU_VALUE['Business'], 0.23); assert.ok(a.t.GL.valueFactor('Business') > 1);
 });
+test('Progreso 2.0: sin datos no inventa nada (estado vacío, sin NaN) y los cuatro periodos se dibujan', async () => {
+  clock.t = new Date(2026, 10, 3, 16, 0).getTime(); const a = await boot();
+  for (const r of ['w', 'm', 't', 'c']) { await a.ctx.__t.A.anRange({ dataset: { id: r } }); const h = a.t.V.seg(); assert.doesNotMatch(h, /NaN|undefined|Infinity/, 'periodo ' + r); assert.match(h, /Aún no hay nada que medir/); assert.match(h, /<svg class=chart/); }
+});
+test('Progreso 2.0: con sesiones hechas muestra horas, racha y reparto calculados de los datos', async () => {
+  const a = await base(); const w = a.S.works.find(x => x.daily), d = (n) => { const t = new Date('2026-11-03T00:00:00Z'); t.setUTCDate(t.getUTCDate() - n); return t.toISOString().slice(0, 10); };
+  a.S.blocks.push({ id: 's1', workId: w.id, date: d(1), start: 900, end: 960, status: 'done', manual: false, part: 'main' }, { id: 's2', workId: w.id, date: d(2), start: 900, end: 990, status: 'done', manual: false, part: 'main' }, { id: 's3', workId: w.id, date: d(3), start: 900, end: 930, status: 'skipped', manual: false, part: 'main' });
+  await a.ctx.__t.A.anRange({ dataset: { id: 'w' } }); const h = a.t.V.seg();
+  assert.match(h, /2,5 h/, 'horas hechas = 60 + 90 min'); assert.match(h, /2 días/, 'racha de 2 días'); assert.match(h, /Cumplimiento 83 %/); assert.doesNotMatch(h, /NaN|undefined/);
+});

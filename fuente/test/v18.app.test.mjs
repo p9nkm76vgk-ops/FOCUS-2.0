@@ -7,7 +7,7 @@ const blk = (id, workId, date, st, s = 600, e = 660, extra = {}) => ({ id, workI
 
 test('Progreso: sin datos muestra estado vacío y «—»; no inventa nada', async () => {
   const a = await boot(); const h = a.t.V.seg();
-  assert.match(h, /Aún no hay nada que medir/); assert.match(h, /aria-label="Cumplimiento sin datos"/); assert.match(h, /<b>0 días<\/b>/);
+  assert.match(h, /Aún no hay nada que medir/); assert.match(h, /aria-label="Hecho sobre lo planificado sin datos"/); assert.match(h, /<b>0 días<\/b>/);
 });
 test('Progreso: cumplimiento, racha, semana y reparto por asignatura salen de los bloques (reprogramados no cuentan)', async () => {
   const a = await boot(); const [s1, s2] = a.S.subjects; const wid = [];
@@ -19,7 +19,7 @@ test('Progreso: cumplimiento, racha, semana y reparto por asignatura salen de lo
   const x0 = D.subs.find(x => x.s.id === s1.id), x1 = D.subs.find(x => x.s.id === s2.id);
   assert.equal(x0.done, 210); assert.equal(x0.comp, 100); assert.equal(x1.done, 30); assert.equal(x1.comp, 33);
   assert.equal(D.wDone, 240, 'semana del 12 al 18'); assert.equal(D.weeks.length, 6);
-  const h = a.t.V.seg(); assert.match(h, /aria-label="Cumplimiento 80 %"/); assert.match(h, /<b>3 días<\/b>/); assert.doesNotMatch(h, /Aún no hay nada que medir/); assert.match(h, new RegExp(s1.name));
+  const h = a.t.V.seg(); assert.match(h, /Cumplimiento 80 %/); assert.match(h, /<b>3 días<\/b>/); assert.doesNotMatch(h, /Aún no hay nada que medir/); assert.match(h, new RegExp(s1.name));
   assert.match(h, /Lo que aprende el planificador/, 'se conservan las secciones anteriores');
 });
 test('racha: si hoy aún no hay sesión hecha cuenta desde ayer; un hueco la corta', async () => {
