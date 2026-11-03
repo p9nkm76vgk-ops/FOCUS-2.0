@@ -353,3 +353,6 @@ Hoy en tres filas (anillo+cifras+accesos | siguiente sesión; resto del día | h
 
 ## v43 · Gráficas interactivas, Curso con cabecera, Calendario con panel
 Gráficas (línea, barras, donut) interactivas: puntero o arrastre muestra valor exacto, guía y punto resaltado (src/app/interactivo.js). Curso hasta la PAU con cifra grande, acumulado y horas por asignatura. Calendario con panel de próximos exámenes (columna lateral ≥1200 px, debajo en iPad vertical). Escala del eje Y adaptada a horas grandes.
+
+## v44 · Hoy idéntico a la maqueta en grande
+Tipografía ligera (Avenir Next / SF Rounded, pesos 300-400), saludo «Hola, estudiante», anillo grueso con «Progreso del día», tres cifras con separadores, píldoras Tarea/Examen/Fallo, «Siguiente sesión» con Empezar rosa y Hecho/No hecho con contorno, resto del día con círculos, horas con píldoras 7 d/30 d/3 m/Curso, exámenes con barra y asignaturas con barra de color y «hechas / previstas». Menú lateral plano con esfera de marca, Asignaturas y Ajustes abajo. Tests actualizados: se permite peso 300 (no 100/200) y Asignaturas vuelve al menú.

@@ -30,3 +30,13 @@ A.tarFilter=t=>{HY.tf=t.dataset.id;render()};
 {const k0=V.cal;V.cal=a=>{const o=k0(a),n=now(),ex=S.works.filter(w=>w.kind==='exam'&&w.auto!=='review'&&w.status!=='archived'&&w.status!=='done'&&w.dueDate>=n.date).sort((x,y)=>x.dueDate.localeCompare(y.dueDate)).slice(0,5);
   if(!ex.length)return o;const pn=`<aside class="card bc calside"><div class=bch><div><small class=lab>Próximos exámenes</small></div></div>${ex.map(w=>{const s=sub(w.subjectId),d=P.daysBetween(n.date,w.dueDate);return`<div class=wli data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0 style="--c:${s.color}"><i class=dot></i><div><b>${esc(s.name)}</b><small>${fd(w.dueDate)} · ${d===0?'hoy':d===1?'mañana':'en '+d+' días'}</small></div></div>`}).join('')}</aside>`;
   return`<div class=calwrap><div class=calmain>${o}</div>${pn}</div>`}}
+
+/* Menú lateral plano como en la maqueta: marca con esfera, 8 secciones y Ajustes abajo */
+IC.asg='<path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 12.5 9 5 9-5"/><path d="m3 16.5 9 5 9-5"/>';
+function renderNav(){const [r,arg]=route.split(':'),cur=k=>r===k||(k==='aj'&&false)?' aria-current=page':'',
+ item=(k,g,l)=>`<button class=nv title="${l}" aria-label="${l}" data-a=nav data-r=${k}${cur(k)}>${ic(g)}<span class=lbl>${l}</span></button>`;
+ document.body.classList.toggle('rail',UI.rail);
+ $('#nav').innerHTML=`<div class=brand><span>Focus OS</span><button data-a=rail aria-label="${UI.rail?'Expandir':'Contraer'} menú">${ic(UI.rail?'gt':'lt')}</button></div><button class="nv srch" data-a=search aria-label="Buscar" title="Buscar (tecla /)">${ic('srch')}<span class=lbl>Buscar…</span><kbd>/</kbd></button>`
+ +'<div class=nvl>'+item('hoy','hoy','Hoy')+item('cal','cal','Calendario')+item('tar','tar','Tareas')+item('exa','exa','Exámenes')+item('tem','tem','Temario')+item('asg','asg','Asignaturas')+item('seg','seg','Progreso')+item('obj','obj','Notas y objetivo')+item('cur','cur','Curso hasta la PAU')+item('met','met','Método de estudio')+item('est','est','Estimaciones')+'</div>'+item('aj','aj','Ajustes');
+ const tb=(k,g,l)=>`<button data-a=nav data-r=${k} aria-label="${l}"${cur(k)}>${ic(g)}<span>${l}</span></button>`,more=['tem','met','obj','cur','seg','est','aj','asg'].includes(r);
+ const tabs=$('#tabs');if(tabs)tabs.innerHTML=tb('hoy','hoy','Hoy')+tb('cal','cal','Calendario')+tb('tar','tar','Tareas')+tb('exa','exa','Exámenes')+`<button data-a=menu aria-label="Más"${more?' aria-current=page':''}>${ic('more')}<span>Más</span></button>`}

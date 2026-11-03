@@ -407,6 +407,51 @@ svg.chart,svg.donut{touch-action:pan-y;cursor:crosshair;-webkit-user-select:none
 .calwrap{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px;align-items:start}.calside{position:sticky;top:12px}
 @media(max-width:1199px){.calwrap{grid-template-columns:1fr}.calside{order:2;position:static}}
 .brow+.card,.brow+h2{margin-top:14px}
+/* ===== v44 · Hoy tal cual la maqueta: tipografía ligera, ventana, menú plano ===== */
+:root{--font:"Avenir Next","Avenir","SF Pro Rounded",ui-rounded,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+body{font-weight:400;letter-spacing:.005em}
+h1,h2,h3,.bign,.stat b,.hero .hn{font-weight:300}
+h1{font-size:2.4rem;letter-spacing:-.01em}
+.bch .lab{font-size:1.3rem;font-weight:300;color:var(--text);letter-spacing:0}
+.hhead h1{font-size:2.5rem;margin:0}.hhead .m{font-size:1.2rem;font-weight:300;margin:0}
+.askbar{max-width:none;border-radius:999px;background:#1a121a;border:1px solid #ffffff22;min-height:52px;color:#b8a9b6}.askbar kbd{display:none}
+body{padding:0}
+.brand span:before{content:"";display:inline-block;width:28px;height:28px;margin-right:10px;vertical-align:middle;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f6d1ef,#b977b3 70%);box-shadow:0 0 18px #d9b6d855}
+.brand span{font-weight:400;font-size:1.25rem}
+.side{border-radius:0 28px 28px 0;background:#080607;border-right:1px solid #ffffff1c}
+.nvl{display:flex;flex-direction:column;gap:2px;flex:1;margin-top:14px}
+.nv{border-radius:18px;color:#ece4eb;font-weight:400;gap:16px}.nv .ic{width:22px;height:22px;color:#ece4eb}
+.nv[aria-current=page]{background:linear-gradient(90deg,#4a3447 0%,#251a24 100%);box-shadow:none;color:#fff}
+.nv.srch{background:#150f14;border:1px solid #ffffff1c;border-radius:999px;color:#b8a9b6;min-height:48px}
+.card,.wr,.tr{border-radius:26px;background:#0a0709;border:1px solid #ffffff1f}
+.topA{display:grid;grid-template-columns:auto 1fr;gap:18px 24px;align-items:center;padding:26px}
+.ringcol{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}.ringcol .rl{font-size:1.25rem;font-weight:300;line-height:1.25}
+.ringcol .ring2 .rt{stroke:#ffffff26;stroke-width:12}.ringcol .ring2 .rv{stroke:url(#rg);stroke:#e6a8e0;stroke-width:12}
+.ringcol .ring2 .rn{font-size:2.3rem;font-weight:300;fill:var(--text)}
+.sp{display:flex;flex-direction:column;gap:22px;min-width:0}
+.topA .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:0;min-width:0}.stat{align-items:center;text-align:center;padding:0 10px;border-left:1px solid #ffffff1c}.stat:first-child{border-left:0}
+.stat b{font-size:2.6rem;font-weight:300;line-height:1.1}.stat small{font-size:1rem;color:#e6dde5;font-weight:300;line-height:1.25;margin-top:6px}
+.topA .pills{width:auto;justify-content:space-between;gap:10px}.topA .pills button{flex:1;min-height:46px;padding:0;justify-content:center;background:#2a1d29;border:1px solid #ffffff1a;font-weight:400}
+.hero{border-radius:26px;background:#0a0709;border:1px solid #ffffff1f;box-shadow:none;padding:26px}
+.hero .lab{font-size:1.3rem;font-weight:300;letter-spacing:0;text-transform:none;color:var(--text)}
+.hero .hn{font-size:2.4rem;font-weight:300;margin:14px 0 4px}.hero .hs{font-size:1.25rem;font-weight:300;color:#e6dde5}
+.hero .hb button{flex:1;min-height:52px;background:transparent;border:1px solid #ffffff2c;font-weight:400}.hero .hb button.big,.hero .hb button.pri{background:linear-gradient(180deg,#f0c4ea,#d79bd0);color:#1a0f19;border:0}
+.bc .tr{background:transparent;border:0;padding:8px 0;min-height:44px;gap:14px}.bc .tr::before{content:"";width:28px;height:28px;border-radius:50%;border:1.5px solid #ffffff55;flex:none}.bc .tr.done::before{background:var(--accent);border-color:var(--accent)}
+.bc .tr .t,.bc .tr .dot,.bc .tr .ra{display:none}.bc .tr .m1{flex-direction:row;gap:8px;align-items:baseline;font-size:1.15rem;font-weight:300}.bc .tr .m1 small{font-size:1.1rem;color:var(--text)}.bc .tr .m1 b{font-weight:300}.bc .tr .m1 b::after{content:":"}
+.seg2.rp button{min-height:44px;padding:0 16px;background:#1a121a;border:1px solid #ffffff22;font-weight:300;font-size:.95rem}.seg2.rp button.on{border-color:#e6bde1aa;background:#2a1d29}
+.exr{display:flex;gap:14px;align-items:flex-start;padding:10px 0;cursor:pointer}.exr .dot{width:22px;height:22px;border-radius:50%;background:var(--c);flex:none;margin-top:2px}.exm{flex:1;min-width:0}.exl{display:flex;justify-content:space-between;gap:12px;font-size:1.15rem;font-weight:300}.exl b{font-weight:300}.exl span{color:#e6dde5}
+.exr .xbar{height:9px;margin-top:6px;background:#ffffff1c}.exr .xbar i{background:linear-gradient(90deg,#d9a5d3,#e6bde1)}
+.asr{display:grid;grid-template-columns:22px minmax(0,150px) 1fr 70px;gap:14px;align-items:center;min-height:44px;border-top:1px solid #ffffff12;font-size:1.15rem;font-weight:300}.asr:first-of-type{border-top:0}.asr .dot{width:22px;height:22px;border-radius:50%;background:var(--c)}.asr b{font-weight:300;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.asr .xbar{height:9px;margin:0;background:#ffffff1c}.asr .xbar i{background:var(--c)}.asr .hrs{text-align:right;color:var(--text)}
+@media(min-width:1200px){.brow:nth-child(1){grid-template-columns:1.1fr 1fr}.brow:nth-child(2){grid-template-columns:.8fr 1.2fr}.brow:nth-child(3){grid-template-columns:.95fr 1.05fr}}
+@media(max-width:700px){.topA{grid-template-columns:1fr;justify-items:center}.stat b{font-size:2rem}.asr{grid-template-columns:18px minmax(0,110px) 1fr 58px;gap:10px;font-size:1rem}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.hello{margin:0;font-size:2.5rem;font-weight:300;letter-spacing:-.01em;line-height:1.15}.hhead .m::first-letter{text-transform:uppercase}
+.hhead h1{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;margin:0}
+.bc .tr .m1{min-width:0;flex:1;overflow:hidden}.bc .tr .m1 b{overflow:visible;flex:none;text-overflow:clip}.bc .tr .m1 small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asr{grid-template-columns:22px minmax(0,150px) 1fr 96px}.asr .hrs{white-space:nowrap}
+.hero .hb button.pri:not(.big){background:transparent;color:var(--text);border:1px solid #ffffff2c;box-shadow:none}
+@media(max-width:700px){.asr{grid-template-columns:18px minmax(0,100px) 1fr 80px}}
+.hero .hb button:not(.big){background:transparent!important;color:var(--text)!important;border:1px solid #ffffff2c!important;box-shadow:none!important}.asr .hrs{font-size:1.05rem}
 </style></head><body>
 <div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b><button id=topSearch data-a=search aria-label="Buscar"><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button></div>
 <nav id=tabs aria-label="Secciones principales"></nav><aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
@@ -1967,7 +2012,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='7f0a7353bb',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='788c68fa0e',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2971,7 +3016,7 @@ HY.exams=n=>{const l=act().filter(w=>w.kind==='exam'&&w.dueDate>=n.date&&w.auto!
  return`<h2 class=gh>Próximos exámenes</h2><div class=exg>${l.map(w=>{const d=P.daysBetween(n.date,w.dueDate),s=sub(w.subjectId);return`<div class="exc${d<=P.guardDays(w)?' hot':''}" style="--c:${s.color}" data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0>${anRing(hoyPrep(w),72,'Preparación de '+s.name,null)}<div><b>${esc(s.name)}</b><span class=m>${d===0?'hoy':d===1?'mañana':'en '+d+' días'} · ${fd(w.dueDate)}</span><span class=m>${esc(w.title)}</span></div></div>`}).join('')}</div>`};
 {const h0=V.hoy;V.hoy=a=>{const n=now(),h=h0(a),its=HY.items(n),tot=its.reduce((s,x)=>s+(x.end-x.start),0),dn=its.filter(x=>x.st==='done').reduce((s,x)=>s+(x.end-x.start),0),pc=tot?Math.round(100*dn/tot):null,
   greet=n.minute<780?'Buenos días':n.minute<1230?'Buenas tardes':'Buenas noches',rows=S.blocks.filter(b=>b.status!=='rescheduled'),stk=anStreaks(rows,n),mon=mondayOf(n.date),wk=anAgg(rows,mon,addDays(mon,6)),wp=wk.plan?Math.min(100,Math.round(100*wk.done/wk.plan)):null,
-  head=`<div class=hhead><div><small class=eye>${greet}</small><h1>Hoy</h1><p class=m>${fdl(n.date)}</p></div>${anRing(pc,104,'Progreso de hoy','de hoy')}</div>
+  head=`<div class=hhead><div><h1>Hoy</h1><p class=hello aria-hidden=true>Hola, estudiante</p><p class=m>${fdl(n.date)}</p></div>${anRing(pc,104,'Progreso de hoy','de hoy')}</div>
 <div class="g3 kp3"><div class="card kpi"><small>Sesiones</small><b class=mid>${its.filter(x=>x.st==='done').length} <em>de ${its.length}</em></b></div><div class="card kpi"><small>Racha</small><b class=mid>${stk.cur} <em>${stk.cur===1?'día':'días'}</em></b></div><div class="card kpi"><small>Semana</small><b class=mid>${wp==null?'—':wp+' %'}</b></div></div>
 <div class=qtiles><button data-a=addTask>${ic('tar')}<span>Tarea</span></button><button data-a=addExam>${ic('exa')}<span>Examen</span></button><button data-a=addErr>${ic('est')}<span>Fallo</span></button></div>`;
   let body=h.replace(/<h1>Hoy<\/h1><p class=m>[^<]*<\/p>/,'').replace(/<div class=dprog[^>]*><i[^>]*><\/i><\/div>/,'').replace(/<div class=quick>[\s\S]*?<\/div>/,'');
@@ -2982,14 +3027,14 @@ HY.exams=n=>{const l=act().filter(w=>w.kind==='exam'&&w.dueDate>=n.date&&w.auto!
    rng=[['w','7 d'],['m','30 d'],['t','3 m'],['c','Curso']].map(([k,l])=>`<button data-a=anRange data-id=${k} class="${AN.r===k?'on':''}" aria-pressed=${AN.r===k}>${l}</button>`).join(''),
    perf=`<div class="card bc"><div class=bch><div><small class=lab>Horas de estudio</small><b class=bign>${anH(cur.done)}</b></div><div class="seg2 rp">${rng}</div></div>${anLine(vals,R.B.map(b=>b.label),{label:'Horas de estudio hechas'})}</div>`,
    exs=act().filter(w=>w.kind==='exam'&&w.dueDate>=n.date&&w.auto!=='review').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||a.id.localeCompare(b.id)).slice(0,4),
-   wl=`<div class="card bc"><div class=bch><div><small class=lab>Próximos exámenes</small></div><button class=lnk data-a=nav data-r=exa>Ver todos</button></div>${exs.length?exs.map(w=>{const d=P.daysBetween(n.date,w.dueDate),s=sub(w.subjectId),pp=hoyPrep(w);return`<div class=wli data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0 style="--c:${s.color}"><i class=dot></i><div><b>${esc(s.name)}</b><small>${fd(w.dueDate)} · ${d===0?'hoy':d===1?'mañana':'en '+d+' días'}</small><div class=xbar><i style="width:${pp}%"></i></div></div><span class="pcn${pp<34?' lo':pp<67?' mi':' hi'}">${pp} %</span></div>`}).join(''):'<p class=m>No hay exámenes próximos.</p>'}</div>`,
+   wl=`<div class="card bc"><div class=bch><div><small class=lab>Próximos exámenes</small></div><button class=lnk data-a=nav data-r=exa>Ver todos</button></div>${exs.length?exs.map(w=>{const s=sub(w.subjectId),pp=hoyPrep(w);return`<div class=exr data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0 style="--c:${s.color}"><i class=dot></i><div class=exm><div class=exl><b>${esc(s.name)}</b><span>${fd(w.dueDate).replace(/^\S+ /,'')} – ${pp}%</span></div><div class=xbar><i style="width:${pp}%"></i></div></div></div>`}).join(''):'<p class=m>No hay exámenes próximos.</p>'}</div>`,
    ws=S.subjects.filter(x=>!x.archived).map(x=>({x,m:anAgg(rows.filter(b=>(b.subjectId||(S.works.find(w=>w.id===b.workId)||{}).subjectId)===x.id),mon,addDays(mon,6))})).sort((a,b)=>b.m.plan-a.m.plan).slice(0,5),
-   subs=`<div class="card bc"><div class=bch><div><small class=lab>Asignaturas esta semana</small></div><button class=lnk data-a=nav data-r=seg>Ver más</button></div>${ws.map(({x,m})=>`<div class=wli style="--c:${x.color}"><i class=dot></i><div><b>${esc(x.name)}</b></div><span class=hrs><b>${anH(m.done)}</b> / ${anH(m.plan)}</span></div>`).join('')}</div>`,
+   subs=`<div class="card bc"><div class=bch><div><small class=lab>Asignaturas esta semana</small></div><button class=lnk data-a=nav data-r=seg>Ver más</button></div>${ws.map(({x,m})=>`<div class=asr style="--c:${x.color}"><i class=dot></i><b>${esc(x.name)}</b><div class=xbar><i style="width:${m.plan?Math.min(100,Math.round(100*m.done/m.plan)):0}%"></i></div><span class=hrs>${anH(m.done).replace(' h','')} / ${anH(m.plan)}</span></div>`).join('')}</div>`,
    tlH=tlH0?`<div class="card bc"><div class=bch><div><small class=lab>Resto del día</small></div></div>${tlH0}</div>`:`<div class="card bc"><div class=bch><div><small class=lab>Resto del día</small></div></div><p class=m>Nada más por hoy.</p></div>`,
    statH=(/<div class="g3 kp3">[\s\S]*?(?=<div class=qtiles>)/.exec(head)||[''])[0],
    num=(lab,v,u)=>`<div class=stat><b>${v}</b><small>${lab}</small></div>`,
-   topA=`<div class="card bc topA">${anRing(pc,112,'Progreso de hoy','de hoy')}<div class=stats>${num('Sesiones hoy',its.filter(x=>x.st==='done').length+'<em>/'+its.length+'</em>')}${num('Racha',stk.cur+'<em>'+(stk.cur===1?' día':' días')+'</em>')}${num('Cumplimiento semanal',wp==null?'—':wp+'<em> %</em>')}</div><div class=pills><button data-a=addTask>${ic('tar')}<span>Tarea</span></button><button data-a=addExam>${ic('exa')}<span>Examen</span></button><button data-a=addErr>${ic('est')}<span>Fallo</span></button></div></div>`,
-   hd=`<div class=hhead><div><small class=eye>${greet}</small><h1>Hoy</h1><p class=m>${fdl(n.date)}</p></div><button class=askbar data-a=search>${ic('srch')}<span>Busca o salta a…</span><kbd>/</kbd></button></div>`;
+   topA=`<div class="card bc topA"><div class=ringcol>${anRing(pc,168,'Progreso de hoy',null)}<span class=rl>Progreso<br>del día</span></div><div class=sp><div class=stats>${num('Sesiones hoy',its.length)}${num('Racha días',stk.cur)}${num('Cumplimiento semanal',wp==null?'—':wp+'%')}</div><div class=pills><button data-a=addTask>Tarea</button><button data-a=addExam>Examen</button><button data-a=addErr>Fallo</button></div></div></div>`,
+   hd=`<div class=hhead><div><h1>Hoy</h1><p class=hello aria-hidden=true>Hola, estudiante</p><p class=m>${fdl(n.date)}</p></div><button class=askbar data-a=search>${ic('srch')}<span>Busca o salta a…</span><kbd>/</kbd></button></div>`;
   return hd+`<div class=bento><div class=brow>${topA}${heroH}</div><div class=brow>${tlH}${perf}</div><div class=brow>${wl}${subs}</div></div>`+body}}
 
 /* Exámenes: tarjetas con anillo de preparación y barra de horas (sustituye a la lista plana) */
@@ -3030,6 +3075,16 @@ A.tarFilter=t=>{HY.tf=t.dataset.id;render()};
 {const k0=V.cal;V.cal=a=>{const o=k0(a),n=now(),ex=S.works.filter(w=>w.kind==='exam'&&w.auto!=='review'&&w.status!=='archived'&&w.status!=='done'&&w.dueDate>=n.date).sort((x,y)=>x.dueDate.localeCompare(y.dueDate)).slice(0,5);
   if(!ex.length)return o;const pn=`<aside class="card bc calside"><div class=bch><div><small class=lab>Próximos exámenes</small></div></div>${ex.map(w=>{const s=sub(w.subjectId),d=P.daysBetween(n.date,w.dueDate);return`<div class=wli data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0 style="--c:${s.color}"><i class=dot></i><div><b>${esc(s.name)}</b><small>${fd(w.dueDate)} · ${d===0?'hoy':d===1?'mañana':'en '+d+' días'}</small></div></div>`}).join('')}</aside>`;
   return`<div class=calwrap><div class=calmain>${o}</div>${pn}</div>`}}
+
+/* Menú lateral plano como en la maqueta: marca con esfera, 8 secciones y Ajustes abajo */
+IC.asg='<path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 12.5 9 5 9-5"/><path d="m3 16.5 9 5 9-5"/>';
+function renderNav(){const [r,arg]=route.split(':'),cur=k=>r===k||(k==='aj'&&false)?' aria-current=page':'',
+ item=(k,g,l)=>`<button class=nv title="${l}" aria-label="${l}" data-a=nav data-r=${k}${cur(k)}>${ic(g)}<span class=lbl>${l}</span></button>`;
+ document.body.classList.toggle('rail',UI.rail);
+ $('#nav').innerHTML=`<div class=brand><span>Focus OS</span><button data-a=rail aria-label="${UI.rail?'Expandir':'Contraer'} menú">${ic(UI.rail?'gt':'lt')}</button></div><button class="nv srch" data-a=search aria-label="Buscar" title="Buscar (tecla /)">${ic('srch')}<span class=lbl>Buscar…</span><kbd>/</kbd></button>`
+ +'<div class=nvl>'+item('hoy','hoy','Hoy')+item('cal','cal','Calendario')+item('tar','tar','Tareas')+item('exa','exa','Exámenes')+item('tem','tem','Temario')+item('asg','asg','Asignaturas')+item('seg','seg','Progreso')+item('obj','obj','Notas y objetivo')+item('cur','cur','Curso hasta la PAU')+item('met','met','Método de estudio')+item('est','est','Estimaciones')+'</div>'+item('aj','aj','Ajustes');
+ const tb=(k,g,l)=>`<button data-a=nav data-r=${k} aria-label="${l}"${cur(k)}>${ic(g)}<span>${l}</span></button>`,more=['tem','met','obj','cur','seg','est','aj','asg'].includes(r);
+ const tabs=$('#tabs');if(tabs)tabs.innerHTML=tb('hoy','hoy','Hoy')+tb('cal','cal','Calendario')+tb('tar','tar','Tareas')+tb('exa','exa','Exámenes')+`<button data-a=menu aria-label="Más"${more?' aria-current=page':''}>${ic('more')}<span>Más</span></button>`}
 
 /* ===== v43 · Gráficas interactivas: pasar el dedo/ratón por encima (o arrastrar) muestra el valor exacto, una guía y el punto resaltado ===== */
 const CT=(()=>{let tip=null,cur=null,guide=null,hot=null,down=false;

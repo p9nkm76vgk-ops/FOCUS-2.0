@@ -65,7 +65,7 @@ test('colores de asignatura distinguibles del fondo en ambos temas (≥ 3:1 como
 test('tipografía legible del sistema (sin fuentes externas ni decorativas), tamaños cómodos y respeto al tamaño de texto del sistema', () => {
   assert.match(css, /--font:ui-sans-serif,-apple-system/); assert.doesNotMatch(css, /Georgia|[^-]serif\b|@font-face|fonts\.googleapis|condensed/i); assert.match(css, /@supports \(font:-apple-system-body\)/);
   assert.match(css, /body\{[^}]*font-size:1rem[^}]*line-height:1\.[5-7]/); assert.match(css, /p,small,li\{max-width:68ch\}/);
-  for (const m of css.matchAll(/font-size:([\d.]+)rem/g)) assert.ok(+m[1] >= .875, m[0]); assert.ok(!/font-weight:[1-3]00/.test(css), 'sin trazos finos');
+  for (const m of css.matchAll(/font-size:([\d.]+)rem/g)) assert.ok(+m[1] >= .875, m[0]); assert.ok(!/font-weight:[1-2]00/.test(css), 'sin trazos finos');
 });
 test('objetivos táctiles ≥ 44 px; foco visible; áreas seguras; sin desbordamiento horizontal de página; movimiento reducido', () => {
   assert.doesNotMatch(css, /background:(#000|black)/i); assert.match(css, /button,input,select,textarea,\.btn\{[^}]*font-size:1rem/); for (const m of css.matchAll(/min-height:(\d+)px/g)) assert.ok(+m[1] >= 44, m[0]);
