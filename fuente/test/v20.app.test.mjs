@@ -57,7 +57,7 @@ test('valor por asignatura: Matemáticas II > Física/Química > lenguas > Busin
   assert.ok(valueFactor('Matemáticas II') > valueFactor('Física') && valueFactor('Business') > valueFactor('Física') && valueFactor('Catalán') === valueFactor('Historia de España') && valueFactor('Inglés') < valueFactor('Business') && valueFactor('Inglés') < valueFactor('Historia de la Filosofía'))
   assert.equal(admision(9.1, 8.5, 8.5, 8.5), 12.26, 'escenario A del documento: 5,46 + 3,40 + 3,40');
   assert.equal(admision(10, 10, 10, 10), 14);
-  assert.ok(needPond(13.526, 9.1, 10) > 10, 'PARS Industrial: no alcanzable con media 9,1 (>10 en las ponderables)');
+  assert.ok(needPond(13.526, 9.1, 10) > 10, 'corte muy alto: no alcanzable con media 9,1 (>10 en las ponderables)');
 });
 test('fines de semana activos: se migran una vez las ventanas por defecto (8:00–13:30 y tarde), tope 7 h, y la mañana del refuerzo solo de lunes a viernes', async () => {
   clock.t = new Date(2026, 9, 26, 14, 30).getTime();

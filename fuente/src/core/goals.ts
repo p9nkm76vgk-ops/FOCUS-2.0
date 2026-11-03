@@ -70,7 +70,7 @@ export function accessInfo(g: Goals | undefined, media2: number | null) {
   return { nmb, access, needMedia, feasible: needMedia == null ? null : needMedia <= 10 };
 }
 
-// ---------- Plan de admisión (objetivo desde 3-nov-2026: Economía, Economía + Matemáticas o Ciencia de Datos; Ingeniería Informática descartada) ----------
+// ---------- Plan de admisión (objetivo: Economía, Economía + Matemáticas o Ciencia de Datos) ----------
 /** Puntos de NOTA DE ADMISIÓN (0–14) que suma 1 punto más en cada asignatura de 2.º (aprox.):
  *  - Bachillerato: 0,6 × (1/2 de la media de 2.º) × (1/9 asignaturas) ≈ 0,033 en todas.
  *  - Fase de acceso (5 exámenes, 0,4 × 1/5 = 0,08): Matemáticas II, Lengua, Catalán, Inglés y Hª de la Filosofía (si se elige Filosofía).

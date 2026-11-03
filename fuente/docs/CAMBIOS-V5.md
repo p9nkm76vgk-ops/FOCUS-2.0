@@ -379,3 +379,6 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 - Fuera de pantalla (el sistema no cambia): explicaciones de fórmulas y citas en Progreso, Curso, Temario, Exámenes, Notas y Estimaciones; la sección «Lo que aprende el planificador»; la tarjeta de proyección del Curso. Implementado en src/app/limpio.js (filtra párrafos técnicos al pintar; los cálculos siguen intactos).
 - «Método de estudio» y «Estimaciones» salen del menú y quedan en Ajustes → Avanzado, junto al interruptor de las sesiones diarias de relleno.
 - Tests adaptados a propósito (menú y secciones). Ejecutado: npm test 313/313, estrés 0 fallos, Chromium 42/42. No probado en iPad.
+
+## v48b (3-nov-2026) — ingeniería descartada del todo
+- Eliminadas las referencias a Ingeniería/GITI en etiquetas, comentarios y pruebas; el objetivo de admisión por defecto queda neutro («ajústalo a tu grado»). El objetivo es Economía, Economía + Matemáticas o Ciencia de Datos. Ejecutado: npm test 313/313.

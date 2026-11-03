@@ -1,7 +1,7 @@
-/* v22 · Plan de admisión (documento de ingeniería): objetivos y horas según lo que más suma a la nota de admisión */
+/* v22 · Plan de admisión: objetivos y horas según lo que más suma a la nota de admisión */
 function applyPlan(Sx){const g=Sx.goals;if(!g||g.planPau||g.planOff)return;
  if(!(Sx.works||[]).some(w=>w.kind==='exam')||g.target!=null||g.pauDate||g.prevAvg!=null){g.planOff=g.planOff||(g.target!=null||!!g.pauDate||g.prevAvg!=null)||undefined;if(g.planOff===undefined)delete g.planOff;return}
- Object.assign(g,{prevAvg:9.11,target:9.3,pauDate:'2027-06-01',pauExpected:8.5,admTarget:12.41,admLabel:'GITI UPM (corte 12,261 en 2026-27 + 0,15 de margen)',planPau:true})}
+ Object.assign(g,{prevAvg:9.11,target:9.3,pauDate:'2027-06-01',pauExpected:8.5,admTarget:12.41,admLabel:'Objetivo de admisión (ajústalo a tu grado)',planPau:true})}
 /* v31 · Objetivo declarado por el usuario: 12,5 mínimo (ideal 12,75), media de 1.º 9,1, acceso 8,5, mínimo 9 en Matemáticas II y Business */
 function migrateObjetivo(Sx){if(Sx.obV>=1)return;Sx.obV=1;const g=Sx.goals;if(!g)return;
  Object.assign(g,{prevAvg:9.1,target:9.1,pauExpected:8.5,admTarget:12.5,admIdeal:12.75,admLabel:'Tu objetivo: 12,5 como mínimo (ideal 12,75)',planPau:true});
