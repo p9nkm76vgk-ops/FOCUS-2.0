@@ -395,6 +395,18 @@ h1{font-weight:400;letter-spacing:-.02em}.hhead h1{font-weight:400}
 .ktiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 16px}.kt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:18px;text-align:center;min-height:150px}.kt small{color:var(--muted)}.kt .bign{margin:0}
 .sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}.stile{display:flex;flex-direction:column;gap:6px;padding:20px;min-height:150px;border-radius:22px;cursor:pointer;border:1px solid color-mix(in srgb,var(--c) 45%,transparent);background:linear-gradient(155deg,color-mix(in srgb,var(--c) 38%,#0a0a0b),color-mix(in srgb,var(--c) 12%,#0a0a0b))}.stile b{font-size:1.15rem}.stile .sh{font-size:1.6rem;font-weight:500}.stile .sh em{font-style:normal;font-size:.95rem;color:var(--muted)}.stile small{color:var(--muted);margin-top:auto}
 @media(max-width:520px){.ktiles{grid-template-columns:1fr 1fr}.ktiles .kt:first-child{grid-column:1/3}}
+/* v43 · gráficas interactivas */
+svg.chart,svg.donut{touch-action:pan-y;cursor:crosshair;-webkit-user-select:none;user-select:none}
+.chart .guide{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 4;opacity:.7;pointer-events:none}
+.chart circle.dt.hot{r:6.5;fill:#f6d1ef;stroke:var(--accent);stroke-width:2}
+.chart g.hot rect{filter:brightness(1.25)}
+.donut circle.dn{transition:stroke-width .12s}.donut circle.dn.hot{stroke-width:20}
+#ctip{position:fixed;z-index:90;pointer-events:none;display:flex;flex-direction:column;gap:2px;padding:8px 12px;border-radius:14px;background:#0a0a0bf2;border:1px solid #ffffff2e;box-shadow:0 14px 34px -10px #000;opacity:0;transform:translateY(4px);transition:opacity .1s,transform .1s;white-space:nowrap}
+#ctip.on{opacity:1;transform:none}#ctip small{color:var(--muted);font-size:.875rem}#ctip b{font-size:1rem;color:var(--accent)}
+/* v43b · Calendario con panel, Curso con cabecera */
+.calwrap{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px;align-items:start}.calside{position:sticky;top:12px}
+@media(max-width:1199px){.calwrap{grid-template-columns:1fr}.calside{order:2;position:static}}
+.brow+.card,.brow+h2{margin-top:14px}
 </style></head><body>
 <div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b><button id=topSearch data-a=search aria-label="Buscar"><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button></div>
 <nav id=tabs aria-label="Secciones principales"></nav><aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
@@ -1955,7 +1967,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='ee161fc58d',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='311a573af2',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2870,7 +2882,7 @@ let AN={r:'w'};
 const anDur=b=>b.end-b.start,anMin=b=>b.actualMin??anDur(b);
 const anH=m=>m>=60?(Math.round(m/6)/10).toString().replace('.',',')+' h':m+' min';
 const anAx=m=>m===0?'0':m%60===0?(m/60)+' h':(m/60).toFixed(1).replace('.',',')+' h';
-const anNice=mx=>{const st=mx<=120?30:mx<=300?60:mx<=720?120:mx<=1800?300:600;return{max:Math.max(st*2,Math.ceil(mx/st)*st),step:st}};
+const anNice=mx=>{const st=mx<=120?30:mx<=300?60:mx<=720?120:mx<=1800?300:mx<=3600?600:mx<=9000?1800:mx<=18000?3600:7200;return{max:Math.max(st*2,Math.ceil(mx/st)*st),step:st}};
 function anRange(n,r){const t=n.date;let from,days;
  if(r==='w'){days=7;from=addDays(t,-6)}else if(r==='m'){days=30;from=addDays(t,-29)}else if(r==='t'){days=91;from=addDays(mondayOf(t),-77)}
  else{const ds=S.blocks.map(b=>b.date).sort();const f0=ds.length&&ds[0]<'2026-09-01'?ds[0]:'2026-09-01';from=f0>t?t:f0;days=Math.round((Date.parse(t+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/864e5)+1}
@@ -3006,6 +3018,45 @@ A.tarFilter=t=>{HY.tf=t.dataset.id;render()};
   tiles=S.subjects.filter(s=>!s.archived).map(s0=>{const s=sub(s0.id),ws_=S.works.filter(w=>w.subjectId===s.id),ids=new Set(ws_.map(w=>w.id)),wk=anAgg(rows.filter(b=>ids.has(b.workId)),mon,addDays(mon,6)),tot=rows.filter(b=>ids.has(b.workId)&&b.status==='done').reduce((a,b)=>a+(b.actualMin??b.end-b.start),0),nx=ws_.filter(w=>w.kind==='exam'&&w.auto!=='review'&&w.status!=='done'&&w.status!=='archived'&&w.dueDate>=n.date).sort((a,b)=>a.dueDate.localeCompare(b.dueDate))[0];
    return`<div class=stile style="--c:${s.color}" data-a=nav data-r="asg:${esc(s.id)}" role=button tabindex=0><b>${esc(s.name)}</b><span class=sh>${anH(wk.done)} <em>/ ${anH(wk.plan)} esta semana</em></span><small>${nx?'Próx.: '+fd(nx.dueDate):'Sin examen próximo'} · ${anH(tot)} en total</small></div>`}).join('');
   return`<div class=ph><h1>Asignaturas</h1><button class=pri data-a=addSub>+ Asignatura</button></div><div class=sgrid>${tiles}</div>`}}
+
+/* Curso hasta la PAU: cifra grande + acumulado + horas por asignatura (maqueta 8) */
+{const c0=V.cur;V.cur=a=>{const o=c0(a),g=S.goals,p=g&&g.pauDate?projectCourse():null;if(!p)return o;
+  const ms=Object.keys(p.byM).sort();let acc=0;const cum=ms.map(m=>{const x=p.byM[m];acc+=x.d+x.p+x.y;return acc}),
+   ss=Object.entries(p.byS).sort((x,y)=>y[1]-x[1]),mx=Math.max(60,...ss.map(x=>x[1])),
+   hero=`<div class=brow><div class="card bc"><div class=bch><div><small class=lab>Horas del curso hasta la PAU</small><b class=bign>${anH(p.total)}</b><span class=m>${anH(p.done)} hechas · ${anH(p.plan)} previstas · ${anH(p.avg)} por semana</span></div></div>${anLine(cum,ms.map(m=>MESES[+m.slice(5)-1]),{label:'Horas acumuladas del curso'})}</div>
+<div class="card bc"><div class=bch><div><small class=lab>Horas por asignatura</small></div></div>${ss.map(([id,v])=>{const s=sub(id);return`<div class=wli style="--c:${s.color}"><i class=dot></i><div><b>${esc(s.name)}</b><div class=xbar><i style="width:${Math.round(100*v/mx)}%"></i></div></div><span class=hrs><b>${anH(v)}</b></span></div>`}).join('')}</div></div>`;
+  return o.replace(/(<h1>[^<]*<\/h1>)/,m=>m+hero)}}
+/* Calendario: panel de próximos exámenes (maqueta 2) */
+{const k0=V.cal;V.cal=a=>{const o=k0(a),n=now(),ex=S.works.filter(w=>w.kind==='exam'&&w.auto!=='review'&&w.status!=='archived'&&w.status!=='done'&&w.dueDate>=n.date).sort((x,y)=>x.dueDate.localeCompare(y.dueDate)).slice(0,5);
+  if(!ex.length)return o;const pn=`<aside class="card bc calside"><div class=bch><div><small class=lab>Próximos exámenes</small></div></div>${ex.map(w=>{const s=sub(w.subjectId),d=P.daysBetween(n.date,w.dueDate);return`<div class=wli data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0 style="--c:${s.color}"><i class=dot></i><div><b>${esc(s.name)}</b><small>${fd(w.dueDate)} · ${d===0?'hoy':d===1?'mañana':'en '+d+' días'}</small></div></div>`}).join('')}</aside>`;
+  return`<div class=calwrap><div class=calmain>${o}</div>${pn}</div>`}}
+
+/* ===== v43 · Gráficas interactivas: pasar el dedo/ratón por encima (o arrastrar) muestra el valor exacto, una guía y el punto resaltado ===== */
+const CT=(()=>{let tip=null,cur=null,guide=null,hot=null,down=false;
+ const mk=()=>{if(tip)return tip;tip=document.createElement('div');tip.id='ctip';tip.setAttribute('role','status');document.body.appendChild(tip);return tip};
+ const txt=el=>{const t=el.querySelector&&el.querySelector('title');if(t){el.dataset.t=t.textContent;t.remove()}return el.dataset.t||''};
+ const clear=()=>{if(tip)tip.classList.remove('on');if(guide){guide.remove();guide=null}if(hot){hot.classList.remove('hot');hot=null}cur=null};
+ const svgX=(svg,e)=>{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse())};
+ function show(svg,e){let el=null,label='',cx=null;
+  if(svg.classList.contains('donut')){el=e.target.closest&&e.target.closest('circle.dn');if(!el)return clear();label=txt(el);if(hot&&hot!==el)hot.classList.remove('hot');hot=el;el.classList.add('hot')}
+  else{const x=svgX(svg,e).x;
+   const pts=[...svg.querySelectorAll('circle.dt')];
+   if(pts.length){let b=null,bd=1e9;for(const c of pts){const d=Math.abs(+c.getAttribute('cx')-x);if(d<bd){bd=d;b=c}}el=b;label=txt(b);cx=+b.getAttribute('cx');
+    if(!guide){guide=document.createElementNS('http://www.w3.org/2000/svg','line');guide.setAttribute('class','guide');svg.insertBefore(guide,svg.querySelector('.ma'))}
+    guide.setAttribute('x1',cx);guide.setAttribute('x2',cx);guide.setAttribute('y1',10);guide.setAttribute('y2',+svg.querySelector('line.gl.z')?.getAttribute('y1')||170);
+    if(hot&&hot!==b)hot.classList.remove('hot');hot=b;b.classList.add('hot')}
+   else{const gs=[...svg.querySelectorAll('g')].filter(g=>g.querySelector('rect')||g.querySelector('title')||g.dataset.t);let b=null,bd=1e9;for(const g of gs){const r=g.querySelector('rect');if(!r)continue;const c=+r.getAttribute('x')+(+r.getAttribute('width'))/2,d=Math.abs(c-x);if(d<bd){bd=d;b=g}}
+    if(!b)return clear();el=b;label=txt(b);if(hot&&hot!==b)hot.classList.remove('hot');hot=b;b.classList.add('hot')}}
+  if(!label)return clear();cur=el;const t=mk();const[a,...r]=label.split(': ');t.innerHTML=r.length?`<small>${esc(a)}</small><b>${esc(r.join(': '))}</b>`:`<b>${esc(label)}</b>`;t.classList.add('on');
+  const w=t.offsetWidth,h=t.offsetHeight;let left=e.clientX-w/2,top=e.clientY-h-18;left=Math.max(8,Math.min(innerWidth-w-8,left));if(top<8)top=e.clientY+22;t.style.left=left+'px';t.style.top=top+'px'}
+ const on=(e)=>{const svg=e.target.closest&&e.target.closest('svg.chart,svg.donut');if(!svg){if(!down)clear();return}show(svg,e)};
+ document.addEventListener('pointermove',e=>{if(e.pointerType==='touch'&&!down)return;on(e)});
+ document.addEventListener('pointerdown',e=>{down=true;on(e)});
+ document.addEventListener('pointerup',e=>{down=false;if(e.pointerType==='touch')setTimeout(clear,1400)});
+ document.addEventListener('pointercancel',()=>{down=false;clear()});
+ document.addEventListener('pointerleave',clear,true);
+ document.addEventListener('scroll',clear,{passive:true,capture:true});
+ return{clear}})();
 
 boot();
 </script></body></html>

@@ -395,3 +395,15 @@ h1{font-weight:400;letter-spacing:-.02em}.hhead h1{font-weight:400}
 .ktiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 16px}.kt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:18px;text-align:center;min-height:150px}.kt small{color:var(--muted)}.kt .bign{margin:0}
 .sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}.stile{display:flex;flex-direction:column;gap:6px;padding:20px;min-height:150px;border-radius:22px;cursor:pointer;border:1px solid color-mix(in srgb,var(--c) 45%,transparent);background:linear-gradient(155deg,color-mix(in srgb,var(--c) 38%,#0a0a0b),color-mix(in srgb,var(--c) 12%,#0a0a0b))}.stile b{font-size:1.15rem}.stile .sh{font-size:1.6rem;font-weight:500}.stile .sh em{font-style:normal;font-size:.95rem;color:var(--muted)}.stile small{color:var(--muted);margin-top:auto}
 @media(max-width:520px){.ktiles{grid-template-columns:1fr 1fr}.ktiles .kt:first-child{grid-column:1/3}}
+/* v43 · gráficas interactivas */
+svg.chart,svg.donut{touch-action:pan-y;cursor:crosshair;-webkit-user-select:none;user-select:none}
+.chart .guide{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 4;opacity:.7;pointer-events:none}
+.chart circle.dt.hot{r:6.5;fill:#f6d1ef;stroke:var(--accent);stroke-width:2}
+.chart g.hot rect{filter:brightness(1.25)}
+.donut circle.dn{transition:stroke-width .12s}.donut circle.dn.hot{stroke-width:20}
+#ctip{position:fixed;z-index:90;pointer-events:none;display:flex;flex-direction:column;gap:2px;padding:8px 12px;border-radius:14px;background:#0a0a0bf2;border:1px solid #ffffff2e;box-shadow:0 14px 34px -10px #000;opacity:0;transform:translateY(4px);transition:opacity .1s,transform .1s;white-space:nowrap}
+#ctip.on{opacity:1;transform:none}#ctip small{color:var(--muted);font-size:.875rem}#ctip b{font-size:1rem;color:var(--accent)}
+/* v43b · Calendario con panel, Curso con cabecera */
+.calwrap{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px;align-items:start}.calside{position:sticky;top:12px}
+@media(max-width:1199px){.calwrap{grid-template-columns:1fr}.calside{order:2;position:static}}
+.brow+.card,.brow+h2{margin-top:14px}

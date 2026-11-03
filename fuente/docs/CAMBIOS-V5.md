@@ -350,3 +350,6 @@ Barra superior (Tarea/Examen/Fallo + buscador), tres cifras, tarjeta «Siguiente
 
 ## v42 · Maqueta de 10 pantallas (ChatGPT) aplicada
 Hoy en tres filas (anillo+cifras+accesos | siguiente sesión; resto del día | horas con selector; próximos exámenes con barra | asignaturas de la semana). Tareas con filtros Todas/Hoy/Esta semana/Atrasadas. Exámenes con tres cifras (preparación media, días al próximo, total). Asignaturas en teselas de color. Pendiente: panel de próximos exámenes en Calendario, Curso hasta la PAU y Notas con el diseño de la maqueta. Tests 310/310.
+
+## v43 · Gráficas interactivas, Curso con cabecera, Calendario con panel
+Gráficas (línea, barras, donut) interactivas: puntero o arrastre muestra valor exacto, guía y punto resaltado (src/app/interactivo.js). Curso hasta la PAU con cifra grande, acumulado y horas por asignatura. Calendario con panel de próximos exámenes (columna lateral ≥1200 px, debajo en iPad vertical). Escala del eje Y adaptada a horas grandes.

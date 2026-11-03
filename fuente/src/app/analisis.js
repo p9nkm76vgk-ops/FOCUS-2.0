@@ -3,7 +3,7 @@ let AN={r:'w'};
 const anDur=b=>b.end-b.start,anMin=b=>b.actualMin??anDur(b);
 const anH=m=>m>=60?(Math.round(m/6)/10).toString().replace('.',',')+' h':m+' min';
 const anAx=m=>m===0?'0':m%60===0?(m/60)+' h':(m/60).toFixed(1).replace('.',',')+' h';
-const anNice=mx=>{const st=mx<=120?30:mx<=300?60:mx<=720?120:mx<=1800?300:600;return{max:Math.max(st*2,Math.ceil(mx/st)*st),step:st}};
+const anNice=mx=>{const st=mx<=120?30:mx<=300?60:mx<=720?120:mx<=1800?300:mx<=3600?600:mx<=9000?1800:mx<=18000?3600:7200;return{max:Math.max(st*2,Math.ceil(mx/st)*st),step:st}};
 function anRange(n,r){const t=n.date;let from,days;
  if(r==='w'){days=7;from=addDays(t,-6)}else if(r==='m'){days=30;from=addDays(t,-29)}else if(r==='t'){days=91;from=addDays(mondayOf(t),-77)}
  else{const ds=S.blocks.map(b=>b.date).sort();const f0=ds.length&&ds[0]<'2026-09-01'?ds[0]:'2026-09-01';from=f0>t?t:f0;days=Math.round((Date.parse(t+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/864e5)+1}
