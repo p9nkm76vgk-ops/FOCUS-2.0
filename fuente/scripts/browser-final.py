@@ -110,7 +110,7 @@ try:
     # Explorar eliminado y bienestar digital (ahora en Ajustes)
     c = newctx(b); p = newpage(c, MON); ck('Explorar ya no existe en el menú ni en Hoy', 'Explorar' not in p.inner_text('#nav') and 'Explorar' not in p.inner_text('#main'))
     go(p, 'aj'); p.click('#main button[data-a=quietAdd]'); p.fill('#f [name=s]', '07:00'); p.fill('#f [name=e]', '12:00'); p.click('#f button.pri'); p.wait_for_timeout(300); go(p, 'hoy'); ck('Periodo sin notificaciones (Ajustes) oculta sugerencias y recordatorios', 'Periodo sin notificaciones' in p.inner_text('#main') and p.locator('button[data-a=suggStart]').count() == 0)
-    ck('Diseño: tema oscuro, sin serifas, texto ≥16 px', p.evaluate("getComputedStyle(document.body).backgroundColor") == 'rgb(17, 17, 19)' and 'Georgia' not in p.evaluate("getComputedStyle(document.querySelector('h1')).fontFamily") and p.evaluate("parseFloat(getComputedStyle(document.body).fontSize)") >= 16)
+    ck('Diseño: tema oscuro, sin serifas, texto ≥16 px', p.evaluate("getComputedStyle(document.body).backgroundColor") == 'rgb(14, 11, 15)' and 'Georgia' not in p.evaluate("getComputedStyle(document.querySelector('h1')).fontFamily") and p.evaluate("parseFloat(getComputedStyle(document.body).fontSize)") >= 16)
     ck('Menú con iconos SVG y etiquetas accesibles', p.locator('#nav svg.ic').count() >= 8 and p.evaluate("[...document.querySelectorAll('#nav button.nv')].every(b=>b.getAttribute('aria-label'))")); c.close()
     b.close()
 finally: srv.terminate()
