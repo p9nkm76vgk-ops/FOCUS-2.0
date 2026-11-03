@@ -459,3 +459,11 @@ h1,h2,h3,.hello{font-weight:400}h4,.bch .lab,.hero .lab,.hhead .m{font-weight:50
 button,.btn,.chp,.seg2.rp button{font-weight:600}.hero .hb button,.topA .pills button,.nv{font-weight:600}.nv{font-weight:500}
 small,.eye,.stat small,.ax,.nsec{font-weight:500}
 .exl,.exl b,.asr,.asr b,.exr{font-weight:500}
+
+/* v46: horas mínimas por asignatura y carga del día */
+.qrw.short .hrs{color:var(--warn)}.qrw.short .xbar i{opacity:.6}
+.qwarn{margin:12px 0 0;color:var(--warn)}.qok{margin:12px 0 0}
+.load{margin:14px 0 4px}.lh{display:flex;justify-content:space-between;gap:12px;align-items:baseline;font-size:.875rem}.lh small{font-size:.875rem;opacity:.7}
+.lb{position:relative;height:10px;border-radius:6px;background:rgba(255,255,255,.07);margin-top:8px;overflow:visible}
+.lb .lp,.lb .ld{position:absolute;left:0;top:0;height:100%;border-radius:6px}.lb .lp{background:rgba(230,189,225,.28)}.lb .ld{background:var(--accent,#e6bde1)}
+.lb .lt{position:absolute;top:-4px;width:2px;height:18px;background:var(--text);border-radius:1px;margin-left:-1px}.load.over .lp{background:color-mix(in srgb,var(--warn) 45%,transparent)}

@@ -459,6 +459,14 @@ h1,h2,h3,.hello{font-weight:400}h4,.bch .lab,.hero .lab,.hhead .m{font-weight:50
 button,.btn,.chp,.seg2.rp button{font-weight:600}.hero .hb button,.topA .pills button,.nv{font-weight:600}.nv{font-weight:500}
 small,.eye,.stat small,.ax,.nsec{font-weight:500}
 .exl,.exl b,.asr,.asr b,.exr{font-weight:500}
+
+/* v46: horas mínimas por asignatura y carga del día */
+.qrw.short .hrs{color:var(--warn)}.qrw.short .xbar i{opacity:.6}
+.qwarn{margin:12px 0 0;color:var(--warn)}.qok{margin:12px 0 0}
+.load{margin:14px 0 4px}.lh{display:flex;justify-content:space-between;gap:12px;align-items:baseline;font-size:.875rem}.lh small{font-size:.875rem;opacity:.7}
+.lb{position:relative;height:10px;border-radius:6px;background:rgba(255,255,255,.07);margin-top:8px;overflow:visible}
+.lb .lp,.lb .ld{position:absolute;left:0;top:0;height:100%;border-radius:6px}.lb .lp{background:rgba(230,189,225,.28)}.lb .ld{background:var(--accent,#e6bde1)}
+.lb .lt{position:absolute;top:-4px;width:2px;height:18px;background:var(--text);border-radius:1px;margin-left:-1px}.load.over .lp{background:color-mix(in srgb,var(--warn) 45%,transparent)}
 </style></head><body>
 <div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b><button id=topSearch data-a=search aria-label="Buscar"><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button></div>
 <nav id=tabs aria-label="Secciones principales"></nav><aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
@@ -2031,7 +2039,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='0499e29607',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='135c0cfbaf',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2918,7 +2926,7 @@ function migrateRutina(Sx){if(Sx.rtV>=1)return;Sx.rtV=1;if(Sx.routine)Sx.routine
 const QUOTA_H={'Matemáticas II':3,'Business':3,'Física':3,'Química':3,'Lengua Castellana':3,'Catalán':3,'Historia de España':3,'Historia de la Filosofía':2,'Inglés':1};
 function planDiario(Sx,today){const g=Sx.goals;if(!g||!g.pauDate||g.dailyOff||g.pauDate<today)return undefined;
  const subs=(Sx.subjects||[]).filter(s=>!s.archived);if(!subs.length)return undefined;
- return{until:g.pauDate,wk:180,we:300,len:60,tilt:[1.1,.85],subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
+ return{until:g.pauDate,wk:180,we:300,len:60,tilt:[1.1,1],subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
   return{id:s.id,q:Math.round(60*((g.quotaH&&g.quotaH[s.name])??QUOTA_H[s.name]??2)),w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
 /** Un trabajo oculto por asignatura (auto:'review' + daily:true: ninguna pantalla lo lista como tarea). Idempotente. */
 function syncDaily(Sx){const g=Sx.goals,on=planDiario(Sx,now().date),have=new Map((Sx.works||[]).filter(w=>w.daily).map(w=>[w.id,w])),want=new Set(on?on.subjects.map(u=>u.id):[]);let out=Sx.works;
@@ -2942,6 +2950,13 @@ function proyeccionCard(){const g=S.goals;if(!g||!g.pauDate)return'';const p=pro
  return`<div class=card data-sec=proy><h3>Horas del curso hasta la PAU</h3><p class=m>Si cumples todo el plan tal como está hoy: <b>${hr(p.total)}</b> en total (${hr(p.done)} ya hechas + ${hr(p.plan)} previstas hasta el ${fd(g.pauDate)}), unas <b>${hr(p.avg)}</b> por semana. De las previstas, ${hr(p.daily)} son sesiones diarias de relleno que se irán cambiando por exámenes y tareas según los añadas.</p><p class=m>Es una proyección con tus datos de hoy (temas, exámenes y disponibilidad): crecerá cuando apuntes más exámenes o bajes algún tema a rojo.</p><details class=more><summary>Por mes y por asignatura</summary>${rows}<div style="height:8px"></div>${ss.map(([id,v])=>`<div class=ro><span><i class=dot style="--c:${sub(id).color}"></i> ${esc(sub(id).name)}</span><b>${hr(v)}</b></div>`).join('')}</details><div class=row style="justify-content:flex-start;margin-top:10px"><button data-a=dailyToggle>${g.dailyOff?'Activar':'Quitar'} las sesiones diarias de relleno</button></div></div>`}
 A.dailyToggle=()=>{S.goals={...S.goals,dailyOff:!S.goals.dailyOff};PROJ=null;commit({quiet:true})};
 {const c=V.cur;V.cur=a=>{const h=c(a);return h+proyeccionCard()}}
+
+/* Cuotas mínimas semanales (v46): para una semana (lunes) cuenta hechas + previstas por asignatura y las compara con el mínimo acordado.
+   Es lo que se ve de verdad en el calendario: si no cabe, se dice cuánto falta (nunca se finge que todo cabe). */
+function quotaCheck(mon){const g=S.goals||{},end=addDays(mon,6),wk=Object.fromEntries(S.works.map(w=>[w.id,w.subjectId])),have={};
+ for(const b of S.blocks){if(b.date<mon||b.date>end||(b.status!=='planned'&&b.status!=='done'))continue;const id=b.subjectId||wk[b.workId];have[id]=(have[id]||0)+(b.end-b.start)}
+ const rows=S.subjects.filter(x=>!x.archived).map(x=>{const q=Math.round(60*((g.quotaH&&g.quotaH[x.name])??QUOTA_H[x.name]??2)),h=have[x.id]||0;return{s:x,q,h,miss:Math.max(0,q-h)}});
+ return{rows,miss:rows.reduce((t,r)=>t+r.miss,0),total:rows.reduce((t,r)=>t+r.q,0)}}
 
 /* ===== Progreso 2.0 (v39): panel de análisis con gráficos propios (SVG). Todo se calcula con S.blocks, S.syllabus, S.grades y S.activities: nada inventado. ===== */
 let AN={r:'w'};
@@ -3035,6 +3050,9 @@ A.anRange=t=>{AN.r=t.dataset.id;render()};
 const hoyPrep=w=>{const tp=w.topics||[];return tp.length?Math.round(100*tp.reduce((s,t)=>s+(t.mastery||0),0)/(3*tp.length)):Math.round(w.readiness||0)};
 HY.exams=n=>{const l=act().filter(w=>w.kind==='exam'&&w.dueDate>=n.date&&w.auto!=='review').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||a.id.localeCompare(b.id)).slice(0,3);if(!l.length)return'';
  return`<h2 class=gh>Próximos exámenes</h2><div class=exg>${l.map(w=>{const d=P.daysBetween(n.date,w.dueDate),s=sub(w.subjectId);return`<div class="exc${d<=P.guardDays(w)?' hot':''}" style="--c:${s.color}" data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0>${anRing(hoyPrep(w),72,'Preparación de '+s.name,null)}<div><b>${esc(s.name)}</b><span class=m>${d===0?'hoy':d===1?'mañana':'en '+d+' días'} · ${fd(w.dueDate)}</span><span class=m>${esc(w.title)}</span></div></div>`}).join('')}</div>`};
+/* Carga del día: hechas / previstas frente al máximo diario (bullet graph: un solo vistazo, sin anillos extra) */
+function loadBar(n,its,tot,dn){const we=[0,6].includes(new Date(n.date+'T12:00').getDay()),cap=Math.min(S.settings.maxDayMin||240,we?300:180),over=tot>cap*1.15,pl=Math.min(100,Math.round(100*tot/Math.max(cap,tot,1))),dp=Math.min(100,Math.round(100*dn/Math.max(cap,tot,1))),cp=Math.round(100*cap/Math.max(cap,tot,1));
+ return`<div class="load${over?' over':''}" role=img aria-label="Carga de hoy: ${hr(tot)} previstas, ${hr(dn)} hechas, objetivo ${hr(cap)}"><div class=lh><small>Carga de hoy</small><span><b>${hr(dn)}</b> hechas · ${hr(tot)} de ${hr(cap)}</span></div><div class=lb><i class=lp style="width:${pl}%"></i><i class=ld style="width:${dp}%"></i><i class=lt style="left:${cp}%"></i></div></div>`}
 {const h0=V.hoy;V.hoy=a=>{const n=now(),h=h0(a),its=HY.items(n),tot=its.reduce((s,x)=>s+(x.end-x.start),0),dn=its.filter(x=>x.st==='done').reduce((s,x)=>s+(x.end-x.start),0),pc=tot?Math.round(100*dn/tot):null,
   greet=n.minute<780?'Buenos días':n.minute<1230?'Buenas tardes':'Buenas noches',rows=S.blocks.filter(b=>b.status!=='rescheduled'),stk=anStreaks(rows,n),mon=mondayOf(n.date),wk=anAgg(rows,mon,addDays(mon,6)),wp=wk.plan?Math.min(100,Math.round(100*wk.done/wk.plan)):null,
   head=`<div class=hhead><div><h1>Hoy</h1><p class=hello aria-hidden=true>Hola, estudiante</p><p class=m>${fdl(n.date)}</p></div>${anRing(pc,104,'Progreso de hoy','de hoy')}</div>
@@ -3049,12 +3067,12 @@ HY.exams=n=>{const l=act().filter(w=>w.kind==='exam'&&w.dueDate>=n.date&&w.auto!
    perf=`<div class="card bc"><div class=bch><div><small class=lab>Horas de estudio</small><b class=bign>${anH(cur.done)}</b></div><div class="seg2 rp">${rng}</div></div>${anLine(vals,R.B.map(b=>b.label),{label:'Horas de estudio hechas'})}</div>`,
    exs=act().filter(w=>w.kind==='exam'&&w.dueDate>=n.date&&w.auto!=='review').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||a.id.localeCompare(b.id)).slice(0,4),
    wl=`<div class="card bc"><div class=bch><div><small class=lab>Próximos exámenes</small></div><button class=lnk data-a=nav data-r=exa>Ver todos</button></div>${exs.length?exs.map(w=>{const s=sub(w.subjectId),pp=hoyPrep(w);return`<div class=exr data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0 style="--c:${s.color}"><i class=dot></i><div class=exm><div class=exl><b>${esc(s.name)}</b><span>${fd(w.dueDate).replace(/^\S+ /,'')} – ${pp}%</span></div><div class=xbar><i style="width:${pp}%"></i></div></div></div>`}).join(''):'<p class=m>No hay exámenes próximos.</p>'}</div>`,
-   ws=S.subjects.filter(x=>!x.archived).map(x=>({x,m:anAgg(rows.filter(b=>(b.subjectId||(S.works.find(w=>w.id===b.workId)||{}).subjectId)===x.id),mon,addDays(mon,6))})).sort((a,b)=>b.m.plan-a.m.plan).slice(0,5),
-   subs=`<div class="card bc"><div class=bch><div><small class=lab>Asignaturas esta semana</small></div><button class=lnk data-a=nav data-r=seg>Ver más</button></div>${ws.map(({x,m})=>`<div class=asr style="--c:${x.color}"><i class=dot></i><b>${esc(x.name)}</b><div class=xbar><i style="width:${m.plan?Math.min(100,Math.round(100*m.done/m.plan)):0}%"></i></div><span class=hrs>${anH(m.done).replace(' h','')} / ${anH(m.plan)}</span></div>`).join('')}</div>`,
+   qc=quotaCheck(mon),
+   subs=`<div class="card bc"><div class=bch><div><small class=lab>Horas mínimas de la semana</small></div><button class=lnk data-a=nav data-r=seg>Ver más</button></div>${qc.rows.sort((a,b)=>b.q-a.q||a.s.name.localeCompare(b.s.name)).map(({s:x,q,h,miss})=>`<div class="asr qrw${miss?' short':''}" style="--c:${x.color}"><i class=dot></i><b>${esc(x.name)}</b><div class=xbar><i style="width:${q?Math.min(100,Math.round(100*h/q)):0}%"></i></div><span class=hrs>${anH(h).replace(' h','')} / ${anH(q)}</span></div>`).join('')}</div>`,
    tlH=tlH0?`<div class="card bc"><div class=bch><div><small class=lab>Resto del día</small></div></div>${tlH0}</div>`:`<div class="card bc"><div class=bch><div><small class=lab>Resto del día</small></div></div><p class=m>Nada más por hoy.</p></div>`,
    statH=(/<div class="g3 kp3">[\s\S]*?(?=<div class=qtiles>)/.exec(head)||[''])[0],
    num=(lab,v,u)=>`<div class=stat><b>${v}</b><small>${lab}</small></div>`,
-   topA=`<div class="card bc topA"><div class=ringcol>${anRing(pc,168,'Progreso de hoy',null)}<span class=rl>Progreso<br>del día</span></div><div class=sp><div class=stats>${num('Sesiones hoy',its.length)}${num('Racha días',stk.cur)}${num('Cumplimiento semanal',wp==null?'—':wp+'%')}</div><div class=pills><button data-a=addTask>Tarea</button><button data-a=addExam>Examen</button><button data-a=addErr>Fallo</button></div></div></div>`,
+   topA=`<div class="card bc topA"><div class=ringcol>${anRing(pc,168,'Progreso de hoy',null)}<span class=rl>Progreso<br>del día</span></div><div class=sp><div class=stats>${num('Sesiones hoy',its.length)}${num('Racha días',stk.cur)}${num('Cumplimiento semanal',wp==null?'—':wp+'%')}</div>${loadBar(n,its,tot,dn)}<div class=pills><button data-a=addTask>Tarea</button><button data-a=addExam>Examen</button><button data-a=addErr>Fallo</button></div></div></div>`,
    hd=`<div class=hhead><div><h1>Hoy</h1><p class=hello aria-hidden=true>Hola, estudiante</p><p class=m>${fdl(n.date)}</p></div><button class=askbar data-a=search>${ic('srch')}<span>Busca o salta a…</span><kbd>/</kbd></button></div>`;
   return hd+`<div class=bento><div class=brow>${topA}${heroH}</div><div class=brow>${tlH}${perf}</div><div class=brow>${wl}${subs}</div></div>`+body}}
 
@@ -3089,9 +3107,10 @@ A.tarFilter=t=>{HY.tf=t.dataset.id;render()};
 {const c0=V.cur;V.cur=a=>{const o=c0(a),g=S.goals,p=g&&g.pauDate?projectCourse():null;if(!p)return o;
   const ms=Object.keys(p.byM).sort();let acc=0;const cum=ms.map(m=>{const x=p.byM[m];acc+=x.d+x.p+x.y;return acc}),
    ss=Object.entries(p.byS).sort((x,y)=>y[1]-x[1]),mx=Math.max(60,...ss.map(x=>x[1])),
+   qa=quotaCheck(mondayOf(now().date)),qb=quotaCheck(addDays(mondayOf(now().date),7)),qw=(qa.miss||qb.miss)?`<div class="card bc qcard" role=status><small class=lab>Horas mínimas por asignatura</small><p class=m>${qa.miss?`Esta semana faltan <b>${anH(qa.miss)}</b> para llegar a los mínimos (${qa.rows.filter(r=>r.miss).map(r=>esc(r.s.name)).join(', ')}). `:''}${qb.miss?`La semana que viene no caben <b>${anH(qb.miss)}</b>: ${qb.rows.filter(r=>r.miss).map(r=>esc(r.s.name)).join(', ')}. `:''}Para cumplirlos, amplía tu disponibilidad (sobre todo lunes y martes) en Ajustes; no se recorta ninguna asignatura en silencio.</p></div>`:'',
    hero=`<div class=brow><div class="card bc"><div class=bch><div><small class=lab>Horas del curso hasta la PAU</small><b class=bign>${anH(p.total)}</b><span class=m>${anH(p.done)} hechas · ${anH(p.plan)} previstas · ${anH(p.avg)} por semana</span></div></div>${anLine(cum,ms.map(m=>MESES[+m.slice(5)-1]),{label:'Horas acumuladas del curso'})}</div>
 <div class="card bc"><div class=bch><div><small class=lab>Horas por asignatura</small></div></div>${ss.map(([id,v])=>{const s=sub(id);return`<div class=wli style="--c:${s.color}"><i class=dot></i><div><b>${esc(s.name)}</b><div class=xbar><i style="width:${Math.round(100*v/mx)}%"></i></div></div><span class=hrs><b>${anH(v)}</b></span></div>`}).join('')}</div></div>`;
-  return o.replace(/(<h1>[^<]*<\/h1>)/,m=>m+hero)}}
+  return o.replace(/(<h1>[^<]*<\/h1>)/,m=>m+qw+hero)}}
 /* Calendario: panel de próximos exámenes (maqueta 2) */
 {const k0=V.cal;V.cal=a=>{const o=k0(a),n=now(),ex=S.works.filter(w=>w.kind==='exam'&&w.auto!=='review'&&w.status!=='archived'&&w.status!=='done'&&w.dueDate>=n.date).sort((x,y)=>x.dueDate.localeCompare(y.dueDate)).slice(0,5);
   if(!ex.length)return o;const pn=`<aside class="card bc calside"><div class=bch><div><small class=lab>Próximos exámenes</small></div></div>${ex.map(w=>{const s=sub(w.subjectId),d=P.daysBetween(n.date,w.dueDate);return`<div class=wli data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0 style="--c:${s.color}"><i class=dot></i><div><b>${esc(s.name)}</b><small>${fd(w.dueDate)} · ${d===0?'hoy':d===1?'mañana':'en '+d+' días'}</small></div></div>`}).join('')}</aside>`;

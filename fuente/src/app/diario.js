@@ -4,7 +4,7 @@
 const QUOTA_H={'Matemáticas II':3,'Business':3,'Física':3,'Química':3,'Lengua Castellana':3,'Catalán':3,'Historia de España':3,'Historia de la Filosofía':2,'Inglés':1};
 function planDiario(Sx,today){const g=Sx.goals;if(!g||!g.pauDate||g.dailyOff||g.pauDate<today)return undefined;
  const subs=(Sx.subjects||[]).filter(s=>!s.archived);if(!subs.length)return undefined;
- return{until:g.pauDate,wk:180,we:300,len:60,tilt:[1.1,.85],subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
+ return{until:g.pauDate,wk:180,we:300,len:60,tilt:[1.1,1],subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
   return{id:s.id,q:Math.round(60*((g.quotaH&&g.quotaH[s.name])??QUOTA_H[s.name]??2)),w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
 /** Un trabajo oculto por asignatura (auto:'review' + daily:true: ninguna pantalla lo lista como tarea). Idempotente. */
 function syncDaily(Sx){const g=Sx.goals,on=planDiario(Sx,now().date),have=new Map((Sx.works||[]).filter(w=>w.daily).map(w=>[w.id,w])),want=new Set(on?on.subjects.map(u=>u.id):[]);let out=Sx.works;
@@ -28,3 +28,10 @@ function proyeccionCard(){const g=S.goals;if(!g||!g.pauDate)return'';const p=pro
  return`<div class=card data-sec=proy><h3>Horas del curso hasta la PAU</h3><p class=m>Si cumples todo el plan tal como está hoy: <b>${hr(p.total)}</b> en total (${hr(p.done)} ya hechas + ${hr(p.plan)} previstas hasta el ${fd(g.pauDate)}), unas <b>${hr(p.avg)}</b> por semana. De las previstas, ${hr(p.daily)} son sesiones diarias de relleno que se irán cambiando por exámenes y tareas según los añadas.</p><p class=m>Es una proyección con tus datos de hoy (temas, exámenes y disponibilidad): crecerá cuando apuntes más exámenes o bajes algún tema a rojo.</p><details class=more><summary>Por mes y por asignatura</summary>${rows}<div style="height:8px"></div>${ss.map(([id,v])=>`<div class=ro><span><i class=dot style="--c:${sub(id).color}"></i> ${esc(sub(id).name)}</span><b>${hr(v)}</b></div>`).join('')}</details><div class=row style="justify-content:flex-start;margin-top:10px"><button data-a=dailyToggle>${g.dailyOff?'Activar':'Quitar'} las sesiones diarias de relleno</button></div></div>`}
 A.dailyToggle=()=>{S.goals={...S.goals,dailyOff:!S.goals.dailyOff};PROJ=null;commit({quiet:true})};
 {const c=V.cur;V.cur=a=>{const h=c(a);return h+proyeccionCard()}}
+
+/* Cuotas mínimas semanales (v46): para una semana (lunes) cuenta hechas + previstas por asignatura y las compara con el mínimo acordado.
+   Es lo que se ve de verdad en el calendario: si no cabe, se dice cuánto falta (nunca se finge que todo cabe). */
+function quotaCheck(mon){const g=S.goals||{},end=addDays(mon,6),wk=Object.fromEntries(S.works.map(w=>[w.id,w.subjectId])),have={};
+ for(const b of S.blocks){if(b.date<mon||b.date>end||(b.status!=='planned'&&b.status!=='done'))continue;const id=b.subjectId||wk[b.workId];have[id]=(have[id]||0)+(b.end-b.start)}
+ const rows=S.subjects.filter(x=>!x.archived).map(x=>{const q=Math.round(60*((g.quotaH&&g.quotaH[x.name])??QUOTA_H[x.name]??2)),h=have[x.id]||0;return{s:x,q,h,miss:Math.max(0,q-h)}});
+ return{rows,miss:rows.reduce((t,r)=>t+r.miss,0),total:rows.reduce((t,r)=>t+r.q,0)}}

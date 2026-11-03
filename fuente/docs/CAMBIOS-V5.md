@@ -362,3 +362,10 @@ Títulos 400, subtítulos 500, texto 400, cifras 600, botones 600, etiquetas 500
 
 ## v45 · Cuotas semanales por asignatura (acordadas con el usuario)
 El relleno diario deja de ser «una sesión en días vacíos»: ahora completa cada día hasta el objetivo de horas (3 h entre semana, 5 h sábado y domingo, limitado por el máximo diario y las ventanas libres) eligiendo la asignatura a la que más falta para su cuota semanal (relativa). Cuotas en horas/semana: Matemáticas II 3, Business 3, Física 3, Química 3, Lengua 3, Catalán 3, Historia de España 3, Filosofía 2, Inglés 1 (≈24 h). Inclinación: +10 % ahora, −15 % hacia la PAU. Business sube su factor de horas de examen a 1,2 (necesita un 10). Varias sesiones por día permitidas; el trabajo real (exámenes, tareas) sigue mandando y el relleno solo completa. Pendiente: «temario aprendido 3 semanas antes de cada semana de exámenes» (requiere fechas de los exámenes de trimestre). Tests 311/311.
+
+## v46 (3-nov-2026) — horas mínimas visibles; lo aplicado del informe
+- Las cuotas semanales acordadas son el **mínimo**: la inclinación hacia la PAU ya no baja de 1,0 (antes llegaba a ×0,85), solo sube (+10 % ahora).
+- Hoy: tarjeta «Horas mínimas de la semana» (hechas + previstas frente al mínimo, las 9 asignaturas) y barra «Carga de hoy» frente al máximo diario. Hoy sigue sin avisos de déficit.
+- Curso hasta la PAU: si no caben los mínimos de esta semana o la próxima, dice cuánto falta y de qué asignaturas (con la disponibilidad actual faltan unas 3 h/semana: lunes y martes solo tienen una ventana).
+- Del informe NO aplicado todavía (altera horas o falta verificar): reparto por valor marginal (Mates 4,5 / Física 4), pesos UIB (Business no pondera en Informática UIB; comprobar tabla 2027-28), FSRS completo, X−21 por trimestre.
+- Pruebas: npm test 312/312, estrés 6000 estados 0 fallos, Chromium 42/42.

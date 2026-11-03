@@ -56,3 +56,10 @@ test('cuotas semanales (v45): todas las asignaturas cada semana, Inglés poco, B
   assert.ok(week['Business'] >= week['Historia de la Filosofía'] && week['Matemáticas II'] >= 120, 'Business y Matemáticas por encima de Filosofía');
   assert.ok(Object.values(day).every(m => m <= 480), 'ningún día pasa de 8 h');
 });
+
+test('mínimos semanales (v46): Hoy muestra horas hechas+previstas frente al mínimo sin avisos; Curso dice cuánto falta cuando no cabe', async () => {
+  const a = await base(); await a.ctx.__t.A.nav({ dataset: { r: 'hoy' } }); const hoy = a.h.main.innerHTML;
+  assert.match(hoy, /Horas mínimas de la semana/); assert.match(hoy, /Carga de hoy/); assert.ok(!/No caben|warnOff|déficit/i.test(hoy), 'Hoy no avisa de déficit');
+  await a.ctx.__t.A.nav({ dataset: { r: 'cur' } }); const cur = a.h.main.innerHTML;
+  const wk = a.t ? 0 : 0; assert.match(cur, /Horas mínimas por asignatura/); assert.match(cur, /no caben|faltan/);
+});
