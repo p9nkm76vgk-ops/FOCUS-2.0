@@ -334,3 +334,10 @@ Causas halladas y corregidas:
 - Pantalla Progreso rehecha con SVG propio (sin librerías): selector Semana / Mes / 3 meses / Curso; tarjeta «Camino a la semana de exámenes» (días, temario rojo/amarillo/verde, estudio previsto, entreno); horas con variación frente al periodo anterior y anillo hecho/planificado; barras hecho vs planificado con media; racha (actual y mejor); semana en curso; tendencia de 12 semanas con media móvil; reparto por asignatura (donut); mapa de constancia de 14 semanas; mejor día y franja; dominio del temario por asignatura; preparación de los próximos exámenes; notas frente a objetivo; entrenamiento de 14 días; «Lo que aprende el planificador» se conserva.
 - Todo sale de bloques, temario, notas y actividades persistidos; sin datos muestra estado vacío (sin ejemplos). Planificado futuro no se mezcla con lo hecho (las barras se cortan en hoy).
 - Pruebas: npm test 310/310 (2 nuevas de Progreso; 4 antiguas adaptadas al nuevo diseño), estrés 6000 estados 0 fallos, Chromium 42/42. Capturas revisadas en iPad y móvil con datos de prueba (no reales). Pendiente: Safari/iPad real.
+
+## v40 · Sistema visual de toda la app
+- Fondo con brillos ambientales, tarjetas de cristal, botones en píldora, botón principal dorado con degradado, sidebar de cristal y barra de pestañas flotante en móvil/iPad.
+- Hoy: cabecera con saludo y anillo de progreso, tres KPI (sesiones, racha, semana), accesos rápidos con icono, tarjeta «Siguiente» destacada y exámenes con anillo de preparación.
+- Exámenes: tarjetas con anillo, cuenta atrás y barra de horas hechas/previstas (los 6 próximos); el resto sigue en la lista. Se corrigió un HTML mal anidado de la tarjeta anterior.
+- Calendario semanal: bloques más limpios (sin subtítulo; hábitos atenuados).
+- Sin cambios en el planificador ni en los datos. Tests 310/310, estrés 6000/0, Chromium 42/42. Safari/iPad real sin probar; capturas con datos sintéticos.

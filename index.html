@@ -296,6 +296,48 @@ i.hc{display:inline-block;width:14px;height:14px;border-radius:4px;background:va
 .exg{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.exc{display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:16px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c)}.exc b{display:block}.exc .m{display:block}
 .trn{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.dots{display:flex;gap:7px}.dots i{width:18px;height:18px;border-radius:50%;background:var(--surface3);border:2px solid transparent}.dots i.pl{border-color:var(--accent);background:transparent}.dots i.on{background:var(--accent)}.dots i.now{outline:2px solid var(--text);outline-offset:2px}
 @media(max-width:800px){.g2,.g3{grid-template-columns:1fr}.big{font-size:2.4rem}.hero2 .hx{flex-wrap:wrap}.trow2{grid-template-columns:1fr 64px}.trow2 .tier,.trow2 .bul{grid-column:1/3;order:3}}
+/* ===== v40 · sistema visual (cristal, brillos, píldoras, barra flotante) ===== */
+:root{--r:24px}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(900px 520px at 88% -8%,color-mix(in srgb,var(--accent) 15%,transparent),transparent 70%),radial-gradient(760px 640px at -8% 58%,color-mix(in srgb,var(--info) 8%,transparent),transparent 70%),radial-gradient(640px 420px at 62% 112%,color-mix(in srgb,var(--accent2) 8%,transparent),transparent 70%)}
+.card{border-radius:24px;background:linear-gradient(155deg,color-mix(in srgb,var(--surface2) 92%,transparent),color-mix(in srgb,var(--surface) 96%,transparent));border:1px solid color-mix(in srgb,var(--line2) 55%,transparent);box-shadow:inset 0 1px 0 #ffffff0d,0 22px 44px -30px #000000b3;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.side{background:color-mix(in srgb,var(--surface) 80%,transparent);-webkit-backdrop-filter:blur(24px) saturate(1.3);backdrop-filter:blur(24px) saturate(1.3);border-right:1px solid color-mix(in srgb,var(--line2) 50%,transparent)}
+.nv{border-radius:16px}.nv[aria-current=page]{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 22%,transparent),color-mix(in srgb,var(--accent) 6%,transparent));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 34%,transparent),0 8px 22px -14px var(--accent)}
+.brand span:before{border-radius:50%;box-shadow:0 0 14px var(--accent)}
+button,.btn{border-radius:999px;background:color-mix(in srgb,var(--surface2) 80%,transparent);border-color:color-mix(in srgb,var(--line2) 55%,transparent)}
+button.pri{background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 88%,#fff 12%),var(--accent2));border-color:transparent;box-shadow:0 12px 26px -12px color-mix(in srgb,var(--accent) 80%,transparent),inset 0 1px 0 #ffffff55}
+.nv,#tabs button{border-radius:18px}.chk2{border-radius:50%}
+.hero{border-radius:28px;padding:26px;background:radial-gradient(520px 260px at 100% 0,color-mix(in srgb,var(--c,var(--accent)) 30%,transparent),transparent 70%),linear-gradient(160deg,color-mix(in srgb,var(--c,var(--accent)) 14%,var(--surface2)),var(--surface));box-shadow:inset 0 1px 0 #ffffff12,0 28px 60px -34px color-mix(in srgb,var(--c,var(--accent)) 70%,#000)}
+.hero .hn{font-size:2.5rem;letter-spacing:-.03em}.hero .hb button.big{min-height:52px;padding:10px 24px}
+.wlist{background:transparent;border:0;border-radius:0;overflow:visible;display:grid;gap:10px}
+.wr{background:linear-gradient(155deg,color-mix(in srgb,var(--surface2) 90%,transparent),color-mix(in srgb,var(--surface) 96%,transparent));border:1px solid color-mix(in srgb,var(--line2) 50%,transparent);border-radius:20px;padding:12px 18px;box-shadow:inset 0 1px 0 #ffffff0a}.wr:last-child{border-bottom:1px solid color-mix(in srgb,var(--line2) 50%,transparent)}
+.tl{display:grid;gap:8px}.tr{background:color-mix(in srgb,var(--surface) 70%,transparent);border:1px solid color-mix(in srgb,var(--line2) 45%,transparent);border-radius:20px;padding:12px 18px}
+.chip{border-radius:999px}
+.hhead{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:0 0 14px}.hhead h1{margin:2px 0 4px;font-size:2.6rem;letter-spacing:-.035em}.hhead .m{margin:0}.eye{display:block;color:var(--accent);text-transform:uppercase;letter-spacing:.12em;font-weight:700;font-size:.875rem}
+.kp3{margin:0 0 14px;gap:12px}.kp3 .card{padding:14px 16px}.kp3 .mid{font-size:1.6rem}
+.qtiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 16px}.qtiles button{flex-direction:column;min-height:84px;gap:6px;border-radius:24px;background:linear-gradient(155deg,color-mix(in srgb,var(--surface2) 92%,transparent),color-mix(in srgb,var(--surface) 96%,transparent));color:var(--text);box-shadow:inset 0 1px 0 #ffffff0d}.qtiles button .ic{color:var(--accent);width:26px;height:26px}
+.exc.hot{border-left-color:var(--accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent)}
+.main>.exg{margin-bottom:8px}
+@media(max-width:999px){
+ .main{padding-bottom:130px}
+ #tabs{left:14px;right:14px;bottom:max(12px,env(safe-area-inset-bottom));padding:6px;border:1px solid color-mix(in srgb,var(--line2) 60%,transparent);border-radius:32px;background:color-mix(in srgb,var(--surface) 78%,transparent);-webkit-backdrop-filter:blur(26px) saturate(1.4);backdrop-filter:blur(26px) saturate(1.4);box-shadow:0 22px 50px -18px #000000d9,inset 0 1px 0 #ffffff14}
+ #tabs button[aria-current=page]{background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 28%,transparent),color-mix(in srgb,var(--accent) 10%,transparent));color:var(--accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 42%,transparent)}
+ .hhead h1{font-size:2.2rem}.qtiles button{min-height:76px}
+}
+/* v40b · móvil: KPIs en fila, tab bar con aire */
+@media(max-width:800px){.g3.kp3{grid-template-columns:repeat(3,1fr);gap:8px}.kp3 .card{padding:12px 12px}.kp3 .mid{font-size:1.35rem}.kp3 .eye,.kp3 .lab{letter-spacing:.06em}}
+@media(max-width:999px){#tabs button{padding:0 2px;font-size:.875rem;letter-spacing:-.01em}}
+/* v40c · calendario semanal más limpio */
+.tg:not(.one) .ev small{display:none}
+.tg:not(.one) .ev{padding:3px 6px;border-radius:10px}
+.tg:not(.one) .ev span{opacity:.8}
+.tg .ev.hab{opacity:.8}
+.tg:not(.one) .ev.hab span{display:none}
+.tg:not(.one) .ev.hab b{font-weight:500;color:var(--muted)}
+.xg{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));margin-bottom:18px}
+.xcard{cursor:pointer}.xcard .xb{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}.xcard .xb b{font-size:1.05rem}
+.xbar{height:8px;border-radius:6px;background:var(--surface3);overflow:hidden;margin-top:4px}.xbar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--c),color-mix(in srgb,var(--c) 55%,#fff))}
+.xcard .xh b{color:var(--text)}
+.xcard .xh{display:block;white-space:normal}.xcard .xh b{display:inline!important}.xcard .xb>span{display:block}
 </style></head><body>
 <div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b><button id=topSearch data-a=search aria-label="Buscar"><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button></div>
 <nav id=tabs aria-label="Secciones principales"></nav><aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
@@ -1856,7 +1898,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='430457e414',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='c3b80809f1',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2853,6 +2895,23 @@ ${gr.some(r=>r.value!=null)?`<div class=card><h3>Notas frente a objetivo</h3>${g
 ${learn}
 <details class=more><summary>Cómo se calcula</summary><p class=m>Horas = minutos reales de las sesiones hechas. Cumplimiento = minutos de sesiones hechas ÷ (hechas + omitidas); las futuras y las reprogramadas no cuentan. Planificado = lo que el plan puso para ese periodo. Las sesiones de relleno diario cuentan igual que las demás.</p></details></div>`};
 A.anRange=t=>{AN.r=t.dataset.id;render()};
+
+/* ===== v40 · Sistema visual: Hoy como panel (saludo, anillo del día, tres cifras, accesos rápidos, exámenes con anillo). El estilo general vive en style.css. ===== */
+const hoyPrep=w=>{const tp=w.topics||[];return tp.length?Math.round(100*tp.reduce((s,t)=>s+(t.mastery||0),0)/(3*tp.length)):Math.round(w.readiness||0)};
+HY.exams=n=>{const l=act().filter(w=>w.kind==='exam'&&w.dueDate>=n.date&&w.auto!=='review').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||a.id.localeCompare(b.id)).slice(0,3);if(!l.length)return'';
+ return`<h2 class=gh>Próximos exámenes</h2><div class=exg>${l.map(w=>{const d=P.daysBetween(n.date,w.dueDate),s=sub(w.subjectId);return`<div class="exc${d<=P.guardDays(w)?' hot':''}" style="--c:${s.color}" data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0>${anRing(hoyPrep(w),72,'Preparación de '+s.name,null)}<div><b>${esc(s.name)}</b><span class=m>${d===0?'hoy':d===1?'mañana':'en '+d+' días'} · ${fd(w.dueDate)}</span><span class=m>${esc(w.title)}</span></div></div>`}).join('')}</div>`};
+{const h0=V.hoy;V.hoy=a=>{const n=now(),h=h0(a),its=HY.items(n),tot=its.reduce((s,x)=>s+(x.end-x.start),0),dn=its.filter(x=>x.st==='done').reduce((s,x)=>s+(x.end-x.start),0),pc=tot?Math.round(100*dn/tot):null,
+  greet=n.minute<780?'Buenos días':n.minute<1230?'Buenas tardes':'Buenas noches',rows=S.blocks.filter(b=>b.status!=='rescheduled'),stk=anStreaks(rows,n),mon=mondayOf(n.date),wk=anAgg(rows,mon,addDays(mon,6)),wp=wk.plan?Math.min(100,Math.round(100*wk.done/wk.plan)):null,
+  head=`<div class=hhead><div><small class=eye>${greet}</small><h1>Hoy</h1><p class=m>${fdl(n.date)}</p></div>${anRing(pc,104,'Progreso de hoy','de hoy')}</div>
+<div class="g3 kp3"><div class="card kpi"><small>Sesiones</small><b class=mid>${its.filter(x=>x.st==='done').length} <em>de ${its.length}</em></b></div><div class="card kpi"><small>Racha</small><b class=mid>${stk.cur} <em>${stk.cur===1?'día':'días'}</em></b></div><div class="card kpi"><small>Semana</small><b class=mid>${wp==null?'—':wp+' %'}</b></div></div>
+<div class=qtiles><button data-a=addTask>${ic('tar')}<span>Tarea</span></button><button data-a=addExam>${ic('exa')}<span>Examen</span></button><button data-a=addErr>${ic('est')}<span>Fallo</span></button></div>`;
+  return h.replace(/<h1>Hoy<\/h1><p class=m>[^<]*<\/p>/,head).replace(/<div class=dprog[^>]*><i[^>]*><\/i><\/div>/,'').replace(/<div class=quick>[\s\S]*?<\/div>/,'').replace('<div class=tl>','<h2 class=gh>Resto del día</h2><div class=tl>')}}
+
+/* Exámenes: tarjetas con anillo de preparación y barra de horas (sustituye a la lista plana) */
+function arrivalCard(){const td=now().date,ex=S.works.filter(w=>w.kind==='exam'&&w.auto!=='review'&&w.status!=='archived'&&w.status!=='done'&&w.dueDate>=td).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));if(!ex.length)return'';
+ const cards=ex.slice(0,6).map(w=>{const s=sub(w.subjectId),a=arrival(w,td),dl=Math.round((new Date(w.dueDate+'T12:00')-new Date(td+'T12:00'))/864e5);
+  return`<div class="exc xcard${dl<=7?' hot':''}" style="--c:${s.color}" data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0>${anRing(hoyPrep(w),68,'Preparación',null)}<div class=xb><b>${esc(s.name)}</b><span class=m>${dl===0?'hoy':dl===1?'mañana':'en '+dl+' días'} · ${fd(w.dueDate)}</span><div class=xbar><i style="width:${a.pct}%"></i></div><span class="m xh"><b>${hr(a.done)}</b> hechas · <b>${hr(a.plan)}</b> previstas</span></div></div>`}).join('');
+ return`<h2 class=gh>Horas hasta cada examen</h2><div class="exg xg">${cards}</div>`}
 
 boot();
 </script></body></html>
