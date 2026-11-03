@@ -24,8 +24,8 @@ test('búsqueda: encuentra pantallas, acciones, tareas, exámenes y temas sin ac
 });
 test('menú plano: todo a un toque (sin grupos desplegables), buscador arriba y barra de pestañas inferior con la sección activa', async () => {
   const a = await boot(); const nav = a.h.nav.innerHTML;
-  for (const r of ['hoy', 'cal', 'tar', 'exa', 'tem', 'met', 'obj', 'cur', 'seg', 'est', 'aj']) assert.match(nav, new RegExp(`data-a=nav data-r=${r}[ >]`), r);
-  assert.equal((nav.match(/aria-expanded/g) ?? []).length, 0); assert.match(nav, /data-a=search/);
+  for (const r of ['hoy', 'cal', 'tar', 'exa', 'tem', 'obj', 'cur', 'seg', 'aj']) assert.match(nav, new RegExp(`data-a=nav data-r=${r}[ >]`), r);
+  assert.equal((nav.match(/aria-expanded/g) ?? []).length, 0); assert.match(nav, /data-a=search/); assert.doesNotMatch(nav, /data-r=met[ >]|data-r=est[ >]/, 'v48: Método y Estimaciones salen del menú (siguen en Ajustes → Avanzado)'); assert.match(a.t.V.aj(), /Avanzado[\s\S]*data-r=met[\s\S]*data-r=est/);
   assert.match(a.h.tabs.innerHTML, /data-r=hoy/); assert.match(a.h.tabs.innerHTML, /data-a=menu/);
   a.t.A.nav({ dataset: { r: 'tar' } }); assert.match(a.h.tabs.innerHTML, /data-r=tar aria-label="Tareas" aria-current=page/);
   a.t.A.nav({ dataset: { r: 'tem' } }); assert.match(a.h.tabs.innerHTML, /data-a=menu aria-label="Más" aria-current=page/, 'secciones secundarias marcan «Más»');

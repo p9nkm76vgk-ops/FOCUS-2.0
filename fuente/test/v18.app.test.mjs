@@ -20,7 +20,7 @@ test('Progreso: cumplimiento, racha, semana y reparto por asignatura salen de lo
   assert.equal(x0.done, 210); assert.equal(x0.comp, 100); assert.equal(x1.done, 30); assert.equal(x1.comp, 33);
   assert.equal(D.wDone, 240, 'semana del 12 al 18'); assert.equal(D.weeks.length, 6);
   const h = a.t.V.seg(); assert.match(h, /Cumplimiento 80 %/); assert.match(h, /<b>3 días<\/b>/); assert.doesNotMatch(h, /Aún no hay nada que medir/); assert.match(h, new RegExp(s1.name));
-  assert.match(h, /Lo que aprende el planificador/, 'se conservan las secciones anteriores');
+  assert.doesNotMatch(h, /Lo que aprende el planificador/, 'v48: el detalle técnico ya no está a la vista');
 });
 test('racha: si hoy aún no hay sesión hecha cuenta desde ayer; un hueco la corta', async () => {
   const a = await boot(); await a.click('addTask'); await a.submit({ subjectId: a.S.subjects[0].id, when: '14', title: 'T' }); const w = a.S.works.at(-1).id;

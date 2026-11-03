@@ -38,7 +38,7 @@ test('repasos del temario: fuera de Tareas/Estimaciones, en su propia sección',
 });
 test('Seguimiento avisa de pocos datos y explica lo que aprende; Curso se marca provisional con pocos temas', async () => {
   const a = await boot(); const w = await mk(a); const b = a.S.blocks.find(x => x.workId === w.id && x.status === 'planned'); await a.click('quickDone', b.id);
-  const sg = a.t.V.seg(); assert.match(sg, /pocos datos \(1 sesión cerrada\)/); assert.match(sg, /Lo que aprende el planificador/); assert.match(sg, /Aún tengo pocos datos/);
+  const sg = a.t.V.seg(); assert.match(sg, /pocos datos \(1 sesión cerrada\)/); assert.doesNotMatch(sg, /Lo que aprende el planificador|Aún tengo pocos datos/, 'v48: sin explicaciones técnicas a la vista');
   await a.click('editGoals'); await a.submit({ target: '9', pauDate: '2027-06-02' }); for (const n of ['A', 'B', 'C', 'D']) a.S.syllabus.push({ id: 't' + n, subjectId: a.S.subjects[0].id, name: n, course: 2, mastery: 0, reviews: 0, last: null, next: null, createdAt: 1 });
   const cu = a.t.V.cur(); assert.match(cu, /provisional/); assert.match(cu, /menos de 6 temas/);
 });

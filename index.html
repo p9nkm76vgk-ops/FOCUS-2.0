@@ -2040,7 +2040,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='1500f7e40c',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='cea6e71e6a',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -3129,7 +3129,7 @@ function renderNav(){const [r,arg]=route.split(':'),cur=k=>r===k||(k==='aj'&&fal
  item=(k,g,l)=>`<button class=nv title="${l}" aria-label="${l}" data-a=nav data-r=${k}${cur(k)}>${ic(g)}<span class=lbl>${l}</span></button>`;
  document.body.classList.toggle('rail',UI.rail);
  $('#nav').innerHTML=`<div class=brand><span>Focus OS</span><button data-a=rail aria-label="${UI.rail?'Expandir':'Contraer'} menú">${ic(UI.rail?'gt':'lt')}</button></div><button class="nv srch" data-a=search aria-label="Buscar" title="Buscar (tecla /)">${ic('srch')}<span class=lbl>Buscar…</span><kbd>/</kbd></button>`
- +'<div class=nvl>'+item('hoy','hoy','Hoy')+item('cal','cal','Calendario')+item('tar','tar','Tareas')+item('exa','exa','Exámenes')+item('tem','tem','Temario')+item('asg','asg','Asignaturas')+item('seg','seg','Progreso')+item('obj','obj','Notas y objetivo')+item('cur','cur','Curso hasta la PAU')+item('met','met','Método de estudio')+item('est','est','Estimaciones')+'</div>'+item('aj','aj','Ajustes');
+ +'<div class=nvl>'+item('hoy','hoy','Hoy')+item('cal','cal','Calendario')+item('tar','tar','Tareas')+item('exa','exa','Exámenes')+item('tem','tem','Temario')+item('asg','asg','Asignaturas')+item('seg','seg','Progreso')+item('obj','obj','Notas y objetivo')+item('cur','cur','Curso hasta la PAU')+'</div>'+item('aj','aj','Ajustes');
  const tb=(k,g,l)=>`<button data-a=nav data-r=${k} aria-label="${l}"${cur(k)}>${ic(g)}<span>${l}</span></button>`,more=['tem','met','obj','cur','seg','est','aj','asg'].includes(r);
  const tabs=$('#tabs');if(tabs)tabs.innerHTML=tb('hoy','hoy','Hoy')+tb('cal','cal','Calendario')+tb('tar','tar','Tareas')+tb('exa','exa','Exámenes')+`<button data-a=menu aria-label="Más"${more?' aria-current=page':''}>${ic('more')}<span>Más</span></button>`}
 
@@ -3159,6 +3159,16 @@ const CT=(()=>{let tip=null,cur=null,guide=null,hot=null,down=false;
  document.addEventListener('pointerleave',clear,true);
  document.addEventListener('scroll',clear,{passive:true,capture:true});
  return{clear}})();
+
+/* v48 · Sin cálculos a la vista. Nada se elimina del sistema (el planificador, las estimaciones y el método siguen funcionando igual):
+   solo se quitan de la pantalla las explicaciones de fórmulas, citas y proyecciones. Lo técnico queda en Ajustes → Avanzado. */
+const TECHRX=/(Dunlosky|Roediger|Cepeda|Rohrer|literatura|se asume|proyección|orientativos|ajusta sus horas|Barra dorada|Línea dorada|Horas = |Cumplimiento = |algoritmo|no se inventa|Por qué:|g=0|Capacidad teórica|«Cargada»|Aún tengo pocos datos|Se mide con|Resumen por reglas|Si cumples todo el plan)/;
+const sinTecnico=h=>h.replace(/<p class="?m"?[^>]*>(?:[^<]|<(?!\/p>))*<\/p>/g,m=>TECHRX.test(m.replace(/<[^>]+>/g,''))?'':m);
+const sinSeccion=(h,titulo)=>{const i=h.indexOf('<h2>'+titulo+'</h2>');if(i<0)return h;const j=h.indexOf('<h2>',i+10);return h.slice(0,i)+(j<0?'':h.slice(j))};
+for(const k of ['seg','cur','tem','est','exa','obj']){const v0=V[k];V[k]=a=>sinTecnico(v0(a))}
+{const s0=V.seg;V.seg=a=>sinSeccion(s0(a),'Lo que aprende el planificador')}
+{const c0=V.cur;V.cur=a=>{const h=c0(a),i=h.indexOf('<div class=card data-sec=proy>');if(i<0)return h;let d=0,k=i;const t=/<div\b|<\/div>/g;t.lastIndex=i;let m;while((m=t.exec(h))){d+=m[0]==='</div>'?-1:1;if(d===0){k=t.lastIndex;break}}return h.slice(0,i)+h.slice(k)}}
+{const a0=V.aj;V.aj=a=>a0(a)+`<details class="card adv"><summary><b>Avanzado</b></summary><p class=m>Detalles técnicos del planificador. No hace falta tocarlos.</p><div class=row style="justify-content:flex-start"><button data-a=nav data-r=met>Método de estudio</button><button data-a=nav data-r=est>Estimaciones</button><button data-a=dailyToggle>${S.goals&&S.goals.dailyOff?'Activar':'Quitar'} las sesiones diarias de relleno</button></div></details>`}
 
 boot();
 </script></body></html>

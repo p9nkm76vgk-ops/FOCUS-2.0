@@ -374,3 +374,8 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 - Las sesiones de «Estudio diario» muestran el **tema concreto** (el menos dominado de la asignatura, según Temario) y la actividad según su nivel: rojo → Aprender, amarillo → Practicar, verde → Repasar, con el método de cada asignatura. Si la asignatura no tiene temas: «Sin tema asignado» y se indica añadirlos en Temario. Antes el nombre del tema se guardaba pero no se enseñaba.
 - Objetivo desde hoy: Economía, Economía + Matemáticas o Ciencia de Datos (Ingeniería Informática descartada). Pesos de valor aproximados (no verificados por universidad): Matemáticas II y Business arriba; Física 0,18 y Química 0,13 (antes 0,23). Solo cambian las horas extra de examen; las cuotas mínimas por asignatura no se tocan.
 - Pruebas: npm test 313/313, estrés 0 fallos, Chromium 42/42 (ejecutadas). Pendiente: comprobar en el iPad y la tabla oficial de ponderaciones de la universidad destino.
+
+## v48 (3-nov-2026) — sin cálculos a la vista
+- Fuera de pantalla (el sistema no cambia): explicaciones de fórmulas y citas en Progreso, Curso, Temario, Exámenes, Notas y Estimaciones; la sección «Lo que aprende el planificador»; la tarjeta de proyección del Curso. Implementado en src/app/limpio.js (filtra párrafos técnicos al pintar; los cálculos siguen intactos).
+- «Método de estudio» y «Estimaciones» salen del menú y quedan en Ajustes → Avanzado, junto al interruptor de las sesiones diarias de relleno.
+- Tests adaptados a propósito (menú y secciones). Ejecutado: npm test 313/313, estrés 0 fallos, Chromium 42/42. No probado en iPad.
