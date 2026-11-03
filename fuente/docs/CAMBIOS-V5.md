@@ -344,3 +344,6 @@ Causas halladas y corregidas:
 
 ## v41 · Paleta y estilo «Helios»
 Negro casi puro en tarjetas y sidebar, fondo con resplandor ciruela, acento lila rosado (#e6bde1), botón principal en píldora lila, navegación activa ciruela oscuro (#2e212d), títulos en peso ligero, bordes finos translúcidos. Sustituye al dorado. Tests 310/310, Chromium 42/42; sin probar en Safari/iPad real.
+
+## v41b · Hoy como panel (bento)
+Barra superior (Tarea/Examen/Fallo + buscador), tres cifras, tarjeta «Siguiente», tarjeta de horas con selector 7 d/30 d/3 m/Curso y gráfica, lista de próximos exámenes con % de preparación y 4 asignaturas de la semana. Dos columnas en pantallas ≥1200 px; una columna en iPad vertical y móvil. Tests 310/310, Chromium 42/42.
