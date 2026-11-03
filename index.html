@@ -319,6 +319,8 @@ const examGuard = (works                                                        
   return g;
 };
 const TRIM_GAMMA = 0.5;
+/** Minutos de la sesión diaria de relleno (estudio diario hasta la PAU). */
+const DAILY_MIN = 45;
 const EXAM_BUFFER_MIN = 60;  // margen antes de la hora del examen el mismo día
 
 const addDays = (d        , n        ) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
@@ -393,7 +395,7 @@ function plan(input                                                             
   // 1) Demandas por trabajo activo
   const warnings            = [], demands           = [];
   const horizonEnd = addDays(now.date, s.horizonDays);
-  for (const w of input.works.filter(active)) {
+  for (const w of input.works.filter(w => active(w) && !w.daily)) {
     if (w.planFrom && w.dueDate > horizonEnd) continue; // examen provisional aún fuera del horizonte: sin sesiones todavía
     const done = w.estimate ? 0 /* el estimador ya descuenta el progreso */ : history.filter(b => b.workId === w.id && b.status === 'done').reduce((a, b) => a + (b.actualMin ?? dur(b)), 0);
     const manual = manualF.filter(b => b.workId === w.id).reduce((a, b) => a + dur(b), 0);
@@ -575,6 +577,43 @@ function plan(input                                                             
     warnings.push({ workId: id, type: 'deficit', deficitMin: min, message: (und ? `No caben ${min} min de "${w.title}" (sin fecha) en los próximos ${UNDATED_SPAN} días.` : `No caben ${min} min de "${w.title}" antes del ${w.dueDate}.`) + ` Cabría con unos ${extra} min más de estudio al día${und ? '' : ' hasta esa fecha'}, reduciendo la estimación${und ? '' : ' o moviendo la fecha'}.` });
   }
 
+  // 3c) Estudio diario hasta la PAU: cada día SIN estudio recibe una sesión corta de la asignatura que toca (reparto ponderado, determinista). Se retira sola en cuanto el día se llena con trabajo real.
+  //     Nunca ocupa un día que ya tiene estudio, respeta bloqueos, cena, ejercicio, protección de examen y los días en que dijiste que no harías la sesión.
+  if (s.daily && s.daily.subjects.length) {
+    const dl = s.daily, until = dl.until < addDays(now.date, 400) ? dl.until : addDays(now.date, 400), L0 = Math.max(s.minSessionMin, dl.min ?? DAILY_MIN);
+    const isD = (b       ) => !!byId.get(b.workId)?.daily;
+    const skipDay = new Set        ([...history, ...missed].filter(isD).map(b => b.date));
+    const oldD = new Map               (); for (const b of autoF.filter(isD).sort(cmp)) if (!oldD.has(b.date)) oldD.set(b.date, b);
+    const credit = new Map                (), nTop = new Map                ();
+    for (const dt of [...skipDay]) { const hb = history.find(b => isD(b) && b.date === dt); if (hb) { const sid = byId.get(hb.workId) .subjectId; nTop.set(sid, (nTop.get(sid) ?? 0) + 1); } }
+    const avH = new Set(input.avoid?.hours ?? []), avD = new Set(input.avoid?.days ?? []);
+    for (let dt = now.date; dt <= until; dt = addDays(dt, 1)) {
+      const x = day(dt); if (x.total > 0 || skipDay.has(dt) || maxOf(dt) - x.total <= 0) continue;
+      // Examen ese mismo día: esa asignatura ya no se repasa; el relleno va antes del examen o ≥ 3 h después de su inicio (nunca durante).
+      const gd = examGuard(input.works, dt), today = new Set        (); let cut = 1440, after = 1440;
+      for (const w of input.works) if (active(w) && w.kind === 'exam' && w.auto !== 'review' && w.dueDate === dt) { today.add(w.subjectId); const st = w.dueMinute ?? hm(9); cut = Math.min(cut, st - EXAM_BUFFER_MIN); after = Math.min(after, st + 180); }
+      let cand = dl.subjects.filter(u => (!gd.size || gd.has(u.id)) && !today.has(u.id)); if (!cand.length) cand = dl.subjects.filter(u => !today.has(u.id));
+      if (!cand.length) continue;
+      const tw = cand.reduce((a, u) => a + u.w, 0); for (const u of cand) credit.set(u.id, (credit.get(u.id) ?? 0) + u.w);
+      const wins = free(dt, true).flatMap(f => today.size ? [{ start: up5(f.start), end: Math.min(f.end, cut) }, { start: up5(Math.max(f.start, after)), end: f.end }] : [{ start: up5(f.start), end: f.end }]).filter(f => f.end - f.start >= Math.min(L0, s.minSessionMin)), capLeft = maxOf(dt) - x.total;
+      const ok = (b       ) => wins.some(f => f.start <= b.start && b.end <= f.end) && dur(b) <= capLeft;
+      const o = oldD.get(dt), oSub = o ? byId.get(o.workId) .subjectId : '';
+      if (o && cand.some(u => u.id === oSub) && ok(o)) { // sesión diaria anterior aún válida: se conserva (sin cambios innecesarios)
+        occupy(o); kept.push(o); credit.set(oSub, (credit.get(oSub) ?? 0) - tw); nTop.set(oSub, (nTop.get(oSub) ?? 0) + 1); continue;
+      }
+      if (!wins.length) continue;
+      let pickS = cand[0]; for (const u of cand) if ((credit.get(u.id) ?? 0) > (credit.get(pickS.id) ?? 0) + 1e-9) pickS = u;
+      let best                                                  = null;
+      for (const f of wins) { const L = Math.min(L0, f.end - f.start, capLeft, s.maxSessionMin); if (L < Math.min(L0, s.minSessionMin)) continue; const sc = (avH.has(hourBucket(f.start)) || avD.has(weekday(dt)) ? 8 : 0) + (f.start >= LATE_FROM ? 4 : 0); if (!best || sc < best.sc) best = { start: f.start, L, sc }; }
+      if (!best) continue;
+      const wid = `daily:${pickS.id}`; if (!byId.has(wid)) continue;
+      const n = nTop.get(pickS.id) ?? 0, tp = pickS.topics.length ? pickS.topics[n % pickS.topics.length] : null;
+      let id = `auto:${wid}:main:${dt}:${best.start}`, k = 1; while (used.has(id)) id = `auto:${wid}:main:${dt}:${best.start}:r${k++}`; used.add(id);
+      const b        = { id, workId: wid, date: dt, start: best.start, end: best.start + best.L, status: 'planned', manual: false, part: 'main', ...(tp ? { label: tp.name } : {}) };
+      occupy(b); created.push(b); credit.set(pickS.id, (credit.get(pickS.id) ?? 0) - tw); nTop.set(pickS.id, n + 1);
+    }
+  }
+
   // 3b) Compactar: en los días futuros, un hueco de ≥15 min DENTRO de una ventana se cierra adelantando las sesiones automáticas
   //     (nunca manuales, hechas, ni fuera de la ventana; hoy solo las que empiezan dentro de más de 30 min). Es estable: sobre un plan ya compacto no cambia nada.
   {
@@ -605,7 +644,7 @@ function plan(input                                                             
   // 4) Cerrar sesiones incumplidas y ensamblar
   const future = [...manualF, ...kept, ...created];
   const hasFuture = (id        ) => future.some(b => b.workId === id) && active(byId.get(id));
-  const closed = missed.map(b => ({ ...b, status: (hasFuture(b.workId) ? 'rescheduled' : 'skipped')                    }));
+  const closed = missed.map(b => ({ ...b, status: (hasFuture(b.workId) && !byId.get(b.workId)?.daily ? 'rescheduled' : 'skipped')                    }));
   const keepIds = new Set(kept.map(b => b.id));
   const removed = autoF.filter(b => !keepIds.has(b.id)).map(b => b.id);
   return { blocks: [...history, ...closed, ...future].sort(cmp), created: created.map(b => b.id), removed, statusChanged: closed.map(b => b.id), warnings };
@@ -1458,7 +1497,7 @@ const GL=(()=>{const {addDays,daysBetween,hourBucket,weekday,NO_DATE}=P;
                                                           
 /** Nota de un examen o trabajo: `weight` = % que vale dentro de SU evaluación (1.ª, 2.ª o 3.ª; la 3.ª es la nota final de 2.º). Sin `weight` (datos antiguos) no entra en el cálculo. */
                                                                                                                                                                              
-                                                                                                                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                                                                                                                           
                                                                                                                                                                                              
 const DEFAULT_GOALS        = { target: null, prevAvg: null, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
 
@@ -1526,11 +1565,11 @@ function accessInfo(g                   , media2               ) {
 /** Puntos de NOTA DE ADMISIÓN (0–14) que suma 1 punto más en cada asignatura de 2.º (aprox.):
  *  - Bachillerato: 0,6 × (1/2 de la media de 2.º) × (1/9 asignaturas) ≈ 0,033 en todas.
  *  - Fase de acceso (5 exámenes, 0,4 × 1/5 = 0,08): Matemáticas II, Lengua, Catalán, Inglés y Hª de la Filosofía (si se elige Filosofía).
- *  - Ponderación 0,2 en la fase de admisión: las dos mejores de Matemáticas II, Física y Química (Mates cuenta en ambas).
- *  Hª de España y Business no suman en el acceso ni ponderan a estos grados (solo la media de Bachillerato). Es un cálculo aproximado, no una cifra oficial. */
-const PAU_VALUE                         = { 'Matemáticas II': 0.31, 'Física': 0.23, 'Química': 0.23, 'Lengua Castellana': 0.11, 'Catalán': 0.11, 'Inglés': 0.11, 'Historia de la Filosofía': 0.11, 'Business': 0.03, 'Historia de España': 0.03 };
+ *  - Ponderación 0,2 en la fase de admisión: las dos mejores de Matemáticas II, Física, Química y Business (Mates cuenta en ambas).
+ *  Business se presenta como optativa y pondera 0,2: entra en la carrera por las dos mejores ponderables junto con Matemáticas II, Física y Química. Hª de España no suma en el acceso ni pondera (solo la media de Bachillerato). Es un cálculo aproximado, no una cifra oficial. */
+const PAU_VALUE                         = { 'Matemáticas II': 0.31, 'Física': 0.23, 'Química': 0.23, 'Lengua Castellana': 0.11, 'Catalán': 0.11, 'Inglés': 0.11, 'Historia de la Filosofía': 0.11, 'Business': 0.23, 'Historia de España': 0.03 };
 /** Factor heurístico de horas de examen según ese valor (no se baja de 0,92 porque las notas de 2.º siguen contando en la media). */
-const PERSONAL                         = { 'Catalán': 1.06, 'Historia de España': 1.06, 'Lengua Castellana': 1.12, 'Inglés': 0.8, 'Business': 1, 'Historia de la Filosofía': 1 };
+const PERSONAL                         = { 'Catalán': 1.06, 'Historia de España': 1.06, 'Lengua Castellana': 1.12, 'Inglés': 0.8, 'Historia de la Filosofía': 1 };
 const valueFactor = (name         )         => { if (name && name in PERSONAL) return PERSONAL[name]; const v = name ? PAU_VALUE[name] : undefined; return v == null ? 1 : v >= 0.3 ? 1.15 : v >= 0.2 ? 1.08 : 1; };
 /** Nota de admisión (máx. 14) = 0,6·media Bachillerato + 0,4·media del acceso + 0,2·M1 + 0,2·M2 (M1, M2 = mejores materias ponderables). */
 const admision = (nmb        , acceso        , m1        , m2        ) => r2(Math.min(14, 0.6 * nmb + 0.4 * acceso + 0.2 * m1 + 0.2 * m2));
@@ -1568,7 +1607,7 @@ function syncReviews(works        , blocks         , topics          , subjects 
   const act = (w      ) => w.status === 'pending' || w.status === 'in_progress';
   let out         = [];
   for (const w of works) {
-    if (w.auto !== 'review' || !act(w) || want.has(w.id)) { out.push(w); continue; }
+    if (w.auto !== 'review' || w.daily || !act(w) || want.has(w.id)) { out.push(w); continue; }
     removed.push(w.id);
     if (blocks.some(b => b.workId === w.id && b.status === 'done')) out.push({ ...w, status: 'archived' });
   }
@@ -1792,7 +1831,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='afeeb0d794',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='dd408a53ef',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -1841,7 +1880,7 @@ function regenFuture(){const n=now();S.blocks=S.blocks.filter(b=>!(b.status==='p
 /** Regeneración total: la versión anterior desaparece (también la rutina futura no hecha ni fijada, con sus «sustituidas»/«sin hueco»). */
 function regenAll(){regenFuture();const n=now();{S.habit=(S.habit||[]).filter(h=>h.pinned||h.status==='done'||h.date<n.date||(h.date===n.date&&h.start<n.minute&&h.status!=='replaced'&&h.status!=='displaced'));if(S.routine&&S.routine.enabled){S.routine={...S.routine,generatedThrough:addDays(n.date,-1)};extendRoutine()}}}
 function ensureG(Sx){if(!Sx.goals)Sx.goals={...GL.DEFAULT_GOALS,prev:{},subjTarget:{}};if(!Array.isArray(Sx.grades))Sx.grades=[];if(!Array.isArray(Sx.syllabus))Sx.syllabus=[]}
-function scheduleOf(Sx,quiet){ensureG(Sx);if(typeof ensureEntreno==='function')ensureEntreno(Sx,now().date);const n=now();Sx.works=GL.syncReviews(Sx.works,Sx.blocks,Sx.syllabus,Sx.subjects,n.date,sid=>GL.gapOf(Sx.goals,Sx.grades,sid,n.date)).works;Sx.works=(typeof syncSyl==='function'?syncSyl(Sx):Sx.works);Sx.works=reestimate(Sx.works,Sx.blocks,ctxOf(Sx));Sx.works=GL.stampBase(Sx.works,GL.learnedPace(Sx.works,Sx.blocks));return proposeSchedule({boost:GL.examBoosts(Sx.goals,Sx.grades,Sx.syllabus,Sx.subjects,n.date),avoid:(st=>({hours:st.avoidHours,days:st.avoidDays}))(GL.slotStats(Sx.blocks,n.date)),settings:{...Sx.settings,extra:typeof refWins==='function'?refWins(Sx,n.date):[]},subjects:Sx.subjects,works:(typeof planWorks==='function'?planWorks(Sx):Sx.works),blocks:Sx.blocks,activities:Sx.activities||[],routine:Sx.routine||DEFAULT_ROUTINE,habit:Sx.habit||[],now:now()})}
+function scheduleOf(Sx,quiet){ensureG(Sx);if(typeof ensureEntreno==='function')ensureEntreno(Sx,now().date);const n=now();Sx.works=typeof syncDaily==='function'?syncDaily(Sx):Sx.works;Sx.works=GL.syncReviews(Sx.works,Sx.blocks,Sx.syllabus,Sx.subjects,n.date,sid=>GL.gapOf(Sx.goals,Sx.grades,sid,n.date)).works;Sx.works=(typeof syncSyl==='function'?syncSyl(Sx):Sx.works);Sx.works=reestimate(Sx.works,Sx.blocks,ctxOf(Sx));Sx.works=GL.stampBase(Sx.works,GL.learnedPace(Sx.works,Sx.blocks));return proposeSchedule({boost:GL.examBoosts(Sx.goals,Sx.grades,Sx.syllabus,Sx.subjects,n.date),avoid:(st=>({hours:st.avoidHours,days:st.avoidDays}))(GL.slotStats(Sx.blocks,n.date)),settings:{...Sx.settings,extra:typeof refWins==='function'?refWins(Sx,n.date):[],daily:typeof planDiario==='function'?planDiario(Sx,n.date):undefined},subjects:Sx.subjects,works:(typeof planWorks==='function'?planWorks(Sx):Sx.works),blocks:Sx.blocks,activities:Sx.activities||[],routine:Sx.routine||DEFAULT_ROUTINE,habit:Sx.habit||[],now:now()})}
 function finish(Sx,r){const tm={};Sx.works.forEach(w=>{if(w.topics?.length&&(w.status==='pending'||w.status==='in_progress'))Object.assign(tm,assignTopics(w,r.blocks))});Sx.blocks=r.blocks.map(b=>tm[b.id]&&!b.manual&&b.topicId!==tm[b.id]?{...b,topicId:tm[b.id]}:b);Sx.habit=r.habit;if(r.through&&Sx.routine)Sx.routine={...Sx.routine,generatedThrough:r.through};W=r.warnings}
 async function persist(){syncPred();S.version=(S.version||0)+1;LAST=JSON.stringify(S);try{await repo.save(S);typeof SY!=='undefined'&&SY.touch()}catch(e){toast('Error al guardar: '+e.message)}render()}
 function extendRoutine(){const R=S.routine;if(!R||!R.enabled)return;const n=now(),to=addDays(n.date,RTN.HORIZON_DAYS-1);if(R.generatedThrough&&R.generatedThrough>=to)return;const from=R.generatedThrough&&R.generatedThrough>=n.date?addDays(R.generatedThrough,1):n.date;S.habit=[...(S.habit||[]),...generate({settings:S.settings,routine:R,subjects:S.subjects,works:S.works,blocks:S.blocks,activities:S.activities||[],habit:S.habit||[],now:n,from,to})];S.routine={...R,generatedThrough:to}}
@@ -1934,7 +1973,7 @@ function blkForm(id,pre){const b=id?S.blocks.find(x=>x.id===id):pre||{},ws_=S.wo
   const s=pm(v.s),e=pm(v.e),n=now();if(!okDate(v.date)||s==null||e==null||e<=s)return'Revisa fecha y horas (el fin debe ser posterior al inicio).';if(v.date<n.date||(v.date===n.date&&s<n.minute))return'No se puede programar en el pasado.';
   if(S.blocks.some(x=>x.id!==id&&x.date===v.date&&(x.status==='planned'||x.status==='done')&&x.start<e&&s<x.end)||habitAsBlocks().some(x=>x.date===v.date&&x.start<e&&s<x.end))return'Se solapa con otra sesión o con un bloque de la rutina (muévelo u omítelo antes).';
   const nb={...b,id:id||'man:'+uid(),workId:v.workId,date:v.date,start:s,end:e,status:'planned',manual:true};S.blocks=id?S.blocks.map(x=>x.id===id?nb:x):[...S.blocks,nb];commit()})}
-const wTopic=b=>((wk(b.workId)||{}).topics||[]).find(x=>x.id===b.topicId)?.name||'';
+const wTopic=b=>((wk(b.workId)||{}).topics||[]).find(x=>x.id===b.topicId)?.name||b.label||'';
 const mnu=(c,t,id)=>c?` data-a=blkMenu data-t=${t} data-id="${esc(id)}" role=button tabindex=0`:'';
 const phaseOf=b=>{const w=wk(b.workId);if(!w||w.kind!=='exam'||w.auto==='review')return undefined;if(b.part==='review')return{id:'simulacro',label:'Simulacro',text:MET.SIMULACRO.detail,i:-1,n:0};const ms=S.blocks.filter(x=>x.workId===w.id&&x.part!=='review'&&(x.status==='planned'||x.status==='done')).sort((x,y)=>x.date.localeCompare(y.date)||x.start-y.start),i=ms.findIndex(x=>x.id===b.id);if(i<0)return undefined;const pl=planOf(w),k=FAS.assignPhases(pl,ms.map(x=>Math.max(1,x.end-x.start)))[i];return pl[k]?{...pl[k],i:k,n:pl.length}:undefined};
 const howOf=(b,s)=>{const ph=phaseOf(b);return ph&&ph.id!=='simulacro'?FAS.phaseHow(ph):MET.howFor(s.name,s.colorKey,{review:b.part==='review',phase:ph?'simulacro':undefined})};
@@ -1996,7 +2035,7 @@ V.hoy=()=>{const n=now(),tb=S.blocks.filter(b=>b.date===n.date&&b.status!=='resc
  <div class=grid><div class=card><h3>Hoy</h3><b>${hr(st.completedMin)}</b> completados de <b>${hr(st.plannedMin)}</b> planificados<div class=bar><i style="width:${st.plannedMin?Math.min(100,100*st.completedMin/st.plannedMin):0}%"></i></div></div><div class=card><h3>Esta semana</h3><b>${hr(sw.completedMin)}</b> de <b>${hr(sw.plannedMin)}</b><div class=bar><i style="width:${sw.plannedMin?Math.min(100,100*sw.completedMin/sw.plannedMin):0}%"></i></div></div></div>
  <h2>Sesiones de hoy</h2>${todayItems(n,tb)||'<p class=m>Sin sesiones hoy.</p>'}${nx.length?`<h2>Próximas sesiones</h2>${nx.map(b=>`<small class=dl>${fd(b.date)}</small>${blk(b,1)}`).join('')}`:''}
  ${routineCta()}${quietNow()!=null?quietNote():pauseCard()+freeCard()}<h2>Prioridades</h2>${top.map(wrow).join('')||'<p class=m>Nada pendiente.</p>'}${ex.length?`<h2>Próximos exámenes</h2>${ex.map(wrow).join('')}`:''}${od.length?`<h2>Atrasadas</h2>${od.map(wrow).join('')}`:''}`};
-V.tar=()=>{const t0=S.works.filter(w=>w.kind==='task'),revs=t0.filter(w=>w.auto==='review'&&w.status!=='done'&&w.status!=='archived').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)),t=t0.filter(w=>w.auto!=='review'),open=t.filter(w=>w.status!=='done'&&w.status!=='archived'),dated=open.filter(w=>!isUndated(w)).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)),und=open.filter(isUndated).sort((a,b)=>priority(b,now())-priority(a,now())),rest=t.filter(w=>!open.includes(w)).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+V.tar=()=>{const t0=S.works.filter(w=>w.kind==='task'),revs=t0.filter(w=>w.auto==='review'&&!w.daily&&w.status!=='done'&&w.status!=='archived').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)),t=t0.filter(w=>w.auto!=='review'),open=t.filter(w=>w.status!=='done'&&w.status!=='archived'),dated=open.filter(w=>!isUndated(w)).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)),und=open.filter(isUndated).sort((a,b)=>priority(b,now())-priority(a,now())),rest=t.filter(w=>!open.includes(w)).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
  return`<h1>Tareas</h1><button class=pri data-a=addTask>+ Nueva tarea</button><br><br>${dated.map(wrow).join('')}${und.length?`<h2>Sin fecha</h2><p class=m>No tienen fecha límite, pero cuentan: Focus OS las coloca en los mejores huecos de las próximas dos semanas, por orden de importancia.</p>${und.map(wrow).join('')}`:''}${rest.length?`<h2>Terminadas</h2>${rest.map(wrow).join('')}`:''}${revs.length?`<details class=more><summary>Repasos del temario (${revs.length})</summary><p class=m>Los crea solo el Temario, con la fecha en que toca repasar cada tema. Están aparte para no mezclarse con tus tareas.</p>${revs.map(wrow).join('')}</details>`:''}${t.length||revs.length?'':'<p class=m>Aún no hay tareas.</p>'}`};
 V.exa=()=>{const l=S.works.filter(w=>w.kind==='exam').sort((a,b)=>a.dueDate.localeCompare(b.dueDate));return`<h1>Exámenes</h1><button class=pri data-a=addExam>+ Nuevo examen</button><br><br>${l.map(wrow).join('')||'<p class=m>Aún no hay exámenes.</p>'}`};
 const PXM=1.25;let CALG=null,CALMODE='week',CALDAY=null;
@@ -2022,8 +2061,8 @@ V.cal=()=>{const n=now();ws=ws||addDays(n.date,-((weekday(n.date)+6)%7));if(!CAL
  return`<h1>Calendario</h1><div class=row style="justify-content:flex-start;margin:0 0 12px"><button data-a=wk data-k=-7 aria-label="Semana anterior">←</button><button data-a=wk data-k=0>Hoy</button><button data-a=wk data-k=7 aria-label="Semana siguiente">→</button><b class=wl>${CALMODE==='day'?fdl(CALDAY):`${+ws.slice(8)} ${MON[+ws.slice(5,7)-1]} – ${+e1.slice(8)} ${MON[+e1.slice(5,7)-1]}`}</b><button data-a=calMode aria-pressed=${CALMODE==='day'}>${CALMODE==='day'?'Ver semana':'Ver día'}</button><button data-a=addAct>+ Ejercicio</button><button data-a=replan>Regenerar futuro</button></div><p class=lg>El plan se genera solo y se ajusta cuando cambia algo (exámenes, tareas, temas, horas estudiadas).</p><div class="tg${per.some(x=>x.nos.length)?' hasnos':''}${CALMODE==='day'?' one':''}"><div class=ax><div class=axh></div><div class=axb style="height:${H}px">${hours.join('')}</div></div><div class=days>${cols}</div></div>`};
 function calSlot(t,e){if(!CALG||!e||e.target!==t)return;const d=t.dataset.d,r=t.getBoundingClientRect(),n=now();let m=CALG.g0+Math.round((e.clientY-r.top)/PXM/15)*15;if(d<n.date||(d===n.date&&m<n.minute))return toast('No se puede programar en el pasado.');blkForm(null,{date:d,start:m,end:m+50})}
 V.asg=id=>{if(id&&S.subjects.some(s=>s.id===id)){const s=sub(id),ws_=S.works.filter(w=>w.subjectId===id),min=S.blocks.filter(b=>b.status==='done'&&ws_.some(w=>w.id===b.workId)).reduce((a,b)=>a+(b.actualMin??b.end-b.start),0);
- return`<h1><span class=dot style="--c:${s.color}"></span> ${esc(s.name)}</h1><p class=m>${(FAM.find(f=>f[0]===(s.family||'generico'))||FAM[0])[1]} · ${hr(min)} estudiadas · color <b>${esc(s.color.toUpperCase())}</b></p><div class=row style="justify-content:flex-start"><button class=pri data-a=addTask>+ Tarea</button><button data-a=addExam>+ Examen</button><button data-a=editSub data-id="${s.id}">Editar asignatura</button></div><h2>Exámenes</h2>${ws_.filter(w=>w.kind==='exam').map(wrow).join('')||'<div class=empty>Sin exámenes para esta asignatura.</div>'}<h2>Tareas</h2>${ws_.filter(w=>w.kind==='task').map(wrow).join('')||'<div class=empty>Sin tareas para esta asignatura.</div>'}`}
- return`<h1>Asignaturas</h1><button class=pri data-a=addSub>+ Asignatura</button><br><br>${S.subjects.map(s0=>{const s=sub(s0.id),ws_=S.works.filter(w=>w.subjectId===s.id);return`<div class="card item" style="--c:${s.color}" data-a=nav data-r="asg:${esc(s.id)}"><span class=dot></span><div><b>${esc(s.name)}</b>${s.archived?' <em>Archivada</em>':''}<small>${ws_.filter(w=>w.kind==='task').length} tareas · ${ws_.filter(w=>w.kind==='exam').length} exámenes</small></div></div>`}).join('')}`};
+ return`<h1><span class=dot style="--c:${s.color}"></span> ${esc(s.name)}</h1><p class=m>${(FAM.find(f=>f[0]===(s.family||'generico'))||FAM[0])[1]} · ${hr(min)} estudiadas · color <b>${esc(s.color.toUpperCase())}</b></p><div class=row style="justify-content:flex-start"><button class=pri data-a=addTask>+ Tarea</button><button data-a=addExam>+ Examen</button><button data-a=editSub data-id="${s.id}">Editar asignatura</button></div><h2>Exámenes</h2>${ws_.filter(w=>w.kind==='exam').map(wrow).join('')||'<div class=empty>Sin exámenes para esta asignatura.</div>'}<h2>Tareas</h2>${ws_.filter(w=>w.kind==='task'&&!w.daily).map(wrow).join('')||'<div class=empty>Sin tareas para esta asignatura.</div>'}`}
+ return`<h1>Asignaturas</h1><button class=pri data-a=addSub>+ Asignatura</button><br><br>${S.subjects.map(s0=>{const s=sub(s0.id),ws_=S.works.filter(w=>w.subjectId===s.id);return`<div class="card item" style="--c:${s.color}" data-a=nav data-r="asg:${esc(s.id)}"><span class=dot></span><div><b>${esc(s.name)}</b>${s.archived?' <em>Archivada</em>':''}<small>${ws_.filter(w=>w.kind==='task'&&!w.daily).length} tareas · ${ws_.filter(w=>w.kind==='exam').length} exámenes</small></div></div>`}).join('')}`};
 V.seg=()=>{const n=now(),st=stats(S.blocks,S.works,n),ds=[...Array(7)].map((_,i)=>addDays(n.date,i-6)),mx=Math.max(60,...ds.map(d=>Math.max(st.byDay[d]?.plannedMin||0,st.byDay[d]?.completedMin||0))),sm=Math.max(1,...Object.values(st.bySubject));
  return`<h1>Seguimiento</h1><div class=grid><div class=card><h3>Completado</h3><b>${hr(st.completedMin)}</b></div><div class=card><h3>Planificado</h3><b>${hr(st.plannedMin)}</b></div><div class=card><h3>Cumplimiento</h3><b>${st.compliance==null?'—':st.compliance+'%'}</b></div></div>
  <p class=m>Cumplimiento = minutos de sesiones completadas ÷ minutos de sesiones completadas + omitidas. Las sesiones reprogramadas no se cuentan dos veces. Sesiones: ${st.counts.planned} previstas · ${st.counts.done} hechas · ${st.counts.skipped} omitidas · ${st.counts.rescheduled} reprogramadas.</p>
@@ -2367,7 +2406,7 @@ const WR={
  groups(list){const n=now(),order=['Atrasadas','Hoy','Mañana','Esta semana','Más adelante'],m={};for(const w of list){const g=WR.grp(n,w.dueDate);(m[g]=m[g]||[]).push(w)}
   return order.filter(g=>m[g]).map(g=>`<h2 class=gh>${g}</h2><div class=wlist>${m[g].map(WR.row).join('')}</div>`).join('')}
 };
-V.tar=()=>{const t0=S.works.filter(w=>w.kind==='task'),revs=t0.filter(w=>w.auto==='review'&&w.status!=='done'&&w.status!=='archived').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)),t=t0.filter(w=>w.auto!=='review'),open=t.filter(w=>w.status!=='done'&&w.status!=='archived'),dated=open.filter(w=>!isUndated(w)).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)),und=open.filter(isUndated).sort((a,b)=>priority(b,now())-priority(a,now())),rest=t.filter(w=>!open.includes(w)).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+V.tar=()=>{const t0=S.works.filter(w=>w.kind==='task'),revs=t0.filter(w=>w.auto==='review'&&!w.daily&&w.status!=='done'&&w.status!=='archived').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)),t=t0.filter(w=>w.auto!=='review'),open=t.filter(w=>w.status!=='done'&&w.status!=='archived'),dated=open.filter(w=>!isUndated(w)).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)),und=open.filter(isUndated).sort((a,b)=>priority(b,now())-priority(a,now())),rest=t.filter(w=>!open.includes(w)).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
  return`<div class=ph><h1>Tareas</h1><button class=pri data-a=addTask>+ Nueva tarea</button></div>${WR.groups(dated)}${und.length?`<h2 class=gh>Sin fecha</h2><div class=wlist>${und.map(WR.row).join('')}</div><p class=m>Sin fecha límite, pero cuentan: se colocan en los mejores huecos de las próximas dos semanas.</p>`:''}${rest.length?`<details class=more data-k=ter${HY.open.ter?' open':''}><summary>Terminadas (${rest.length})</summary><div class=wlist>${rest.map(WR.row).join('')}</div></details>`:''}${revs.length?`<details class=more data-k=rev${HY.open.rev?' open':''}><summary>Repasos del temario (${revs.length})</summary><p class=m>Los crea solo el Temario, con la fecha en que toca repasar cada tema.</p><div class=wlist>${revs.map(WR.row).join('')}</div></details>`:''}${t.length||revs.length?'':`<div class=empty><i>${ic('tar')}</i><b>Aún no hay tareas</b><p class=m>Solo necesitas la asignatura y la fecha: Focus OS la coloca en el calendario.</p><button class=pri data-a=addTask>+ Nueva tarea</button></div>`}`};
 const exOld=V.exa;
 V.exa=a=>{const old=exOld(a),tm=/<h2>Próximas semanas<\/h2>[\s\S]*?(?=<h2>Exámenes<\/h2>)/.exec(old),weeks=tm?`<details class=more data-k=sem${HY.open.sem?' open':''}><summary>Carga de las próximas semanas</summary>${tm[0]}</details>`:'';const l=S.works.filter(w=>w.kind==='exam'),td0=now().date,open=l.filter(w=>w.status!=='done'&&w.status!=='archived'&&(isUndated(w)||w.dueDate>=td0)).sort((a,b)=>a.dueDate.localeCompare(b.dueDate)),rest=l.filter(w=>!open.includes(w)).sort((a,b)=>b.dueDate.localeCompare(a.dueDate)),quit=w=>WR.row(w).replace(/<\/div>$/,`<button class=quit data-a=examQuit data-id="${esc(w.id)}">Quitar</button></div>`);
@@ -2477,7 +2516,7 @@ function migrateObjetivo(Sx){if(Sx.obV>=1)return;Sx.obV=1;const g=Sx.goals;if(!g
 function planCard(){const g=S.goals;if(!g||!g.planPau||g.admTarget==null)return'';
  const med=GL.overall(g,S.grades,S.subjects,now().date).media,m2=med!=null?med:g.target,nmb=(g.prevAvg+m2)/2,need=GL.needPond(g.admTarget,nmb,g.pauExpected),ok=need<=10;
  const rows=S.subjects.filter(s=>!s.archived&&GL.PAU_VALUE[s.name]!=null).sort((a,b)=>GL.PAU_VALUE[b.name]-GL.PAU_VALUE[a.name]).map(s=>`<div class=ro><span><i class=dot style="--c:${sub(s.id).color}"></i> ${esc(s.name)}</span><b>+${String(GL.PAU_VALUE[s.name]).replace('.',',')}</b></div>`).join('');
- return`<div class=card data-sec=plan><h3>Tu objetivo de admisión</h3><p class=m>${esc(g.admLabel||'')}: <b>${String(g.admTarget).replace('.',',')}</b> sobre 14${g.admIdeal?` · ideal <b>${String(g.admIdeal).replace('.',',')}</b>`:''}.</p><p class=m>${ok?`Con una media de Bachillerato de ${String(Math.round(nmb*100)/100).replace('.',',')} y ${String(g.pauExpected).replace('.',',')} de media en el acceso, necesitas <b>${String(need).replace('.',',')}</b> de media en Matemáticas II y en Física/Química${g.admIdeal?` (para el ideal, <b>${String(GL.needPond(g.admIdeal,nmb,g.pauExpected)).replace('.',',')}</b>)`:''}.`:`Con esa media de Bachillerato y ese acceso haría falta más de un 10 en las materias ponderables: no es alcanzable sin subir la media.`}</p><details class=more><summary>Dónde rinde más estudiar</summary><p class=m>Puntos de nota de admisión que suma cada punto más de nota (aproximado):</p>${rows}<p class=m>Por eso reciben más horas Matemáticas II, Física y Química. Hª de España y Business solo cuentan en la media de Bachillerato. Datos de tu plan de ingeniería; las notas de corte de 2027-28 pueden subir.</p></details></div>`}
+ return`<div class=card data-sec=plan><h3>Tu objetivo de admisión</h3><p class=m>${esc(g.admLabel||'')}: <b>${String(g.admTarget).replace('.',',')}</b> sobre 14${g.admIdeal?` · ideal <b>${String(g.admIdeal).replace('.',',')}</b>`:''}.</p><p class=m>${ok?`Con una media de Bachillerato de ${String(Math.round(nmb*100)/100).replace('.',',')} y ${String(g.pauExpected).replace('.',',')} de media en el acceso, necesitas <b>${String(need).replace('.',',')}</b> de media en tus dos mejores ponderables (Matemáticas II, Física, Química o Business)${g.admIdeal?` (para el ideal, <b>${String(GL.needPond(g.admIdeal,nmb,g.pauExpected)).replace('.',',')}</b>)`:''}.`:`Con esa media de Bachillerato y ese acceso haría falta más de un 10 en las materias ponderables: no es alcanzable sin subir la media.`}</p><details class=more><summary>Dónde rinde más estudiar</summary><p class=m>Puntos de nota de admisión que suma cada punto más de nota (aproximado):</p>${rows}<p class=m>Por eso reciben más horas Matemáticas II, Física y Química. Business se presenta como optativa y pondera 0,2 (cuenta si es de tus dos mejores ponderables); Hª de España solo cuenta en la media de Bachillerato. Datos de tu plan de ingeniería; las notas de corte de 2027-28 pueden subir.</p></details></div>`}
 {const o=V.obj;V.obj=a=>{const h=o(a);return h.replace(/(<h1>Objetivos y notas<\/h1>[\s\S]*?<\/div>)/,m=>m+planCard())}}
 
 /* v23 · Fines de semana activos (8:00–13:30 y tarde hasta las 20:30; tope 7 h) y «Cómo llegarás» a cada examen */
@@ -2672,6 +2711,35 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElement
 function calSlot(){}
 function migrateRutina(Sx){if(Sx.rtV>=1)return;Sx.rtV=1;if(Sx.routine)Sx.routine={...Sx.routine,enabled:false};
  const n=now();Sx.habit=(Sx.habit||[]).filter(h=>h.status==='done'||h.date<n.date)}
+
+/* ===== Estudio diario hasta la PAU (v38): ningún día queda vacío. Todo el cálculo está en src/core/planner.ts (paso 3c); aquí solo se prepara el dato y se muestra la proyección. ===== */
+/** Datos para el planificador: asignaturas con su peso (valor para la nota × lo que falta por dominar) y sus temas, de los menos dominados a los más. */
+function planDiario(Sx,today){const g=Sx.goals;if(!g||!g.pauDate||g.dailyOff||g.pauDate<today)return undefined;
+ const subs=(Sx.subjects||[]).filter(s=>!s.archived);if(!subs.length)return undefined;
+ return{until:g.pauDate,subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
+  return{id:s.id,w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
+/** Un trabajo oculto por asignatura (auto:'review' + daily:true: ninguna pantalla lo lista como tarea). Idempotente. */
+function syncDaily(Sx){const g=Sx.goals,on=planDiario(Sx,now().date),have=new Map((Sx.works||[]).filter(w=>w.daily).map(w=>[w.id,w])),want=new Set(on?on.subjects.map(u=>u.id):[]);let out=Sx.works;
+ for(const sid of want){const id='daily:'+sid,w=have.get(id);
+  if(!w)out=[...out,{id,kind:'task',subjectId:sid,title:'Estudio diario',dueDate:g.pauDate,estMin:45,manualEstMin:45,autoEst:false,difficulty:2,importance:3,readiness:0,status:'pending',auto:'review',daily:true,createdAt:0}];
+  else if(w.status!=='pending'||w.dueDate!==g.pauDate)out=out.map(x=>x.id===id?{...x,status:'pending',dueDate:g.pauDate}:x)}
+ for(const [id,w] of have)if(!want.has(id.slice(6))&&w.status==='pending')out=out.map(x=>x.id===id?{...x,status:'archived'}:x);
+ return out}
+/** Proyección: cuántas horas llevarías en todo el curso si cumples el plan actual hasta la PAU. Se calcula sobre una COPIA con horizonte hasta la PAU (no cambia tu plan). */
+const MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+let PROJ=null;
+function projectCourse(){const n=now(),g=S.goals;if(!g||!g.pauDate||g.pauDate<n.date)return null;const key=(S.version||0)+'|'+n.date+'|'+(g.dailyOff?1:0);if(PROJ&&PROJ.key===key)return PROJ.v;
+ const X=JSON.parse(JSON.stringify(S)),days=Math.round((Date.parse(g.pauDate+'T00:00:00Z')-Date.parse(n.date+'T00:00:00Z'))/864e5)+1;X.settings.horizonDays=Math.max(X.settings.horizonDays,days);
+ const r=scheduleOf(X,true),W=id=>X.works.find(w=>w.id===id)||{},byM={},byS={};let done=0,plan=0,daily=0,weeks=0;
+ for(const b of r.blocks){const w=W(b.workId),m=b.date.slice(0,7);if(b.status==='done'){const v=b.actualMin??b.end-b.start;done+=v;(byM[m]??={d:0,p:0,y:0}).d+=v;byS[w.subjectId]=(byS[w.subjectId]||0)+v}
+  else if(b.status==='planned'&&b.date>=n.date&&b.date<=g.pauDate){const v=b.end-b.start;plan+=v;if(w.daily)daily+=v;(byM[m]??={d:0,p:0,y:0})[w.daily?'y':'p']+=v;byS[w.subjectId]=(byS[w.subjectId]||0)+v}}
+ weeks=Math.max(1,days/7);const v={done,plan,daily,total:done+plan,days,weeks,avg:Math.round((done+plan)/weeks),byM,byS};PROJ={key,v};return v}
+function proyeccionCard(){const g=S.goals;if(!g||!g.pauDate)return'';const p=projectCourse();if(!p)return'';
+ const ms=Object.keys(p.byM).sort(),mx=Math.max(60,...ms.map(m=>p.byM[m].d+p.byM[m].p+p.byM[m].y)),ss=Object.entries(p.byS).sort((a,b)=>b[1]-a[1]);
+ const rows=ms.map(m=>{const x=p.byM[m],t=x.d+x.p+x.y;return`<div class=ro><span>${MESES[+m.slice(5)-1]} ${m.slice(2,4)}</span><b>${hr(t)}</b></div><div class=bar style="height:6px;margin:2px 0 8px"><i style="width:${Math.round(100*t/mx)}%"></i></div>`}).join('');
+ return`<div class=card data-sec=proy><h3>Horas del curso hasta la PAU</h3><p class=m>Si cumples todo el plan tal como está hoy: <b>${hr(p.total)}</b> en total (${hr(p.done)} ya hechas + ${hr(p.plan)} previstas hasta el ${fd(g.pauDate)}), unas <b>${hr(p.avg)}</b> por semana. De las previstas, ${hr(p.daily)} son sesiones diarias de relleno que se irán cambiando por exámenes y tareas según los añadas.</p><p class=m>Es una proyección con tus datos de hoy (temas, exámenes y disponibilidad): crecerá cuando apuntes más exámenes o bajes algún tema a rojo.</p><details class=more><summary>Por mes y por asignatura</summary>${rows}<div style="height:8px"></div>${ss.map(([id,v])=>`<div class=ro><span><i class=dot style="--c:${sub(id).color}"></i> ${esc(sub(id).name)}</span><b>${hr(v)}</b></div>`).join('')}</details><div class=row style="justify-content:flex-start;margin-top:10px"><button data-a=dailyToggle>${g.dailyOff?'Activar':'Quitar'} las sesiones diarias de relleno</button></div></div>`}
+A.dailyToggle=()=>{S.goals={...S.goals,dailyOff:!S.goals.dailyOff};PROJ=null;commit({quiet:true})};
+{const c=V.cur;V.cur=a=>{const h=c(a);return h+proyeccionCard()}}
 
 boot();
 </script></body></html>

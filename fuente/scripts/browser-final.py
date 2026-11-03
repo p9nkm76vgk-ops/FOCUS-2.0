@@ -70,12 +70,12 @@ try:
     c.close()
     c2 = newctx(b); p2 = newpage(c2); go(p2, 'aj'); p2.set_input_files('#imp', '/tmp/export-final.json'); p2.wait_for_timeout(500); s2 = ls(p2)
     ck('Importación restaura datos (otro origen limpio)', len(s2['works']) == 2 and len(s2['subjects']) == 9 and s2['works'][1]['estimatorVersion'] == 2 and len(s2['estimateLog']) == 1)
-    p2.reload(); p2.wait_for_selector('#main h1'); ck('Importados persisten al recargar', len(ls(p2)['works']) == 2)
+    p2.reload(); p2.wait_for_selector('#main h1'); ck('Importados persisten al recargar', len([w for w in ls(p2)['works'] if not w.get('daily')]) == 2)
     # recarga + cierre/reapertura en el mismo contexto
-    p3 = c2.new_page(); p3.goto(URL); p3.wait_for_selector('#main h1'); ck('Reabrir en pestaña nueva conserva datos', len(ls(p3)['works']) == 2); c2.close()
+    p3 = c2.new_page(); p3.goto(URL); p3.wait_for_selector('#main h1'); ck('Reabrir en pestaña nueva conserva datos', len([w for w in ls(p3)['works'] if not w.get('daily')]) == 2); c2.close()
     # ---- B: datos antiguos (v2 anterior) ----
     raw = json.dumps(FIX); c = newctx(b, raw); p = newpage(c); st = ls(p)
-    ck('Datos antiguos: migrados, nueve asignaturas y trabajos conservados', st['schemaVersion'] == 3 and len(st['subjects']) == 9 and len(st['works']) == len(FIX['works']) and all(s.get('colorKey') for s in st['subjects']))
+    ck('Datos antiguos: migrados, nueve asignaturas y trabajos conservados', st['schemaVersion'] == 3 and len(st['subjects']) == 9 and len([w for w in st['works'] if not w.get('daily')]) == len(FIX['works']) and all(s.get('colorKey') for s in st['subjects']))
     ck('Datos antiguos: copia previa idéntica byte a byte', p.evaluate("localStorage.getItem('focusos.v1.premigration')") == raw)
     ck('Datos antiguos: sesiones completadas y manuales intactas', all(any(x == bk for x in st['blocks']) for bk in FIX['blocks'] if bk['status'] == 'done' or bk.get('manual')))
     p.reload(); p.wait_for_selector('#main h1'); ck('Reabrir no repite la migración', p.evaluate("localStorage.getItem('focusos.v1.premigration')") == raw); c.close()

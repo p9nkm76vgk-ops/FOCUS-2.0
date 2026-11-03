@@ -6,7 +6,7 @@ import type { Block, Work } from './types.ts';
 export type GradeKind = 'examen' | 'tarea' | 'evaluacion';
 /** Nota de un examen o trabajo: `weight` = % que vale dentro de SU evaluación (1.ª, 2.ª o 3.ª; la 3.ª es la nota final de 2.º). Sin `weight` (datos antiguos) no entra en el cálculo. */
 export interface Grade { id: string; subjectId: string; score: number; weight?: number; evalNo?: 1 | 2 | 3; kind?: GradeKind; date: string; label?: string; workId?: string }
-export interface Goals { target: number | null; prevAvg?: number | null; prev?: Record<string, number>; subjTarget: Record<string, number>; pauDate: string | null; start: string | null; pauExpected: number | null; accessTarget: number | null; admTarget?: number | null; admLabel?: string; planPau?: boolean; planOff?: boolean }
+export interface Goals { target: number | null; prevAvg?: number | null; prev?: Record<string, number>; subjTarget: Record<string, number>; pauDate: string | null; start: string | null; pauExpected: number | null; accessTarget: number | null; admTarget?: number | null; admLabel?: string; planPau?: boolean; planOff?: boolean; dailyOff?: boolean }
 export interface Topic2 { id: string; subjectId: string; name: string; course?: 1 | 2; mastery: 0 | 1 | 2 | 3; reviews: number; last: string | null; next: string | null; createdAt: number }
 export const DEFAULT_GOALS: Goals = { target: null, prevAvg: null, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
 
@@ -74,11 +74,11 @@ export function accessInfo(g: Goals | undefined, media2: number | null) {
 /** Puntos de NOTA DE ADMISIÓN (0–14) que suma 1 punto más en cada asignatura de 2.º (aprox.):
  *  - Bachillerato: 0,6 × (1/2 de la media de 2.º) × (1/9 asignaturas) ≈ 0,033 en todas.
  *  - Fase de acceso (5 exámenes, 0,4 × 1/5 = 0,08): Matemáticas II, Lengua, Catalán, Inglés y Hª de la Filosofía (si se elige Filosofía).
- *  - Ponderación 0,2 en la fase de admisión: las dos mejores de Matemáticas II, Física y Química (Mates cuenta en ambas).
- *  Hª de España y Business no suman en el acceso ni ponderan a estos grados (solo la media de Bachillerato). Es un cálculo aproximado, no una cifra oficial. */
-export const PAU_VALUE: Record<string, number> = { 'Matemáticas II': 0.31, 'Física': 0.23, 'Química': 0.23, 'Lengua Castellana': 0.11, 'Catalán': 0.11, 'Inglés': 0.11, 'Historia de la Filosofía': 0.11, 'Business': 0.03, 'Historia de España': 0.03 };
+ *  - Ponderación 0,2 en la fase de admisión: las dos mejores de Matemáticas II, Física, Química y Business (Mates cuenta en ambas).
+ *  Business se presenta como optativa y pondera 0,2: entra en la carrera por las dos mejores ponderables junto con Matemáticas II, Física y Química. Hª de España no suma en el acceso ni pondera (solo la media de Bachillerato). Es un cálculo aproximado, no una cifra oficial. */
+export const PAU_VALUE: Record<string, number> = { 'Matemáticas II': 0.31, 'Física': 0.23, 'Química': 0.23, 'Lengua Castellana': 0.11, 'Catalán': 0.11, 'Inglés': 0.11, 'Historia de la Filosofía': 0.11, 'Business': 0.23, 'Historia de España': 0.03 };
 /** Factor heurístico de horas de examen según ese valor (no se baja de 0,92 porque las notas de 2.º siguen contando en la media). */
-export const PERSONAL: Record<string, number> = { 'Catalán': 1.06, 'Historia de España': 1.06, 'Lengua Castellana': 1.12, 'Inglés': 0.8, 'Business': 1, 'Historia de la Filosofía': 1 };
+export const PERSONAL: Record<string, number> = { 'Catalán': 1.06, 'Historia de España': 1.06, 'Lengua Castellana': 1.12, 'Inglés': 0.8, 'Historia de la Filosofía': 1 };
 export const valueFactor = (name?: string): number => { if (name && name in PERSONAL) return PERSONAL[name]; const v = name ? PAU_VALUE[name] : undefined; return v == null ? 1 : v >= 0.3 ? 1.15 : v >= 0.2 ? 1.08 : 1; };
 /** Nota de admisión (máx. 14) = 0,6·media Bachillerato + 0,4·media del acceso + 0,2·M1 + 0,2·M2 (M1, M2 = mejores materias ponderables). */
 export const admision = (nmb: number, acceso: number, m1: number, m2: number) => r2(Math.min(14, 0.6 * nmb + 0.4 * acceso + 0.2 * m1 + 0.2 * m2));
@@ -116,7 +116,7 @@ export function syncReviews(works: Work[], blocks: Block[], topics: Topic2[], su
   const act = (w: Work) => w.status === 'pending' || w.status === 'in_progress';
   let out: Work[] = [];
   for (const w of works) {
-    if (w.auto !== 'review' || !act(w) || want.has(w.id)) { out.push(w); continue; }
+    if (w.auto !== 'review' || w.daily || !act(w) || want.has(w.id)) { out.push(w); continue; }
     removed.push(w.id);
     if (blocks.some(b => b.workId === w.id && b.status === 'done')) out.push({ ...w, status: 'archived' });
   }

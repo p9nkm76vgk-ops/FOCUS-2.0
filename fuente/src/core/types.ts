@@ -9,6 +9,8 @@ export interface Settings {
   maxDayWeekend?: number; // tope diario en sábado y domingo (si es mayor que maxDayMin)
   maxDayMin: number; preferredMin: number; maxSessionMin: number;
   minSessionMin: number; minGapMin: number; horizonDays: number;
+  /** Estudio diario hasta la PAU (no se guarda: lo calcula la app en cada planificación). */
+  daily?: { until: string; min?: number; subjects: { id: string; w: number; topics: { id: string; name: string }[] }[] };
 }
 export interface Work {
   id: string; kind: WorkKind; subjectId: string; title: string;
@@ -24,12 +26,12 @@ export interface Work {
   /** Opciones elegidas en el formulario (sin escribir nada): ritmo personal para esta tarea/examen y cantidad de materia del examen. */
   pace?: number; amount?: string;
   /** Tarea automática de repaso del temario (auto:'review') y estimación inicial sin ajuste aprendido (base0). */
-  auto?: 'review'; topicRef?: string; base0?: number; felt?: -1 | 0 | 1;
+  auto?: 'review'; daily?: boolean; topicRef?: string; base0?: number; felt?: -1 | 0 | 1;
   manualEstMin?: number; corrections?: { at: number; from: number | null; to: number }[]; estimate?: Estimate;
 }
 export interface Block {
   id: string; workId: string; date: string; start: number; end: number;
-  status: BlockStatus; manual: boolean; quality?: 1 | 2 | 3; reason?: 'cansancio' | 'imprevisto' | 'nocabia' | 'otro'; part?: 'main' | 'review'; actualMin?: number; running?: number; topicId?: string; log?: SessionLog;
+  status: BlockStatus; manual: boolean; quality?: 1 | 2 | 3; reason?: 'cansancio' | 'imprevisto' | 'nocabia' | 'otro'; part?: 'main' | 'review'; label?: string; actualMin?: number; running?: number; topicId?: string; log?: SessionLog;
 }
 export interface Now { date: string; minute: number } // hora local del usuario
 export interface Warning { workId: string; type: 'deficit' | 'overdue'; deficitMin?: number; message: string }

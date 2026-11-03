@@ -41,6 +41,8 @@ export const examGuard = (works: { kind: string; status: string; auto?: string; 
   return g;
 };
 export const TRIM_GAMMA = 0.5;
+/** Minutos de la sesión diaria de relleno (estudio diario hasta la PAU). */
+export const DAILY_MIN = 45;
 export const EXAM_BUFFER_MIN = 60;  // margen antes de la hora del examen el mismo día
 
 export const addDays = (d: string, n: number) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
@@ -115,7 +117,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   // 1) Demandas por trabajo activo
   const warnings: Warning[] = [], demands: Demand[] = [];
   const horizonEnd = addDays(now.date, s.horizonDays);
-  for (const w of input.works.filter(active)) {
+  for (const w of input.works.filter(w => active(w) && !w.daily)) {
     if (w.planFrom && w.dueDate > horizonEnd) continue; // examen provisional aún fuera del horizonte: sin sesiones todavía
     const done = w.estimate ? 0 /* el estimador ya descuenta el progreso */ : history.filter(b => b.workId === w.id && b.status === 'done').reduce((a, b) => a + (b.actualMin ?? dur(b)), 0);
     const manual = manualF.filter(b => b.workId === w.id).reduce((a, b) => a + dur(b), 0);
@@ -297,6 +299,43 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     warnings.push({ workId: id, type: 'deficit', deficitMin: min, message: (und ? `No caben ${min} min de "${w.title}" (sin fecha) en los próximos ${UNDATED_SPAN} días.` : `No caben ${min} min de "${w.title}" antes del ${w.dueDate}.`) + ` Cabría con unos ${extra} min más de estudio al día${und ? '' : ' hasta esa fecha'}, reduciendo la estimación${und ? '' : ' o moviendo la fecha'}.` });
   }
 
+  // 3c) Estudio diario hasta la PAU: cada día SIN estudio recibe una sesión corta de la asignatura que toca (reparto ponderado, determinista). Se retira sola en cuanto el día se llena con trabajo real.
+  //     Nunca ocupa un día que ya tiene estudio, respeta bloqueos, cena, ejercicio, protección de examen y los días en que dijiste que no harías la sesión.
+  if (s.daily && s.daily.subjects.length) {
+    const dl = s.daily, until = dl.until < addDays(now.date, 400) ? dl.until : addDays(now.date, 400), L0 = Math.max(s.minSessionMin, dl.min ?? DAILY_MIN);
+    const isD = (b: Block) => !!byId.get(b.workId)?.daily;
+    const skipDay = new Set<string>([...history, ...missed].filter(isD).map(b => b.date));
+    const oldD = new Map<string, Block>(); for (const b of autoF.filter(isD).sort(cmp)) if (!oldD.has(b.date)) oldD.set(b.date, b);
+    const credit = new Map<string, number>(), nTop = new Map<string, number>();
+    for (const dt of [...skipDay]) { const hb = history.find(b => isD(b) && b.date === dt); if (hb) { const sid = byId.get(hb.workId)!.subjectId; nTop.set(sid, (nTop.get(sid) ?? 0) + 1); } }
+    const avH = new Set(input.avoid?.hours ?? []), avD = new Set(input.avoid?.days ?? []);
+    for (let dt = now.date; dt <= until; dt = addDays(dt, 1)) {
+      const x = day(dt); if (x.total > 0 || skipDay.has(dt) || maxOf(dt) - x.total <= 0) continue;
+      // Examen ese mismo día: esa asignatura ya no se repasa; el relleno va antes del examen o ≥ 3 h después de su inicio (nunca durante).
+      const gd = examGuard(input.works, dt), today = new Set<string>(); let cut = 1440, after = 1440;
+      for (const w of input.works) if (active(w) && w.kind === 'exam' && w.auto !== 'review' && w.dueDate === dt) { today.add(w.subjectId); const st = w.dueMinute ?? hm(9); cut = Math.min(cut, st - EXAM_BUFFER_MIN); after = Math.min(after, st + 180); }
+      let cand = dl.subjects.filter(u => (!gd.size || gd.has(u.id)) && !today.has(u.id)); if (!cand.length) cand = dl.subjects.filter(u => !today.has(u.id));
+      if (!cand.length) continue;
+      const tw = cand.reduce((a, u) => a + u.w, 0); for (const u of cand) credit.set(u.id, (credit.get(u.id) ?? 0) + u.w);
+      const wins = free(dt, true).flatMap(f => today.size ? [{ start: up5(f.start), end: Math.min(f.end, cut) }, { start: up5(Math.max(f.start, after)), end: f.end }] : [{ start: up5(f.start), end: f.end }]).filter(f => f.end - f.start >= Math.min(L0, s.minSessionMin)), capLeft = maxOf(dt) - x.total;
+      const ok = (b: Block) => wins.some(f => f.start <= b.start && b.end <= f.end) && dur(b) <= capLeft;
+      const o = oldD.get(dt), oSub = o ? byId.get(o.workId)!.subjectId : '';
+      if (o && cand.some(u => u.id === oSub) && ok(o)) { // sesión diaria anterior aún válida: se conserva (sin cambios innecesarios)
+        occupy(o); kept.push(o); credit.set(oSub, (credit.get(oSub) ?? 0) - tw); nTop.set(oSub, (nTop.get(oSub) ?? 0) + 1); continue;
+      }
+      if (!wins.length) continue;
+      let pickS = cand[0]; for (const u of cand) if ((credit.get(u.id) ?? 0) > (credit.get(pickS.id) ?? 0) + 1e-9) pickS = u;
+      let best: { start: number; L: number; sc: number } | null = null;
+      for (const f of wins) { const L = Math.min(L0, f.end - f.start, capLeft, s.maxSessionMin); if (L < Math.min(L0, s.minSessionMin)) continue; const sc = (avH.has(hourBucket(f.start)) || avD.has(weekday(dt)) ? 8 : 0) + (f.start >= LATE_FROM ? 4 : 0); if (!best || sc < best.sc) best = { start: f.start, L, sc }; }
+      if (!best) continue;
+      const wid = `daily:${pickS.id}`; if (!byId.has(wid)) continue;
+      const n = nTop.get(pickS.id) ?? 0, tp = pickS.topics.length ? pickS.topics[n % pickS.topics.length] : null;
+      let id = `auto:${wid}:main:${dt}:${best.start}`, k = 1; while (used.has(id)) id = `auto:${wid}:main:${dt}:${best.start}:r${k++}`; used.add(id);
+      const b: Block = { id, workId: wid, date: dt, start: best.start, end: best.start + best.L, status: 'planned', manual: false, part: 'main', ...(tp ? { label: tp.name } : {}) };
+      occupy(b); created.push(b); credit.set(pickS.id, (credit.get(pickS.id) ?? 0) - tw); nTop.set(pickS.id, n + 1);
+    }
+  }
+
   // 3b) Compactar: en los días futuros, un hueco de ≥15 min DENTRO de una ventana se cierra adelantando las sesiones automáticas
   //     (nunca manuales, hechas, ni fuera de la ventana; hoy solo las que empiezan dentro de más de 30 min). Es estable: sobre un plan ya compacto no cambia nada.
   {
@@ -327,7 +366,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
   // 4) Cerrar sesiones incumplidas y ensamblar
   const future = [...manualF, ...kept, ...created];
   const hasFuture = (id: string) => future.some(b => b.workId === id) && active(byId.get(id));
-  const closed = missed.map(b => ({ ...b, status: (hasFuture(b.workId) ? 'rescheduled' : 'skipped') as Block['status'] }));
+  const closed = missed.map(b => ({ ...b, status: (hasFuture(b.workId) && !byId.get(b.workId)?.daily ? 'rescheduled' : 'skipped') as Block['status'] }));
   const keepIds = new Set(kept.map(b => b.id));
   const removed = autoF.filter(b => !keepIds.has(b.id)).map(b => b.id);
   return { blocks: [...history, ...closed, ...future].sort(cmp), created: created.map(b => b.id), removed, statusChanged: closed.map(b => b.id), warnings };

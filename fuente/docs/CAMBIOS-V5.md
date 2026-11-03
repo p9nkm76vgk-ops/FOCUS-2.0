@@ -322,3 +322,10 @@ Causas halladas y corregidas:
 - Guardia de viabilidad (condición de Hall) en el reparto por rondas: primero se colocan solo sesiones que no impiden cubrir los plazos anteriores; después, sin guardia.
 - Auditoría `node --no-warnings scripts/audit-plan.mjs` (escenarios hipotéticos): sesiones en la víspera máx. 62 % → 41 %; cobertura mínima 0,44 → 0,45–0,47; media 0,90.
 - Pruebas ejecutadas: npm test 303/303; estrés 6000 estados, 0 fallos. Pendientes: Safari/iPad real; los escenarios son hipotéticos, no tus datos.
+
+## v38 — Una sesión cada día hasta la PAU, proyección de horas y Business optativa (0,2)
+- **Estudio diario:** cada día entre hoy y la fecha de la PAU que no tenga estudio recibe una sesión de 45 min (`DAILY_MIN`) de la asignatura que toca (reparto ponderado por valor para la nota × lo que falta por dominar; el tema sale del temario, de menos a más dominado). Paso 3c del planificador: va DESPUÉS de exámenes y tareas, por lo que nunca les quita sitio; si el día se llena con trabajo real, el relleno desaparece solo, y si ese trabajo se completa o se borra, vuelve. Respeta bloqueos, cena, ejercicio, protección de examen (días previos solo esa asignatura; el día del examen, antes de él o ≥ 3 h después, y de otra asignatura) y los días en que dijiste que no harías la sesión. Una sesión de relleno incumplida se cierra como omitida (no «reprogramada»). Conserva las sesiones de relleno aún válidas (estable) y es idempotente.
+- Trabajos ocultos `daily:<asignatura>` (`auto:'review'`, `daily:true`): no salen en Tareas, Asignaturas, Estimaciones ni búsqueda. Se pueden quitar con un botón (Curso hasta la PAU).
+- **Proyección de horas** (Curso hasta la PAU): horas hechas + previstas hasta la PAU, por mes y por asignatura, calculada sobre una copia con horizonte hasta la PAU (no cambia tu plan).
+- **Business** pondera 0,2 como optativa: valor 0,23 (como Física/Química) y factor de horas 1,08; textos del plan de admisión actualizados.
+- Pruebas ejecutadas: `npm test` 308/308 (5 nuevas en `test/v38.app.test.mjs`), estrés 6000 estados 0 fallos, Chromium 42/42. Pendiente: Safari/iPad real.
