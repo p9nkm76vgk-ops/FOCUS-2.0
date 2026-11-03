@@ -356,3 +356,6 @@ Gráficas (línea, barras, donut) interactivas: puntero o arrastre muestra valor
 
 ## v44 · Hoy idéntico a la maqueta en grande
 Tipografía ligera (Avenir Next / SF Rounded, pesos 300-400), saludo «Hola, estudiante», anillo grueso con «Progreso del día», tres cifras con separadores, píldoras Tarea/Examen/Fallo, «Siguiente sesión» con Empezar rosa y Hecho/No hecho con contorno, resto del día con círculos, horas con píldoras 7 d/30 d/3 m/Curso, exámenes con barra y asignaturas con barra de color y «hechas / previstas». Menú lateral plano con esfera de marca, Asignaturas y Ajustes abajo. Tests actualizados: se permite peso 300 (no 100/200) y Asignaturas vuelve al menú.
+
+## v44b · Tipografía Manrope (recomendada por ChatGPT)
+Títulos 400, subtítulos 500, texto 400, cifras 600, botones 600, etiquetas 500. Se carga desde Google Fonts (única excepción a «sin recursos externos»); sin conexión usa Avenir Next / SF del sistema. No se pudo incrustar el archivo de la fuente porque el entorno no alcanza los registros de paquetes: pendiente si se aporta el .woff2.

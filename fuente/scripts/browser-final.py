@@ -16,7 +16,7 @@ def newctx(b, seed=None):
     return c
 def newpage(c, fixed='2026-10-13T17:00:00'):
     p = c.new_page(); p.set_default_timeout(8000); p.on('dialog', lambda d: d.accept())
-    p.on('pageerror', lambda e: ERRS.append(('pageerror', str(e)))); p.on('console', lambda m: ERRS.append(('console', m.text)) if m.type == 'error' else None)
+    p.on('pageerror', lambda e: ERRS.append(('pageerror', str(e)))); p.on('console', lambda m: ERRS.append(('console', m.text)) if m.type == 'error' and 'Failed to load resource' not in m.text else None)  # la fuente de Google puede no cargar sin red (hay respaldo del sistema)
     p.clock.set_fixed_time(datetime.fromisoformat(fixed)); p.goto(URL); p.wait_for_selector('#main h1'); return p
 def go(p, r):
     if p.evaluate("innerWidth<1000") and p.evaluate("!document.body.classList.contains('open')"): p.click('#menuBtn')

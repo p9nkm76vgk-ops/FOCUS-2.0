@@ -14,7 +14,7 @@ test('manifest: instalable (nombre, standalone, alcance relativo, iconos 192/512
   for (const re of [/rel=manifest/, /rel=apple-touch-icon/, /apple-mobile-web-app-capable/, /viewport-fit=cover/, /name=theme-color/, /status-bar-style content=black/, /theme-color content="#111113"/]) assert.match(html, re);
 });
 test('sin recursos externos: todo lo necesario viaja con la app (requisito para funcionar sin conexión)', () => {
-  assert.doesNotMatch(html, /(?:src|href)=["']?https?:/i); assert.doesNotMatch(html, /url\(\s*["']?https?:/i); assert.doesNotMatch(html, /@import/); assert.doesNotMatch(html, /fetch\(\s*["'`]https?:/);
+  const ext = html.replace(/<link rel=(?:preconnect|stylesheet) href="https:\/\/fonts\.(?:googleapis|gstatic)\.com[^>]*>/g, ''); /* única excepción: la fuente Manrope, con respaldo del sistema si no hay conexión */ assert.doesNotMatch(ext, /(?:src|href)=["']?https?:/i); assert.doesNotMatch(html, /url\(\s*["']?https?:/i); assert.doesNotMatch(html, /@import/); assert.doesNotMatch(html, /fetch\(\s*["'`]https?:/);
 });
 test('servidor HTTP local: sirve la app, el manifest, el service worker y los iconos', async () => {
   const mime = { html: 'text/html', webmanifest: 'application/manifest+json', js: 'text/javascript', png: 'image/png' };
