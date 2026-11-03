@@ -347,3 +347,6 @@ Negro casi puro en tarjetas y sidebar, fondo con resplandor ciruela, acento lila
 
 ## v41b · Hoy como panel (bento)
 Barra superior (Tarea/Examen/Fallo + buscador), tres cifras, tarjeta «Siguiente», tarjeta de horas con selector 7 d/30 d/3 m/Curso y gráfica, lista de próximos exámenes con % de preparación y 4 asignaturas de la semana. Dos columnas en pantallas ≥1200 px; una columna en iPad vertical y móvil. Tests 310/310, Chromium 42/42.
+
+## v42 · Maqueta de 10 pantallas (ChatGPT) aplicada
+Hoy en tres filas (anillo+cifras+accesos | siguiente sesión; resto del día | horas con selector; próximos exámenes con barra | asignaturas de la semana). Tareas con filtros Todas/Hoy/Esta semana/Atrasadas. Exámenes con tres cifras (preparación media, días al próximo, total). Asignaturas en teselas de color. Pendiente: panel de próximos exámenes en Calendario, Curso hasta la PAU y Notas con el diseño de la maqueta. Tests 310/310.

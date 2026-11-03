@@ -379,6 +379,22 @@ h1{font-weight:400;letter-spacing:-.02em}.hhead h1{font-weight:400}
 @media(max-width:1199px){.bento{grid-template-columns:1fr}}
 @media(max-width:520px){.seg2.rp{flex-wrap:wrap}}
 @media(max-width:1199px){.bento{gap:14px}.bcol{display:contents}.bcol>*{order:5}.bcol>.hero{order:1}.bcol>.bc{order:2}}
+/* v42 · Hoy según maqueta: tres filas de dos tarjetas */
+.bento{display:grid;grid-template-columns:1fr;gap:14px}.brow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:stretch}
+.brow>.hero{margin:0}.hhead{align-items:flex-start}.hhead .askbar{margin-top:6px}
+.topA{display:flex;align-items:center;gap:20px;flex-wrap:wrap}.topA .stats{display:flex;gap:22px;flex:1;min-width:220px}.stat{display:flex;flex-direction:column}.stat b{font-size:2rem;font-weight:500;letter-spacing:-.02em}.stat b em{font-style:normal;font-size:1rem;color:var(--muted);font-weight:400}.stat small{color:var(--muted)}
+.topA .pills{display:flex;gap:8px;flex-wrap:wrap;width:100%}.topA .pills button{min-height:44px;padding:0 18px;display:inline-flex;align-items:center;gap:8px}.topA .pills .ic{width:20px;height:20px;color:var(--accent)}
+.bc .tl{margin:0}.bc .tr{background:transparent;border:0;border-top:1px solid #ffffff10;border-radius:0;padding:10px 0}
+.hrs{color:var(--muted)}.hrs b{color:var(--text);font-weight:600}.wli .xbar{margin-top:6px}
+@media(max-width:999px){.brow{grid-template-columns:1fr}.bcol{display:grid}}
+.seg2.rp button,.stat small{white-space:nowrap}.stat small{white-space:normal}
+@media(max-width:1199px){.brow{grid-template-columns:1fr}}
+@media(max-width:520px){.topA{flex-direction:column;align-items:flex-start}.topA .stats{gap:16px;width:100%}.stat b{font-size:1.6rem}.seg2.rp button{padding:0 10px}}
+/* v42b · filtros, cifras de exámenes, teselas */
+.chipsrow{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.chp{min-height:44px;padding:0 18px;border-radius:999px}.chp.on{background:#403541;border-color:#ffffff30}
+.ktiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 16px}.kt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:18px;text-align:center;min-height:150px}.kt small{color:var(--muted)}.kt .bign{margin:0}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}.stile{display:flex;flex-direction:column;gap:6px;padding:20px;min-height:150px;border-radius:22px;cursor:pointer;border:1px solid color-mix(in srgb,var(--c) 45%,transparent);background:linear-gradient(155deg,color-mix(in srgb,var(--c) 38%,#0a0a0b),color-mix(in srgb,var(--c) 12%,#0a0a0b))}.stile b{font-size:1.15rem}.stile .sh{font-size:1.6rem;font-weight:500}.stile .sh em{font-style:normal;font-size:.95rem;color:var(--muted)}.stile small{color:var(--muted);margin-top:auto}
+@media(max-width:520px){.ktiles{grid-template-columns:1fr 1fr}.ktiles .kt:first-child{grid-column:1/3}}
 </style></head><body>
 <div id=topbar><button id=menuBtn data-a=menu aria-label="Abrir menú" aria-expanded=false><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><b id=topTitle>Focus OS</b><button id=topSearch data-a=search aria-label="Buscar"><svg class=ic viewBox="0 0 24 24" aria-hidden=true focusable=false><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></button></div>
 <nav id=tabs aria-label="Secciones principales"></nav><aside class=side id=nav aria-label="Navegación principal"></aside><div class=scrim data-a=menuClose></div>
@@ -1939,7 +1955,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='ebfcf3d35f',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='ee161fc58d',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2946,26 +2962,50 @@ HY.exams=n=>{const l=act().filter(w=>w.kind==='exam'&&w.dueDate>=n.date&&w.auto!
   head=`<div class=hhead><div><small class=eye>${greet}</small><h1>Hoy</h1><p class=m>${fdl(n.date)}</p></div>${anRing(pc,104,'Progreso de hoy','de hoy')}</div>
 <div class="g3 kp3"><div class="card kpi"><small>Sesiones</small><b class=mid>${its.filter(x=>x.st==='done').length} <em>de ${its.length}</em></b></div><div class="card kpi"><small>Racha</small><b class=mid>${stk.cur} <em>${stk.cur===1?'día':'días'}</em></b></div><div class="card kpi"><small>Semana</small><b class=mid>${wp==null?'—':wp+' %'}</b></div></div>
 <div class=qtiles><button data-a=addTask>${ic('tar')}<span>Tarea</span></button><button data-a=addExam>${ic('exa')}<span>Examen</span></button><button data-a=addErr>${ic('est')}<span>Fallo</span></button></div>`;
-  let body=h.replace(/<h1>Hoy<\/h1><p class=m>[^<]*<\/p>/,'§HEAD§').replace(/<div class=dprog[^>]*><i[^>]*><\/i><\/div>/,'').replace(/<div class=quick>[\s\S]*?<\/div>/,'').replace('<div class=tl>','<h2 class=gh>Resto del día</h2><div class=tl>');
+  let body=h.replace(/<h1>Hoy<\/h1><p class=m>[^<]*<\/p>/,'').replace(/<div class=dprog[^>]*><i[^>]*><\/i><\/div>/,'').replace(/<div class=quick>[\s\S]*?<\/div>/,'');
   const ex=HY.exams(n);if(ex)body=body.replace(ex,'');
-  const R=anRange(n,AN.r),cur=anAgg(rows,R.from,R.to),vals=R.B.map(b=>anAgg(rows,b.from,b.to<n.date?b.to:n.date).done),
+  const take=(re)=>{const i=body.search(re);if(i<0)return'';let d=0,k=i;const t=/<div\b|<\/div>/g;t.lastIndex=i;let m;while((m=t.exec(body))){d+=m[0]==='</div>'?-1:1;if(d===0){k=t.lastIndex;break}}const piece=body.slice(i,k);body=body.slice(0,i)+body.slice(k);return piece},
+   heroH=take(/<div class=hero/),tlH0=take(/<div class=tl>/),
+   R=anRange(n,AN.r),cur=anAgg(rows,R.from,R.to),vals=R.B.map(b=>anAgg(rows,b.from,b.to<n.date?b.to:n.date).done),
    rng=[['w','7 d'],['m','30 d'],['t','3 m'],['c','Curso']].map(([k,l])=>`<button data-a=anRange data-id=${k} class="${AN.r===k?'on':''}" aria-pressed=${AN.r===k}>${l}</button>`).join(''),
    perf=`<div class="card bc"><div class=bch><div><small class=lab>Horas de estudio</small><b class=bign>${anH(cur.done)}</b></div><div class="seg2 rp">${rng}</div></div>${anLine(vals,R.B.map(b=>b.label),{label:'Horas de estudio hechas'})}</div>`,
    exs=act().filter(w=>w.kind==='exam'&&w.dueDate>=n.date&&w.auto!=='review').sort((a,b)=>a.dueDate.localeCompare(b.dueDate)||a.id.localeCompare(b.id)).slice(0,4),
-   wl=exs.length?`<div class="card bc"><div class=bch><div><small class=lab>Próximos exámenes</small></div><button class=lnk data-a=nav data-r=exa>Ver todos</button></div>${exs.map(w=>{const d=P.daysBetween(n.date,w.dueDate),s=sub(w.subjectId),pp=hoyPrep(w);return`<div class=wli data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0 style="--c:${s.color}"><i class=dot></i><div><b>${esc(s.name)}</b><small>${fd(w.dueDate)} · ${d===0?'hoy':d===1?'mañana':'en '+d+' días'}</small></div><span class="pcn${pp<34?' lo':pp<67?' mi':' hi'}">${pp} %</span></div>`}).join('')}</div>`:'',
-   ws=S.subjects.filter(x=>!x.archived).map(x=>({x,m:anAgg(rows.filter(b=>(b.subjectId||(S.works.find(w=>w.id===b.workId)||{}).subjectId)===x.id),mon,addDays(mon,6))})).sort((a,b)=>b.m.plan-a.m.plan).slice(0,4),
-   subs=ws.length?`<div class="card bc"><div class=bch><div><small class=lab>Esta semana por asignatura</small></div><button class=lnk data-a=nav data-r=seg>Ver más</button></div><div class=mini4>${ws.map(({x,m})=>`<div class=mini style="--c:${x.color}"><i class=dot></i><b>${esc(x.name)}</b><span class=big2>${anH(m.done)}</span><small>de ${anH(m.plan)}</small></div>`).join('')}</div></div>`:'';
-  const tb=`<div class=tbar><div class=pills><button data-a=addTask>${ic('tar')}<span>Tarea</span></button><button data-a=addExam>${ic('exa')}<span>Examen</span></button><button data-a=addErr>${ic('est')}<span>Fallo</span></button></div><button class=askbar data-a=search>${ic('srch')}<span>Busca o salta a…</span><kbd>/</kbd></button></div>`;
-  const kp=/<div class="g3 kp3">[\s\S]*?<\/div><\/div><\/div><\/div>/.exec(head);
-  const hd=head.replace(/<div class="g3 kp3">[\s\S]*?(?=<div class=qtiles>)/,'').replace(/<div class=qtiles>[\s\S]*?<\/div><\/div>$/,'').replace(/<div class=qtiles>[\s\S]*$/,'');
-  const kps=(/<div class="g3 kp3">[\s\S]*?(?=<div class=qtiles>)/.exec(head)||[''])[0];
-  return body.replace('§HEAD§','').replace(/^/,hd+tb+kps+'<div class=bento><div class=bcol>').concat(`</div><div class=bcol>${perf}${wl}${subs}</div></div>`)}}
+   wl=`<div class="card bc"><div class=bch><div><small class=lab>Próximos exámenes</small></div><button class=lnk data-a=nav data-r=exa>Ver todos</button></div>${exs.length?exs.map(w=>{const d=P.daysBetween(n.date,w.dueDate),s=sub(w.subjectId),pp=hoyPrep(w);return`<div class=wli data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0 style="--c:${s.color}"><i class=dot></i><div><b>${esc(s.name)}</b><small>${fd(w.dueDate)} · ${d===0?'hoy':d===1?'mañana':'en '+d+' días'}</small><div class=xbar><i style="width:${pp}%"></i></div></div><span class="pcn${pp<34?' lo':pp<67?' mi':' hi'}">${pp} %</span></div>`}).join(''):'<p class=m>No hay exámenes próximos.</p>'}</div>`,
+   ws=S.subjects.filter(x=>!x.archived).map(x=>({x,m:anAgg(rows.filter(b=>(b.subjectId||(S.works.find(w=>w.id===b.workId)||{}).subjectId)===x.id),mon,addDays(mon,6))})).sort((a,b)=>b.m.plan-a.m.plan).slice(0,5),
+   subs=`<div class="card bc"><div class=bch><div><small class=lab>Asignaturas esta semana</small></div><button class=lnk data-a=nav data-r=seg>Ver más</button></div>${ws.map(({x,m})=>`<div class=wli style="--c:${x.color}"><i class=dot></i><div><b>${esc(x.name)}</b></div><span class=hrs><b>${anH(m.done)}</b> / ${anH(m.plan)}</span></div>`).join('')}</div>`,
+   tlH=tlH0?`<div class="card bc"><div class=bch><div><small class=lab>Resto del día</small></div></div>${tlH0}</div>`:`<div class="card bc"><div class=bch><div><small class=lab>Resto del día</small></div></div><p class=m>Nada más por hoy.</p></div>`,
+   statH=(/<div class="g3 kp3">[\s\S]*?(?=<div class=qtiles>)/.exec(head)||[''])[0],
+   num=(lab,v,u)=>`<div class=stat><b>${v}</b><small>${lab}</small></div>`,
+   topA=`<div class="card bc topA">${anRing(pc,112,'Progreso de hoy','de hoy')}<div class=stats>${num('Sesiones hoy',its.filter(x=>x.st==='done').length+'<em>/'+its.length+'</em>')}${num('Racha',stk.cur+'<em>'+(stk.cur===1?' día':' días')+'</em>')}${num('Cumplimiento semanal',wp==null?'—':wp+'<em> %</em>')}</div><div class=pills><button data-a=addTask>${ic('tar')}<span>Tarea</span></button><button data-a=addExam>${ic('exa')}<span>Examen</span></button><button data-a=addErr>${ic('est')}<span>Fallo</span></button></div></div>`,
+   hd=`<div class=hhead><div><small class=eye>${greet}</small><h1>Hoy</h1><p class=m>${fdl(n.date)}</p></div><button class=askbar data-a=search>${ic('srch')}<span>Busca o salta a…</span><kbd>/</kbd></button></div>`;
+  return hd+`<div class=bento><div class=brow>${topA}${heroH}</div><div class=brow>${tlH}${perf}</div><div class=brow>${wl}${subs}</div></div>`+body}}
 
 /* Exámenes: tarjetas con anillo de preparación y barra de horas (sustituye a la lista plana) */
 function arrivalCard(){const td=now().date,ex=S.works.filter(w=>w.kind==='exam'&&w.auto!=='review'&&w.status!=='archived'&&w.status!=='done'&&w.dueDate>=td).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));if(!ex.length)return'';
  const cards=ex.slice(0,6).map(w=>{const s=sub(w.subjectId),a=arrival(w,td),dl=Math.round((new Date(w.dueDate+'T12:00')-new Date(td+'T12:00'))/864e5);
   return`<div class="exc xcard${dl<=7?' hot':''}" style="--c:${s.color}" data-a=editExam data-id="${esc(w.id)}" role=button tabindex=0>${anRing(hoyPrep(w),68,'Preparación',null)}<div class=xb><b>${esc(s.name)}</b><span class=m>${dl===0?'hoy':dl===1?'mañana':'en '+dl+' días'} · ${fd(w.dueDate)}</span><div class=xbar><i style="width:${a.pct}%"></i></div><span class="m xh"><b>${hr(a.done)}</b> hechas · <b>${hr(a.plan)}</b> previstas</span></div></div>`}).join('');
  return`<h2 class=gh>Horas hasta cada examen</h2><div class="exg xg">${cards}</div>`}
+
+/* ===== v42 · Tareas con filtros, Exámenes con cifras, Asignaturas en teselas (maqueta) ===== */
+HY.tf=HY.tf||'all';
+A.tarFilter=t=>{HY.tf=t.dataset.id;render()};
+{const t0=V.tar;V.tar=a=>{const o=t0(a),n=now(),F=[['all','Todas'],['hoy','Hoy'],['sem','Esta semana'],['atr','Atrasadas']],
+  chips=`<div class=chipsrow>${F.map(([k,l])=>`<button class="chp${HY.tf===k?' on':''}" data-a=tarFilter data-id=${k} aria-pressed=${HY.tf===k}>${l}</button>`).join('')}</div>`,
+  ok={all:null,hoy:['Hoy'],sem:['Hoy','Mañana','Esta semana'],atr:['Atrasadas']}[HY.tf],
+  parts=o.split('<h2 class=gh>'),head=parts.shift(),tailI=(parts[parts.length-1]||'').search(/<details class=more|<p class=m>/);
+  let tail='';if(parts.length&&tailI>=0){const l=parts.length-1;tail=parts[l].slice(tailI);parts[l]=parts[l].slice(0,tailI)}
+  const keep=ok?parts.filter(p=>ok.some(g=>p.startsWith(g+'</h2>'))):parts,
+   body=keep.map(p=>'<h2 class=gh>'+p).join('')+(ok?'':tail);
+  if(/class=empty/.test(o)&&!parts.length)return o.replace(/<\/div>(?=<div class=empty)/,'</div>'+'');
+  return head+chips+(body||`<div class=empty><i>${ic('tar')}</i><b>¡Todo al día!</b><p class=m>No tienes tareas en este filtro.</p></div>`)}}
+{const e0=V.exa;V.exa=a=>{const o=e0(a),n=now(),ex=S.works.filter(w=>w.kind==='exam'&&w.auto!=='review'&&w.status!=='archived'&&w.status!=='done'&&w.dueDate>=n.date).sort((x,y)=>x.dueDate.localeCompare(y.dueDate));
+  if(!ex.length)return o;const avg=Math.round(ex.reduce((s,w)=>s+hoyPrep(w),0)/ex.length),d=P.daysBetween(n.date,ex[0].dueDate),
+   k=`<div class=ktiles><div class="card kt">${anRing(avg,96,'Preparación media',null)}<small>Preparación</small></div><div class="card kt"><b class=bign>${d}</b><small>${d===1?'día':'días'} hasta el próximo</small></div><div class="card kt"><b class=bign>${ex.length}</b><small>exámenes por delante</small></div></div>`;
+  return o.replace(/(<div class=ph>[\s\S]*?<\/div>)/,m=>m+k)}}
+{const g0=V.asg;V.asg=id=>{const o=g0(id);if(id&&S.subjects.some(s=>s.id===id))return o;const n=now(),mon=mondayOf(n.date),rows=S.blocks.filter(b=>b.status!=='rescheduled'),
+  tiles=S.subjects.filter(s=>!s.archived).map(s0=>{const s=sub(s0.id),ws_=S.works.filter(w=>w.subjectId===s.id),ids=new Set(ws_.map(w=>w.id)),wk=anAgg(rows.filter(b=>ids.has(b.workId)),mon,addDays(mon,6)),tot=rows.filter(b=>ids.has(b.workId)&&b.status==='done').reduce((a,b)=>a+(b.actualMin??b.end-b.start),0),nx=ws_.filter(w=>w.kind==='exam'&&w.auto!=='review'&&w.status!=='done'&&w.status!=='archived'&&w.dueDate>=n.date).sort((a,b)=>a.dueDate.localeCompare(b.dueDate))[0];
+   return`<div class=stile style="--c:${s.color}" data-a=nav data-r="asg:${esc(s.id)}" role=button tabindex=0><b>${esc(s.name)}</b><span class=sh>${anH(wk.done)} <em>/ ${anH(wk.plan)} esta semana</em></span><small>${nx?'Próx.: '+fd(nx.dueDate):'Sin examen próximo'} · ${anH(tot)} en total</small></div>`}).join('');
+  return`<div class=ph><h1>Asignaturas</h1><button class=pri data-a=addSub>+ Asignatura</button></div><div class=sgrid>${tiles}</div>`}}
 
 boot();
 </script></body></html>
