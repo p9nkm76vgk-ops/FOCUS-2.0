@@ -35,7 +35,7 @@ const SY=(()=>{
    else if((!st.dirty&&st.base>0)||emptyLocal())await adopt(rem);
    else await ask(rem,tok);
    if(!err)st.last=Date.now();save()}
-  catch(e){err=ES(e.message||'Error de sincronización')}finally{busy=false;note()}}
+  catch(e){err=(e&&e.name==='TypeError')||(e&&e.status>=500)?'No se pudo conectar con la nube (sin conexión o servicio en pausa). Se reintentará solo.':ES(e.message||'Error de sincronización')}finally{busy=false;note()}}
  const schedule=()=>{if(timer||!st.session)return;try{timer=setTimeout(()=>{timer=null;sync({force:true})},2000)}catch{}};
  return{
   get on(){return!!st.session},get email(){return st.session?st.session.email:''},get base(){return st.base},get dirty(){return st.dirty},

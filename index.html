@@ -1967,7 +1967,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='311a573af2',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='7f0a7353bb',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2452,7 +2452,7 @@ const SY=(()=>{
    else if((!st.dirty&&st.base>0)||emptyLocal())await adopt(rem);
    else await ask(rem,tok);
    if(!err)st.last=Date.now();save()}
-  catch(e){err=ES(e.message||'Error de sincronización')}finally{busy=false;note()}}
+  catch(e){err=(e&&e.name==='TypeError')||(e&&e.status>=500)?'No se pudo conectar con la nube (sin conexión o servicio en pausa). Se reintentará solo.':ES(e.message||'Error de sincronización')}finally{busy=false;note()}}
  const schedule=()=>{if(timer||!st.session)return;try{timer=setTimeout(()=>{timer=null;sync({force:true})},2000)}catch{}};
  return{
   get on(){return!!st.session},get email(){return st.session?st.session.email:''},get base(){return st.base},get dirty(){return st.dirty},
