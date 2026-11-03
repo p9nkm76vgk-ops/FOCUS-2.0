@@ -341,3 +341,6 @@ Causas halladas y corregidas:
 - Exámenes: tarjetas con anillo, cuenta atrás y barra de horas hechas/previstas (los 6 próximos); el resto sigue en la lista. Se corrigió un HTML mal anidado de la tarjeta anterior.
 - Calendario semanal: bloques más limpios (sin subtítulo; hábitos atenuados).
 - Sin cambios en el planificador ni en los datos. Tests 310/310, estrés 6000/0, Chromium 42/42. Safari/iPad real sin probar; capturas con datos sintéticos.
+
+## v41 · Paleta y estilo «Helios»
+Negro casi puro en tarjetas y sidebar, fondo con resplandor ciruela, acento lila rosado (#e6bde1), botón principal en píldora lila, navegación activa ciruela oscuro (#2e212d), títulos en peso ligero, bordes finos translúcidos. Sustituye al dorado. Tests 310/310, Chromium 42/42; sin probar en Safari/iPad real.

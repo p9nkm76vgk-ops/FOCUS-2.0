@@ -338,3 +338,26 @@ button.pri{background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 88%
 .xbar{height:8px;border-radius:6px;background:var(--surface3);overflow:hidden;margin-top:4px}.xbar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--c),color-mix(in srgb,var(--c) 55%,#fff))}
 .xcard .xh b{color:var(--text)}
 .xcard .xh{display:block;white-space:normal}.xcard .xh b{display:inline!important}.xcard .xb>span{display:block}
+/* ===== v41 · lenguaje visual «Helios»: negro puro, ciruela, lila rosado, cristal fino ===== */
+:root{--bg:#0e0b0f;--surface:#0a0a0b;--surface2:#131114;--surface3:#201b20;--line:#ffffff12;--line2:#ffffff24;--text:#f6f4f6;--muted:#9b989b;--accent:#e6bde1;--accent2:#d9b6d8;--accent-ink:#1a0f19;--accent-soft:#d9b6d82b;--glow:#d9b6d814;--r:22px}
+body{background:var(--bg)}
+body::before{background:radial-gradient(900px 560px at 50% -12%,#3a2a38 0%,transparent 70%),radial-gradient(700px 520px at 100% 40%,#2a1c29aa,transparent 70%),radial-gradient(640px 460px at -10% 105%,#2a1c2988,transparent 70%)}
+.card,.wr,.tr,.qtiles button{background:var(--surface);border:1px solid #ffffff17;box-shadow:inset 0 1px 0 #ffffff0a;-webkit-backdrop-filter:none;backdrop-filter:none}
+.card{border-radius:22px}
+.side{background:#0a0a0b;border-right:1px solid #ffffff10;-webkit-backdrop-filter:none;backdrop-filter:none}
+.nv[aria-current=page]{background:#2e212d;box-shadow:none;color:var(--accent)}
+.nv[aria-current=page] .ic{color:var(--accent)}
+button,.btn{background:#ffffff0d;border:1px solid #ffffff1f;color:var(--text)}
+button.pri{background:linear-gradient(180deg,#f6d1ef,#d9b6d8);color:#1a0f19;border:0;box-shadow:0 10px 28px -12px #d9b6d8aa,inset 0 1px 0 #ffffff88}
+.chip,.seg2 button,.chips button{background:#ffffff0d;border:1px solid #ffffff22}
+.seg2 button[aria-pressed=true],.seg2 button.on,.chip.on,.chips button[aria-pressed=true]{background:#403541;border-color:#ffffff30;color:var(--text)}
+.hero{background:radial-gradient(520px 260px at 100% 0,#4a3547 0%,transparent 70%),linear-gradient(160deg,#17121a,#0a0a0b);border:1px solid #ffffff1c;box-shadow:inset 0 1px 0 #ffffff12}
+.hero .hn{font-weight:500;letter-spacing:-.02em}
+h1{font-weight:400;letter-spacing:-.02em}.hhead h1{font-weight:400}
+.hhead .m{color:var(--accent)}.eye{color:var(--accent);letter-spacing:.14em;font-weight:600}
+.qtiles button .ic,.kpi .ic{color:var(--accent)}
+#tabs{background:#0a0a0bd9;border:1px solid #ffffff1c}
+#tabs button[aria-current=page]{background:#2e212d;color:var(--accent);box-shadow:none}
+.xbar{background:#ffffff14}
+.tl .tr:hover,.wr:hover{background:#131114}
+.exc.hot{border-left-color:var(--accent);box-shadow:none}
