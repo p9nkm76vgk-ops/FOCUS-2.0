@@ -4,7 +4,7 @@ const sid = (a, n) => a.S.subjects.find(s => s.name === n).id;
 const exam = async (a, name, date) => { await a.click('addExam'); await a.submit({ title: '', subjectId: sid(a, name), dueDate: date, time: '', estOverride: '', difficulty: '3', importance: '4', prep: '0', status: 'pending' }); return a.S.works.filter(w => w.kind === 'exam').slice(-1)[0]; };
 const plannedByDay = (a) => { const m = new Map(); for (const b of a.S.blocks) if (b.status === 'planned' || b.status === 'done') m.set(b.date, [...(m.get(b.date) ?? []), b]); return m; };
 const add = (d, n) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
-const base = async () => { clock.t = new Date(2026, 10, 3, 16, 0).getTime(); const a = await boot(); await exam(a, 'Física', '2026-11-13'); const b = await boot({ 'focusos.v1': JSON.stringify(a.S) }); if (!b.S.goals.pauDate) b.S.goals.pauDate = '2027-06-01'; await b.click('dailyToggle'); await b.click('dailyToggle'); return b; };
+const base = async () => { clock.t = new Date(2026, 10, 3, 16, 0).getTime(); const a = await boot(); await exam(a, 'Física', '2026-11-13'); a.S.fhV = 1; const b = await boot({ 'focusos.v1': JSON.stringify(a.S) }); if (!b.S.goals.pauDate) b.S.goals.pauDate = '2027-06-01'; await b.click('dailyToggle'); await b.click('dailyToggle'); return b; };
 
 test('estudio diario: hasta la PAU no queda ningún día sin sesión (salvo bloqueados) y el trabajo real manda', async () => {
   const a = await base(); const pau = a.S.goals.pauDate; assert.ok(pau, 'hay fecha de PAU');
@@ -81,4 +81,14 @@ test('cuotas según dominio (v49): lo que dominas baja a mantenimiento (≥ 1 h)
   a.S.syllabus = [...mk('Historia de la Filosofía', 3), ...mk('Química', 0)];
   const q = a.t.quotaMap(a.S); assert.equal(q[sid2('Historia de la Filosofía')], 60, 'dominada: mantenimiento de 1 h'); assert.ok(q[sid2('Química')] > q0[sid2('Química')], 'la menos dominada recibe más');
   assert.ok(Object.values(q).every(v => v >= 60), 'nadie queda por debajo de 1 h');
+});
+
+test('Filosofía → Historia (v50): una sola vez, sin sesiones de Filosofía salvo las del domingo, Historia de España con su cuota + la de Filosofía, y repetir no cambia nada', async () => {
+  clock.t = new Date(2026, 10, 4, 15, 30).getTime(); const a = await boot(); a.S.goals.pauDate = '2027-06-01'; a.S.fhV = 1; await a.click('dailyToggle'); await a.click('dailyToggle');
+  const st = JSON.parse(JSON.stringify(a.S)); delete st.fhV; const b = await boot({ 'focusos.v1': JSON.stringify(st) }); await b.tick();
+  const W = Object.fromEntries(b.S.works.map(w => [w.id, w])), fi = b.S.subjects.find(s => s.name === 'Historia de la Filosofía').id;
+  const fb = b.S.blocks.filter(x => x.status === 'planned' && x.date >= '2026-11-04' && W[x.workId]?.subjectId === fi);
+  assert.ok(fb.every(x => new Date(x.date + 'T12:00').getDay() === 0 && x.manual), 'solo quedan las del domingo, fijas');
+  assert.equal(b.S.goals.quotaH['Historia de España'], 5); assert.equal(b.S.fhV, 1);
+  const c = await boot({ 'focusos.v1': JSON.stringify(b.S) }); await c.tick(); assert.equal(JSON.stringify(c.S.blocks.map(x => [x.id, x.start, x.end])), JSON.stringify(b.S.blocks.map(x => [x.id, x.start, x.end])), 'repetir no cambia nada');
 });

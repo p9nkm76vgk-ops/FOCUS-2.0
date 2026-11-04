@@ -12,7 +12,7 @@ function quotaMap(Sx){const g=Sx.goals||{},subs=(Sx.subjects||[]).filter(s=>!s.a
   for(let u=Math.floor(freed/30);u>0&&need.length;u--){let best=null,bs=-1;for(const s of need){if((got[s.id]||0)>=60)continue;const sc=wt[s.id]/(1+(got[s.id]||0)/30);if(sc>bs){bs=sc;best=s}}if(!best)break;got[best.id]=(got[best.id]||0)+30;o[best.id]+=30}}
  return o}
 function planDiario(Sx,today){const g=Sx.goals;if(!g||!g.pauDate||g.dailyOff||g.pauDate<today)return undefined;
- const subs=(Sx.subjects||[]).filter(s=>!s.archived);if(!subs.length)return undefined;const QM=quotaMap(Sx);
+ const QM=quotaMap(Sx),subs=(Sx.subjects||[]).filter(s=>!s.archived&&QM[s.id]>0);if(!subs.length)return undefined;
  return{until:g.pauDate,wk:180,we:300,len:60,tilt:[1.1,1],subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
   return{id:s.id,q:QM[s.id],w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
 /** Un trabajo oculto por asignatura (auto:'review' + daily:true: ninguna pantalla lo lista como tarea). Idempotente. */
@@ -44,3 +44,11 @@ function quotaCheck(mon){const g=S.goals||{},QM=quotaMap(S),end=addDays(mon,6),w
  for(const b of S.blocks){if(b.date<mon||b.date>end||(b.status!=='planned'&&b.status!=='done'))continue;const id=b.subjectId||wk[b.workId];have[id]=(have[id]||0)+(b.end-b.start)}
  const rows=S.subjects.filter(x=>!x.archived).map(x=>{const q=QM[x.id]??0,h=have[x.id]||0;return{s:x,q,h,miss:Math.max(0,q-h)}});
  return{rows,miss:rows.reduce((t,r)=>t+r.miss,0),total:rows.reduce((t,r)=>t+r.q,0)}}
+
+/* v50 · Petición del usuario (4-nov-2026): las sesiones futuras de Historia de la Filosofía pasan a Historia de España, salvo las del domingo (se quedan fijas).
+   Una sola vez: Filosofía sin cuota semanal, Historia de España con la suya + la de Filosofía, y se regenera el futuro. Los exámenes de Filosofía no se tocan. */
+function migrateFiloHist(Sx){if(Sx.fhV>=1||!Sx.subjects)return false;Sx.fhV=1;const fi=Sx.subjects.find(s=>s.name==='Historia de la Filosofía'),hi=Sx.subjects.find(s=>s.name==='Historia de España'),g=Sx.goals;if(!fi||!hi||!g)return false;
+ const today=now().date,dw=Object.fromEntries((Sx.works||[]).map(w=>[w.id,w]));
+ g.quotaH={...(g.quotaH||{}),'Historia de la Filosofía':0,'Historia de España':((g.quotaH&&g.quotaH['Historia de España'])??QUOTA_H['Historia de España']??3)+((g.quotaH&&g.quotaH['Historia de la Filosofía'])??QUOTA_H['Historia de la Filosofía']??2)};
+ for(const b of Sx.blocks||[]){const w=dw[b.workId];if(w&&w.daily&&w.subjectId===fi.id&&b.status==='planned'&&b.date>=today&&new Date(b.date+'T12:00').getDay()===0)b.manual=true}
+ return true}

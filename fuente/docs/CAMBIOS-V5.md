@@ -387,3 +387,7 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 - Causa: la cuota semanal por asignatura no miraba el dominio del temario: Filosofía con todo en verde seguía recibiendo sus 2 h/semana de relleno (el examen sí desaparece con preparación 100 %).
 - Ahora (quotaMap en diario.js): con dominio > 60 % la cuota baja progresivamente hasta el 40 % (mínimo 1 h de mantenimiento) y las horas liberadas pasan, en tramos de 30 min (máx. +1 h cada una), a las asignaturas menos dominadas según lo que les falta × su valor. Sin temas apuntados no cambia nada. Hoy muestra la cuota ajustada.
 - Ejecutado: npm test 314/314, estrés 0 fallos, Chromium 42/42. No comprobado con tus datos reales (no sincronizados).
+
+## v50 (4-nov-2026) — sesiones de Filosofía → Historia de España (a petición)
+- Migración única (migrateFiloHist, fhV=1): quita todas las sesiones futuras de relleno de Historia de la Filosofía salvo las del domingo (quedan fijas); cuota semanal Filosofía 0, Historia de España 5 h (3 + 2). Los exámenes de Filosofía y sus sesiones no se tocan. Hoy oculta las asignaturas con cuota 0.
+- Ejecutado: npm test 315/315, estrés 0 fallos, Chromium 42/42.
