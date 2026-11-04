@@ -45,10 +45,8 @@ function quotaCheck(mon){const g=S.goals||{},QM=quotaMap(S),end=addDays(mon,6),w
  const rows=S.subjects.filter(x=>!x.archived).map(x=>{const q=QM[x.id]??0,h=have[x.id]||0;return{s:x,q,h,miss:Math.max(0,q-h)}});
  return{rows,miss:rows.reduce((t,r)=>t+r.miss,0),total:rows.reduce((t,r)=>t+r.q,0)}}
 
-/* v50 · Petición del usuario (4-nov-2026): las sesiones futuras de Historia de la Filosofía pasan a Historia de España, salvo las del domingo (se quedan fijas).
-   Una sola vez: Filosofía sin cuota semanal, Historia de España con la suya + la de Filosofía, y se regenera el futuro. Los exámenes de Filosofía no se tocan. */
-function migrateFiloHist(Sx){if(Sx.fhV>=1||!Sx.subjects)return false;Sx.fhV=1;const fi=Sx.subjects.find(s=>s.name==='Historia de la Filosofía'),hi=Sx.subjects.find(s=>s.name==='Historia de España'),g=Sx.goals;if(!fi||!hi||!g)return false;
- const today=now().date,dw=Object.fromEntries((Sx.works||[]).map(w=>[w.id,w]));
- g.quotaH={...(g.quotaH||{}),'Historia de la Filosofía':0,'Historia de España':((g.quotaH&&g.quotaH['Historia de España'])??QUOTA_H['Historia de España']??3)+((g.quotaH&&g.quotaH['Historia de la Filosofía'])??QUOTA_H['Historia de la Filosofía']??2)};
- for(const b of Sx.blocks||[]){const w=dw[b.workId];if(w&&w.daily&&w.subjectId===fi.id&&b.status==='planned'&&b.date>=today&&new Date(b.date+'T12:00').getDay()===0)b.manual=true}
+/* v51 · Revierte v50 (el usuario no quería ese cambio). Quien ya lo había recibido (fhV=1) recupera sus cuotas (Filosofía y Historia de España) y las sesiones de Filosofía dejan de estar fijas; se regenera el futuro una vez. */
+function migrateFiloHist(Sx){if(Sx.fhV>=2)return false;const was=Sx.fhV===1;Sx.fhV=2;if(!was||!Sx.subjects)return false;const g=Sx.goals,fi=Sx.subjects.find(s=>s.name==='Historia de la Filosofía');if(!g)return false;
+ if(g.quotaH){if(g.quotaH['Historia de la Filosofía']===0)delete g.quotaH['Historia de la Filosofía'];if(g.quotaH['Historia de España']===5)delete g.quotaH['Historia de España'];if(!Object.keys(g.quotaH).length)delete g.quotaH}
+ const dw=Object.fromEntries((Sx.works||[]).map(w=>[w.id,w]));for(const b of Sx.blocks||[]){const w=dw[b.workId];if(w&&w.daily&&fi&&w.subjectId===fi.id&&b.status==='planned'&&b.manual)b.manual=false}
  return true}

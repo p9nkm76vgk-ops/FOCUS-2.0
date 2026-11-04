@@ -391,3 +391,6 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 ## v50 (4-nov-2026) — sesiones de Filosofía → Historia de España (a petición)
 - Migración única (migrateFiloHist, fhV=1): quita todas las sesiones futuras de relleno de Historia de la Filosofía salvo las del domingo (quedan fijas); cuota semanal Filosofía 0, Historia de España 5 h (3 + 2). Los exámenes de Filosofía y sus sesiones no se tocan. Hoy oculta las asignaturas con cuota 0.
 - Ejecutado: npm test 315/315, estrés 0 fallos, Chromium 42/42.
+
+## v51 (4-nov-2026) — revertido v50
+- El cambio de Filosofía → Historia de España no era lo que se quería. Quien ya lo había recibido (fhV=1) recupera las cuotas de Filosofía y Historia de España y sus sesiones dejan de estar fijas; el futuro se regenera una vez. Ejecutado: npm test 315/315, estrés 0 fallos, Chromium 42/42.
