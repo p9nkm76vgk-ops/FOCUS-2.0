@@ -2,10 +2,19 @@
 /** Datos para el planificador: asignaturas con su peso (valor para la nota × lo que falta por dominar) y sus temas, de los menos dominados a los más. */
 /** Horas por semana por asignatura (acordadas con el usuario el 3-nov-2026): periodo normal, se inclinan a +10 % ahora y -15 % hacia la PAU. */
 const QUOTA_H={'Matemáticas II':3,'Business':3,'Física':3,'Química':3,'Lengua Castellana':3,'Catalán':3,'Historia de España':3,'Historia de la Filosofía':2,'Inglés':1};
+/** Horas mínimas por asignatura y semana, ajustadas a lo que ya dominas (v49): con el temario casi todo en verde la cuota baja hasta el 40 % (queda un mantenimiento de ≥ 1 h)
+ *  y esas horas pasan a las asignaturas menos dominadas, en proporción a lo que les falta × su valor. Sin temas apuntados no se toca nada. */
+function quotaMap(Sx){const g=Sx.goals||{},subs=(Sx.subjects||[]).filter(s=>!s.archived),r30=m=>Math.round(m/30)*30,o={},pm={},base={};let freed=0;
+ for(const s of subs){const cv=GL.coverage(Sx.syllabus||[],s.id);pm[s.id]=cv.pctMastery==null?null:cv.pctMastery;base[s.id]=Math.round(60*((g.quotaH&&g.quotaH[s.name])??QUOTA_H[s.name]??2));
+  const f=pm[s.id]!=null&&pm[s.id]>60?1-0.6*(pm[s.id]-60)/40:1;o[s.id]=f<1?Math.min(base[s.id],Math.max(60,r30(base[s.id]*f))):base[s.id];freed+=base[s.id]-o[s.id]}
+ if(freed>0){let need=subs.filter(s=>o[s.id]===base[s.id]&&pm[s.id]!=null&&pm[s.id]<60);if(!need.length)need=subs.filter(s=>o[s.id]===base[s.id]&&pm[s.id]==null);
+  const wt=Object.fromEntries(need.map(s=>[s.id,(1-(pm[s.id]||0)/100)*GL.valueFactor(s.name)])),got={};
+  for(let u=Math.floor(freed/30);u>0&&need.length;u--){let best=null,bs=-1;for(const s of need){if((got[s.id]||0)>=60)continue;const sc=wt[s.id]/(1+(got[s.id]||0)/30);if(sc>bs){bs=sc;best=s}}if(!best)break;got[best.id]=(got[best.id]||0)+30;o[best.id]+=30}}
+ return o}
 function planDiario(Sx,today){const g=Sx.goals;if(!g||!g.pauDate||g.dailyOff||g.pauDate<today)return undefined;
- const subs=(Sx.subjects||[]).filter(s=>!s.archived);if(!subs.length)return undefined;
+ const subs=(Sx.subjects||[]).filter(s=>!s.archived);if(!subs.length)return undefined;const QM=quotaMap(Sx);
  return{until:g.pauDate,wk:180,we:300,len:60,tilt:[1.1,1],subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
-  return{id:s.id,q:Math.round(60*((g.quotaH&&g.quotaH[s.name])??QUOTA_H[s.name]??2)),w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
+  return{id:s.id,q:QM[s.id],w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
 /** Un trabajo oculto por asignatura (auto:'review' + daily:true: ninguna pantalla lo lista como tarea). Idempotente. */
 function syncDaily(Sx){const g=Sx.goals,on=planDiario(Sx,now().date),have=new Map((Sx.works||[]).filter(w=>w.daily).map(w=>[w.id,w])),want=new Set(on?on.subjects.map(u=>u.id):[]);let out=Sx.works;
  for(const sid of want){const id='daily:'+sid,w=have.get(id);
@@ -31,7 +40,7 @@ A.dailyToggle=()=>{S.goals={...S.goals,dailyOff:!S.goals.dailyOff};PROJ=null;com
 
 /* Cuotas mínimas semanales (v46): para una semana (lunes) cuenta hechas + previstas por asignatura y las compara con el mínimo acordado.
    Es lo que se ve de verdad en el calendario: si no cabe, se dice cuánto falta (nunca se finge que todo cabe). */
-function quotaCheck(mon){const g=S.goals||{},end=addDays(mon,6),wk=Object.fromEntries(S.works.map(w=>[w.id,w.subjectId])),have={};
+function quotaCheck(mon){const g=S.goals||{},QM=quotaMap(S),end=addDays(mon,6),wk=Object.fromEntries(S.works.map(w=>[w.id,w.subjectId])),have={};
  for(const b of S.blocks){if(b.date<mon||b.date>end||(b.status!=='planned'&&b.status!=='done'))continue;const id=b.subjectId||wk[b.workId];have[id]=(have[id]||0)+(b.end-b.start)}
- const rows=S.subjects.filter(x=>!x.archived).map(x=>{const q=Math.round(60*((g.quotaH&&g.quotaH[x.name])??QUOTA_H[x.name]??2)),h=have[x.id]||0;return{s:x,q,h,miss:Math.max(0,q-h)}});
+ const rows=S.subjects.filter(x=>!x.archived).map(x=>{const q=QM[x.id]??0,h=have[x.id]||0;return{s:x,q,h,miss:Math.max(0,q-h)}});
  return{rows,miss:rows.reduce((t,r)=>t+r.miss,0),total:rows.reduce((t,r)=>t+r.q,0)}}

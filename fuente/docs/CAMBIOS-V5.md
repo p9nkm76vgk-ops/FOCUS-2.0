@@ -382,3 +382,8 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 
 ## v48b (3-nov-2026) — ingeniería descartada del todo
 - Eliminadas las referencias a Ingeniería/GITI en etiquetas, comentarios y pruebas; el objetivo de admisión por defecto queda neutro («ajústalo a tu grado»). El objetivo es Economía, Economía + Matemáticas o Ciencia de Datos. Ejecutado: npm test 313/313.
+
+## v49 (4-nov-2026) — las horas mínimas dependen de lo que dominas
+- Causa: la cuota semanal por asignatura no miraba el dominio del temario: Filosofía con todo en verde seguía recibiendo sus 2 h/semana de relleno (el examen sí desaparece con preparación 100 %).
+- Ahora (quotaMap en diario.js): con dominio > 60 % la cuota baja progresivamente hasta el 40 % (mínimo 1 h de mantenimiento) y las horas liberadas pasan, en tramos de 30 min (máx. +1 h cada una), a las asignaturas menos dominadas según lo que les falta × su valor. Sin temas apuntados no cambia nada. Hoy muestra la cuota ajustada.
+- Ejecutado: npm test 314/314, estrés 0 fallos, Chromium 42/42. No comprobado con tus datos reales (no sincronizados).

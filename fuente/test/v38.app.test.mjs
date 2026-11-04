@@ -74,3 +74,11 @@ test('sesión diaria dice qué hacer (v47): tema concreto y actividad según su 
   a.S.syllabus[0].mastery = 3; assert.equal(t.HY.info({ t: 'ob', b: b2 }).ph.label, 'Repasar');
   assert.ok(mates);
 });
+
+test('cuotas según dominio (v49): lo que dominas baja a mantenimiento (≥ 1 h) y las horas pasan a las menos dominadas; sin temas no cambia nada', async () => {
+  const a = await base(); const sid2 = n => a.S.subjects.find(s => s.name === n).id; const mk = (n, m) => [1, 2, 3, 4].map(i => ({ id: n + i, subjectId: sid2(n), name: n + ' ' + i, course: 2, mastery: m, reviews: 0, last: null, next: null, createdAt: i }));
+  const q0 = a.t.quotaMap(a.S); assert.equal(q0[sid2('Historia de la Filosofía')], 120, 'sin temas: cuota intacta');
+  a.S.syllabus = [...mk('Historia de la Filosofía', 3), ...mk('Química', 0)];
+  const q = a.t.quotaMap(a.S); assert.equal(q[sid2('Historia de la Filosofía')], 60, 'dominada: mantenimiento de 1 h'); assert.ok(q[sid2('Química')] > q0[sid2('Química')], 'la menos dominada recibe más');
+  assert.ok(Object.values(q).every(v => v >= 60), 'nadie queda por debajo de 1 h');
+});
