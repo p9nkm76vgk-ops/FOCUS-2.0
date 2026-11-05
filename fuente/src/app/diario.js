@@ -73,8 +73,8 @@ function migrateReset59(Sx){if(Sx.rstV>=1)return false;Sx.rstV=1;if(!Sx.subjects
  Sx.works=[];Sx.blocks=[];Sx.autopsies=[];Sx.deshacer={};Sx.errors=[];Sx.estimateLog=[];Sx.suggestionLog=[];Sx.explore={log:[]};Sx.warnOff={};
  if(Sx.refuerzo)Sx.refuerzo.on=false;if(Sx.goals){Sx.goals.startFrom='2026-11-14';delete Sx.goals.seqDone}return true}
 
-/** v60 · Rotación semanal: cada asignatura tiene un día fijo (0=domingo … 6=sábado). Por defecto: Lun Catalán · Mar Historia · Mié Business · Jue Lengua · Vie Filosofía + Inglés · Sáb Física + Química · Dom Mates II. Editable en Ajustes. */
-const ROT_D=[[/filosof/i,5],[/historia/i,2],[/catal/i,1],[/business|empresa/i,3],[/lengua|castellan/i,4],[/ingl/i,5],[/f[ií]sic/i,6],[/qu[ií]m/i,6],[/mat/i,0]];
+/** v60 · Rotación semanal: cada asignatura tiene un día fijo (0=domingo … 6=sábado). Por defecto: Lun Business · Mar Historia · Mié Catalán · Jue Lengua · Vie Filosofía + Inglés · Sáb Física + Química · Dom Mates II. Editable en Ajustes. */
+const ROT_D=[[/filosof/i,5],[/historia/i,2],[/catal/i,3],[/business|empresa/i,1],[/lengua|castellan/i,4],[/ingl/i,5],[/f[ií]sic/i,6],[/qu[ií]m/i,6],[/mat/i,0]];
 const ROT_X=[[/ingl/i,0,45,true],[/filosof/i,1,150],[/f[ií]sic/i,0,210],[/qu[ií]m/i,1]]; // [nombre, orden en el día, minutos máx. ese día, sin repasos]
 const DIAS7=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 function rotMap(Sx){const g=Sx.goals||{},dm=g.dayMap||{},o={};for(const s of Sx.subjects||[]){if(s.archived)continue;const d=dm[s.name]!=null?dm[s.name]:(ROT_D.find(x=>x[0].test(s.name))||[])[1];if(d!=null)o[s.id]=d}return o}
