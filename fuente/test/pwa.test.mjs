@@ -9,9 +9,9 @@ test('build: index, manifest, iconos y service worker presentes', () => {
 });
 test('manifest: instalable (nombre, standalone, alcance relativo, iconos 192/512 y maskable, colores de la paleta)', () => {
   const m = JSON.parse(read('manifest.webmanifest')); assert.equal(m.name, 'Focus OS'); assert.equal(m.display, 'standalone'); assert.equal(m.start_url, './'); assert.equal(m.scope, './'); assert.equal(m.lang, 'es');
-  assert.equal(m.background_color.toLowerCase(), '#111113'); assert.equal(m.theme_color.toLowerCase(), '#111113'); assert.ok(m.icons.some(i => i.sizes === '192x192') && m.icons.some(i => i.sizes === '512x512' && i.purpose === 'any') && m.icons.some(i => i.purpose === 'maskable'));
+  assert.equal(m.background_color.toLowerCase(), '#0e0b0f'); assert.equal(m.theme_color.toLowerCase(), '#0e0b0f'); assert.ok(m.icons.some(i => i.sizes === '192x192') && m.icons.some(i => i.sizes === '512x512' && i.purpose === 'any') && m.icons.some(i => i.purpose === 'maskable'));
   for (const i of m.icons) assert.ok(fs.existsSync(path.join(D, i.src)), i.src);
-  for (const re of [/rel=manifest/, /rel=apple-touch-icon/, /apple-mobile-web-app-capable/, /viewport-fit=cover/, /name=theme-color/, /status-bar-style content=black/, /theme-color content="#111113"/]) assert.match(html, re);
+  for (const re of [/rel=manifest/, /rel=apple-touch-icon/, /apple-mobile-web-app-capable/, /viewport-fit=cover/, /name=theme-color/, /status-bar-style content=black/, /theme-color content="#0e0b0f"/]) assert.match(html, re);
 });
 test('sin recursos externos: todo lo necesario viaja con la app (requisito para funcionar sin conexión)', () => {
   const ext = html.replace(/<link rel=(?:preconnect|stylesheet) href="https:\/\/fonts\.(?:googleapis|gstatic)\.com[^>]*>/g, ''); /* única excepción: la fuente Manrope, con respaldo del sistema si no hay conexión */ assert.doesNotMatch(ext, /(?:src|href)=["']?https?:/i); assert.doesNotMatch(html, /url\(\s*["']?https?:/i); assert.doesNotMatch(html, /@import/); assert.doesNotMatch(html, /fetch\(\s*["'`]https?:/);

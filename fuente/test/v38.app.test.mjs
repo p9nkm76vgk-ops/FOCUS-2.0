@@ -4,7 +4,7 @@ const sid = (a, n) => a.S.subjects.find(s => s.name === n).id;
 const exam = async (a, name, date) => { await a.click('addExam'); await a.submit({ title: '', subjectId: sid(a, name), dueDate: date, time: '', estOverride: '', difficulty: '3', importance: '4', prep: '0', status: 'pending' }); return a.S.works.filter(w => w.kind === 'exam').slice(-1)[0]; };
 const plannedByDay = (a) => { const m = new Map(); for (const b of a.S.blocks) if (b.status === 'planned' || b.status === 'done') m.set(b.date, [...(m.get(b.date) ?? []), b]); return m; };
 const add = (d, n) => { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
-const base = async () => { clock.t = new Date(2026, 10, 3, 16, 0).getTime(); const a = await boot(); await exam(a, 'Física', '2026-11-13'); a.S.fhV = 2; const b = await boot({ 'focusos.v1': JSON.stringify(a.S) }); if (!b.S.goals.pauDate) b.S.goals.pauDate = '2027-06-01'; await b.click('dailyToggle'); await b.click('dailyToggle'); return b; };
+const base = async () => { clock.t = new Date(2026, 10, 3, 16, 0).getTime(); const a = await boot(); await exam(a, 'Física', '2026-11-13'); a.S.fhV = 2; a.S.rstV = 1; const b = await boot({ 'focusos.v1': JSON.stringify(a.S) }); if (!b.S.goals.pauDate) b.S.goals.pauDate = '2027-06-01'; await b.click('dailyToggle'); await b.click('dailyToggle'); return b; };
 
 test('estudio diario: hasta la PAU no queda ningún día sin sesión (salvo bloqueados) y el trabajo real manda', async () => {
   const a = await base(); const pau = a.S.goals.pauDate; assert.ok(pau, 'hay fecha de PAU');
@@ -129,4 +129,15 @@ test('hasta el final del curso (v58): hay sesiones hasta la PAU y los fines de s
   assert.ok(last >= '2027-05-20', 'sesiones hasta final de curso: ' + last);
   const we = b.S.blocks.filter(x => x.status === 'planned' && [0, 6].includes(new Date(x.date + 'T12:00:00Z').getUTCDay()));
   assert.ok(we.length > 10 && we.every(x => x.start >= 600), 'findes desde las 10:00');
+});
+
+test('reinicio (v59): se borran tareas, exámenes y sesiones, se conservan notas y temario, nada antes del 14 nov y sesiones todos los días hasta la PAU', async () => {
+  clock.t = new Date(2026, 10, 5, 16, 0).getTime(); const a = await boot(); await exam(a, 'Física', '2026-11-13'); a.S.goals.pauDate = '2027-06-01'; a.S.rstV = 0;
+  a.S.grades = [{ id: 'g1', subjectId: a.S.subjects[0].id, name: 'Test', score: 8, max: 10, weight: 1, date: '2026-10-20' }]; a.S.syllabus = [{ id: 't1', subjectId: a.S.subjects[0].id, name: 'Tema', course: 2, mastery: 2, reviews: 0, last: null, next: null, createdAt: 1 }];
+  const b = await boot({ 'focusos.v1': JSON.stringify(a.S) });
+  assert.equal(b.S.rstV, 1); assert.equal(b.S.works.filter(w => !w.daily).length, 0, 'sin tareas ni exámenes'); assert.equal(b.S.grades.length, 1, 'notas'); assert.equal(b.S.syllabus.length, 1, 'temario');
+  const st = b.S.blocks.filter(x => x.status === 'planned' && b.S.works.find(w => w.id === x.workId)?.daily); assert.equal(b.S.blocks.filter(x => x.date < '2026-11-14' && !/entreno|ejercicio/i.test(x.workId)).length, 0, 'nada antes del 14 nov');
+  const days = new Set(st.map(x => x.date)); let miss = 0; for (let d = '2026-11-14'; d <= '2027-06-01'; d = new Date(Date.parse(d + 'T12:00:00Z') + 864e5).toISOString().slice(0, 10)) if (!days.has(d)) miss++;
+  assert.equal(miss, 0, 'días sin sesión: ' + miss);
+  const c = await boot({ 'focusos.v1': JSON.stringify(b.S) }); assert.equal(c.S.blocks.length, b.S.blocks.length, 'no se reinicia dos veces');
 });

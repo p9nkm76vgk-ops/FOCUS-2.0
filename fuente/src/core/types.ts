@@ -10,7 +10,7 @@ export interface Settings {
   maxDayMin: number; preferredMin: number; maxSessionMin: number;
   minSessionMin: number; minGapMin: number; horizonDays: number;
   /** Estudio diario hasta la PAU (no se guarda: lo calcula la app en cada planificación). */
-  daily?: { until: string; min?: number; wk?: number; we?: number; len?: number; tilt?: [number, number]; focus?: boolean; subjects: { id: string; w: number; q?: number; cur?: boolean; topics: { id: string; name: string }[] }[] };
+  daily?: { until: string; min?: number; wk?: number; we?: number; len?: number; tilt?: [number, number]; focus?: boolean; from?: string; subjects: { id: string; w: number; q?: number; cur?: boolean; topics: { id: string; name: string }[] }[] };
 }
 export interface Work {
   id: string; kind: WorkKind; subjectId: string; title: string;

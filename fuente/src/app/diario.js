@@ -19,7 +19,7 @@ function quotaMap(Sx){const sq=seqInfo(Sx);if(sq&&sq.cur){const o={};for(const s
  return o}
 function planDiario(Sx,today){const g=Sx.goals;if(!g||!g.pauDate||g.dailyOff||g.pauDate<today)return undefined;
  const QM=quotaMap(Sx),subs=(Sx.subjects||[]).filter(s=>!s.archived&&QM[s.id]>0);if(!subs.length)return undefined;
- return{until:g.pauDate,wk:180,we:300,len:60,tilt:g.focusOff?[1.1,1]:[1,1],focus:!g.focusOff,subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
+ return{until:g.pauDate,from:g.startFrom||undefined,wk:180,we:300,len:60,tilt:g.focusOff?[1.1,1]:[1,1],focus:!g.focusOff,subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
   return{id:s.id,q:QM[s.id],cur:QM[s.id]>=1500,w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
 /** Un trabajo oculto por asignatura (auto:'review' + daily:true: ninguna pantalla lo lista como tarea). Idempotente. */
 function syncDaily(Sx){const g=Sx.goals,on=planDiario(Sx,now().date),have=new Map((Sx.works||[]).filter(w=>w.daily).map(w=>[w.id,w])),want=new Set(on?on.subjects.map(u=>u.id):[]);let out=Sx.works;
@@ -65,3 +65,9 @@ Object.assign(A,{focusToggle:()=>{ensureG(S);S.goals.focusOff=!S.goals.focusOff|
 function migrateSeq(Sx){if(Sx.seqV>=1)return false;Sx.seqV=1;return !!(Sx.goals&&Sx.goals.pauDate)}
 Object.assign(A,{seqToggle:()=>{ensureG(S);if(S.goals.seqOff)delete S.goals.seqOff;else S.goals.seqOff=true;regenFuture();commit({quiet:true});toast(S.goals.seqOff?'Reparto entre todas las asignaturas':'Una asignatura hasta dominarla')},
  seqNext:()=>{const q=seqInfo(S);if(!q||!q.cur)return;ensureG(S);S.goals.seqDone={...(S.goals.seqDone||{}),[q.cur.s.name]:true};regenFuture();commit({quiet:true});toast(q.cur.s.name+' dominada. Siguiente: '+((seqInfo(S)||{}).cur?seqInfo(S).cur.s.name:'reparto normal'))}});
+
+/** v59 · Reinicio acordado (5 nov): el 1.er trimestre no cuenta. Se conservan notas, temario, asignaturas, ajustes, objetivos y rutina; se borran tareas, exámenes, sesiones e historial. El método nuevo empieza el sábado 14 nov. Una sola vez; copia de seguridad local. */
+function migrateReset59(Sx){if(Sx.rstV>=1)return false;Sx.rstV=1;if(!Sx.subjects||!Array.isArray(Sx.blocks)||!(Sx.syllabus||[]).length)return false;
+ try{localStorage.setItem('focusos.backup.pre59',JSON.stringify(Sx))}catch{}
+ Sx.works=[];Sx.blocks=[];Sx.autopsies=[];Sx.deshacer={};Sx.errors=[];Sx.estimateLog=[];Sx.suggestionLog=[];Sx.explore={log:[]};Sx.warnOff={};
+ if(Sx.refuerzo)Sx.refuerzo.on=false;if(Sx.goals){Sx.goals.startFrom='2026-11-14';delete Sx.goals.seqDone}return true}

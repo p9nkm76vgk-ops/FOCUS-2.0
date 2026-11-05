@@ -423,3 +423,8 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 - El plan se genera hasta la PAU (antes el horizonte de 120 días cortaba hacia marzo).
 - Fines de semana: ventanas de estudio desde las 10:00 (migración única).
 - Registro: se envía `redirect_to` con la dirección de la app; el enlace del correo solo funciona si la Site URL de Supabase apunta a la app (ajuste en el panel de Supabase, no en el código).
+
+## v59
+- Reinicio (una vez): se borran tareas, exámenes, sesiones e historial; se conservan notas, temario, asignaturas, ajustes, objetivos y rutina. Copia local `focusos.backup.pre59` y copia en la nube (`focus_state_backup_20261105`).
+- `goals.startFrom = 2026-11-14`: el relleno diario no genera nada antes. Prueba: sesiones todos los días del 14 nov al 1 jun.
+- Iconos y theme-color con la paleta del interior (esfera lavanda sobre #0e0b0f).

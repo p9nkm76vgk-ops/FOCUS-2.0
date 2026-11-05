@@ -316,7 +316,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const weekMin = (dt: string, sid: string) => { const m = addDays(dt, -((weekday(dt) + 6) % 7)); let t = 0; for (let i = 0; i < 7; i++) for (const o of day(addDays(m, i)).occ) if (o.sub === sid) t += o.end - o.start; return t; };
     const oldMulti = new Map<string, Block[]>(); for (const b of autoF.filter(isD).sort(cmp)) oldMulti.set(b.date, [...(oldMulti.get(b.date) ?? []), b]);
     const dayTarget = (dt: string) => { const we = weekday(dt) === 0 || weekday(dt) === 6; return Math.min(maxOf(dt), (we ? dl.we : dl.wk) ?? (hasQ ? 0 : 1)); };
-    for (let dt = now.date; dt <= until; dt = addDays(dt, 1)) {
+    for (let dt = dl.from && dl.from > now.date ? dl.from : now.date; dt <= until; dt = addDays(dt, 1)) {
       let x = day(dt); if (skipDay.has(dt)) continue;
       const tgt = hasQ ? dayTarget(dt) : 1; if (hasQ ? x.total >= tgt - 20 : x.total > 0) continue; if (maxOf(dt) - x.total <= 0) continue;
       // Examen ese mismo día: esa asignatura ya no se repasa; el relleno va antes del examen o ≥ 3 h después de su inicio (nunca durante).
