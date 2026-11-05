@@ -112,3 +112,13 @@ test('una asignatura hasta dominarla (v54): todo el relleno va a la actual, salt
   const W2 = Object.fromEntries(a.S.works.map(w => [w.id, w])); assert.ok(a.S.blocks.filter(x => x.status === 'planned' && x.date >= '2026-11-16' && x.date <= '2026-12-20' && W2[x.workId]?.daily).every(x => W2[x.workId].subjectId === id('Matemáticas II')), 'ahora solo Mates');
   await a.click('seqToggle'); assert.equal(a.t.seqInfo(a.S), null, 'desactivado');
 });
+
+test('semana de exámenes con tardes enteras (v55): las sesiones de cada examen se agrupan por días; mezcla menos que sin la preferencia y repetir no cambia nada', async () => {
+  clock.t = new Date(2026, 10, 5, 15, 13).getTime(); const a = await boot();
+  for (const [n, d] of [['Matemáticas II', '2026-11-09'], ['Business', '2026-11-10'], ['Química', '2026-11-11'], ['Lengua Castellana', '2026-11-12'], ['Historia de España', '2026-11-13']]) await exam(a, n, d);
+  const b = await boot({ 'focusos.v1': JSON.stringify(a.S) }); b.S.goals.pauDate = '2027-06-01'; await b.click('dailyToggle'); await b.click('dailyToggle');
+  const mix = (S) => { const W = Object.fromEntries(S.works.map(w => [w.id, w])), by = {}; for (const x of S.blocks) if (x.status === 'planned' && x.date >= '2026-11-05' && x.date <= '2026-11-12' && !W[x.workId]?.daily) (by[x.date] ??= new Set()).add(W[x.workId].subjectId); const v = Object.values(by).map(s => s.size); return v.reduce((p, c) => p + c, 0) / v.length; };
+  const on = mix(b.S), sig = JSON.stringify(b.S.blocks.map(x => [x.id, x.start, x.end]));
+  await b.click('dailyToggle'); await b.click('dailyToggle'); assert.equal(JSON.stringify(b.S.blocks.map(x => [x.id, x.start, x.end])), sig, 'idempotente');
+  await b.click('focusToggle'); const off = mix(b.S); assert.ok(on < off - 0.2, `con foco menos mezcla (${on.toFixed(2)} < ${off.toFixed(2)})`);
+});

@@ -254,7 +254,9 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
           /* examen lejano (ventana ≥ 21 días): las sesiones se reparten a lo largo de toda la ventana en vez de ocupar los primeros días consecutivos */
           const spread = d.w.kind === 'exam' && !rev && daysBetween(d.from, to) >= 21, nS = Math.max(1, Math.ceil(d.need / s.preferredMin)), tgt = Math.floor(((placedN.get(d) ?? 0) + 0.5) * (daysBetween(d.from, to) + 1) / nS), dist = spread ? Math.abs(daysBetween(d.from, dt) - tgt) : 0;
           if (guard && !guardOK(d, dt, pick.L)) continue;
-          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, sameWork, pick.bad, pick.sec, pick.adj, tooEarly, dist, load, noPack, dt] });
+          // Tardes enteras (daily.focus): cada día es de una sola asignatura si cabe: primero días SIN otra asignatura, luego los que ya tienen ésta (se llena su día), y se admite repetir el trabajo el mismo día.
+          const foc = !!s.daily?.focus && !rev, foreign = foc && x.occ.some(o => o.sub !== d.w.subjectId) ? 1 : 0, own = foc && !x.occ.some(o => o.sub === d.w.subjectId) ? 1 : 0;
+          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, foreign, own, foc ? 0 : sameWork, pick.bad, pick.sec, pick.adj, tooEarly, dist, load, noPack, dt] });
         }
         if (cands.length) break;
       }

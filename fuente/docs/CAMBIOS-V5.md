@@ -407,3 +407,7 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 - Modo secuencial (activado por defecto; Ajustes → «Una asignatura hasta dominarla»): todo el relleno diario va a una sola asignatura hasta que ≥ 90 % de su temario está en verde (o se pulsa «Ya la domino»), y entonces pasa a la siguiente. Orden: goals.seqOrder o valor × lo que falta (empieza por Business/Matemáticas). Las ya dominadas se saltan; las asignaturas sin temas apuntados no cuentan; si ninguna tiene temas o todas están dominadas, vuelve al reparto por cuotas. Hoy muestra «Asignatura de ahora».
 - Los exámenes apuntados siguen teniendo sus propias sesiones (de varias asignaturas). Los repasos del temario siguen su calendario.
 - Ejecutado: npm test 317/317, estrés 0 fallos, Chromium 42/42. Versión 54.
+
+## v55 (5-nov-2026) — tardes enteras también en semanas de exámenes
+- Con la preferencia activada (y fecha de PAU), las sesiones de preparación de examen se colocan primero en días sin otra asignatura, luego en los que ya tienen ésa (llenando su día), y se admite repetir el trabajo el mismo día. Es una preferencia blanda: si no hay hueco (examen al día siguiente, víspera, capacidad) se mezcla. El reparto por rondas, las guardias de factibilidad y el repaso de la víspera no cambian. Sin foco o sin PAU, todo igual que antes.
+- Simulación (5 exámenes del 9 al 13 nov): menos días mezclados, aunque quedan algunos (p. ej. exámenes en días consecutivos). Ejecutado: npm test 318/318, estrés 6000 estados 0 fallos, Chromium 42/42. Versión 55.

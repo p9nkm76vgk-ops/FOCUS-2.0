@@ -728,7 +728,9 @@ function plan(input                                                             
           /* examen lejano (ventana ≥ 21 días): las sesiones se reparten a lo largo de toda la ventana en vez de ocupar los primeros días consecutivos */
           const spread = d.w.kind === 'exam' && !rev && daysBetween(d.from, to) >= 21, nS = Math.max(1, Math.ceil(d.need / s.preferredMin)), tgt = Math.floor(((placedN.get(d) ?? 0) + 0.5) * (daysBetween(d.from, to) + 1) / nS), dist = spread ? Math.abs(daysBetween(d.from, dt) - tgt) : 0;
           if (guard && !guardOK(d, dt, pick.L)) continue;
-          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, sameWork, pick.bad, pick.sec, pick.adj, tooEarly, dist, load, noPack, dt] });
+          // Tardes enteras (daily.focus): cada día es de una sola asignatura si cabe: primero días SIN otra asignatura, luego los que ya tienen ésta (se llena su día), y se admite repetir el trabajo el mismo día.
+          const foc = !!s.daily?.focus && !rev, foreign = foc && x.occ.some(o => o.sub !== d.w.subjectId) ? 1 : 0, own = foc && !x.occ.some(o => o.sub === d.w.subjectId) ? 1 : 0;
+          cands.push({ dt, start: pick.start, L: pick.L, key: rev ? [sameWork, pick.bad, pick.sec, hasStudy ? 0 : 1, pick.adj, noPack, load, dt] : [eve, foreign, own, foc ? 0 : sameWork, pick.bad, pick.sec, pick.adj, tooEarly, dist, load, noPack, dt] });
         }
         if (cands.length) break;
       }
@@ -2041,7 +2043,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='e121c28d2e',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='2d30ad8d23',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -3205,7 +3207,7 @@ for(const k of ['seg','cur','tem','est','exa','obj']){const v0=V[k];V[k]=a=>sinT
 {const a0=V.aj;V.aj=a=>a0(a)+`<details class="card adv"><summary><b>Avanzado</b></summary><p class=m>Detalles técnicos del planificador. No hace falta tocarlos.</p><div class=row style="justify-content:flex-start"><button data-a=nav data-r=met>Método de estudio</button><button data-a=nav data-r=est>Estimaciones</button><button data-a=dailyToggle>${S.goals&&S.goals.dailyOff?'Activar':'Quitar'} las sesiones diarias de relleno</button></div></details>`}
 
 /* v53 · Versión visible y botón de actualización forzada (no toca los datos: solo borra la caché de la app y la recarga). */
-const APP_VER = '54';
+const APP_VER = '55';
 {const a0=V.aj;V.aj=a=>a0(a)+`<div class=card data-sec=ver><h3>Versión de la app</h3><p class=m>Focus OS versión <b>${APP_VER}</b>. Si no coincide con la última que te he indicado, pulsa el botón: se descarga la versión nueva sin perder tus datos.</p><div class=row style="justify-content:flex-start"><button data-a=forceUpdate>Buscar actualización</button></div></div>`}
 Object.assign(A,{forceUpdate:async()=>{toast('Actualizando…');try{const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()));const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('focusos-')).map(k=>caches.delete(k)))}catch{}setTimeout(()=>location.reload(),400)}});
 
