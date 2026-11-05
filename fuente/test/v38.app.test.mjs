@@ -78,7 +78,7 @@ test('sesión diaria dice qué hacer (v47): tema concreto y actividad según su 
 test('cuotas según dominio (v49): lo que dominas baja a mantenimiento (≥ 1 h) y las horas pasan a las menos dominadas; sin temas no cambia nada', async () => {
   const a = await base(); const sid2 = n => a.S.subjects.find(s => s.name === n).id; const mk = (n, m) => [1, 2, 3, 4].map(i => ({ id: n + i, subjectId: sid2(n), name: n + ' ' + i, course: 2, mastery: m, reviews: 0, last: null, next: null, createdAt: i }));
   const q0 = a.t.quotaMap(a.S); assert.equal(q0[sid2('Historia de la Filosofía')], 120, 'sin temas: cuota intacta');
-  a.S.syllabus = [...mk('Historia de la Filosofía', 3), ...mk('Química', 0)];
+  a.S.goals.seqOff = true; a.S.syllabus = [...mk('Historia de la Filosofía', 3), ...mk('Química', 0)];
   const q = a.t.quotaMap(a.S); assert.equal(q[sid2('Historia de la Filosofía')], 60, 'dominada: mantenimiento de 1 h'); assert.ok(q[sid2('Química')] > q0[sid2('Química')], 'la menos dominada recibe más');
   assert.ok(Object.values(q).every(v => v >= 60), 'nadie queda por debajo de 1 h');
 });
@@ -98,4 +98,17 @@ test('tardes enteras (v52): por defecto cada día es de una sola asignatura (o d
   const on = per(a.S); assert.ok(on <= 1.6, 'con foco: pocas asignaturas por día (' + on + ')'); assert.match(a.t.V.aj(), /Tardes enteras a una sola asignatura/);
   const sig = JSON.stringify(a.S.blocks.map(x => [x.id, x.start, x.end])); await a.click('dailyToggle'); await a.click('dailyToggle'); assert.equal(JSON.stringify(a.S.blocks.map(x => [x.id, x.start, x.end])), sig, 'idempotente');
   await a.click('focusToggle'); assert.equal(a.S.goals.focusOff, true); assert.ok(per(a.S) > on + 0.8, 'sin foco se vuelve a mezclar'); await a.click('focusToggle'); assert.ok(!a.S.goals.focusOff);
+});
+
+test('una asignatura hasta dominarla (v54): todo el relleno va a la actual, salta las dominadas y pasa a la siguiente; sin temas vuelve a cuotas', async () => {
+  const a = await base(); const id = n => a.S.subjects.find(s => s.name === n).id; const mk = (n, m) => [1, 2, 3, 4].map(i => ({ id: n + i, subjectId: id(n), name: n + ' ' + i, course: 2, mastery: m, reviews: 0, last: null, next: null, createdAt: i }));
+  assert.equal(a.t.seqInfo(a.S), null, 'sin temas: reparto por cuotas');
+  a.S.syllabus = [...mk('Business', 0), ...mk('Matemáticas II', 0), ...mk('Historia de la Filosofía', 3)];
+  const q = a.t.seqInfo(a.S); assert.equal(q.cur.s.name, 'Business'); assert.ok(!q.todo.some(r => r.s.name === 'Historia de la Filosofía'), 'la dominada se salta');
+  await a.click('dailyToggle'); await a.click('dailyToggle');
+  const W = Object.fromEntries(a.S.works.map(w => [w.id, w])); const fill = a.S.blocks.filter(x => x.status === 'planned' && x.date >= '2026-11-16' && x.date <= '2026-12-20' && W[x.workId]?.daily);
+  assert.ok(fill.length > 20 && fill.every(x => W[x.workId].subjectId === id('Business')), 'solo Business');
+  await a.click('seqNext'); assert.equal(a.t.seqInfo(a.S).cur.s.name, 'Matemáticas II');
+  const W2 = Object.fromEntries(a.S.works.map(w => [w.id, w])); assert.ok(a.S.blocks.filter(x => x.status === 'planned' && x.date >= '2026-11-16' && x.date <= '2026-12-20' && W2[x.workId]?.daily).every(x => W2[x.workId].subjectId === id('Matemáticas II')), 'ahora solo Mates');
+  await a.click('seqToggle'); assert.equal(a.t.seqInfo(a.S), null, 'desactivado');
 });

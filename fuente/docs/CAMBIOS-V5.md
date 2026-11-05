@@ -402,3 +402,8 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 
 ## v53 (5-nov-2026) — versión visible y actualización forzada
 - Ajustes muestra «Focus OS versión 53» y un botón «Buscar actualización» (borra la caché de la app y recarga; los datos no se tocan), para saber siempre qué versión corre en el iPad/iPhone. Ejecutado: npm test 316/316, Chromium 42/42.
+
+## v54 (5-nov-2026) — una asignatura hasta dominarla
+- Modo secuencial (activado por defecto; Ajustes → «Una asignatura hasta dominarla»): todo el relleno diario va a una sola asignatura hasta que ≥ 90 % de su temario está en verde (o se pulsa «Ya la domino»), y entonces pasa a la siguiente. Orden: goals.seqOrder o valor × lo que falta (empieza por Business/Matemáticas). Las ya dominadas se saltan; las asignaturas sin temas apuntados no cuentan; si ninguna tiene temas o todas están dominadas, vuelve al reparto por cuotas. Hoy muestra «Asignatura de ahora».
+- Los exámenes apuntados siguen teniendo sus propias sesiones (de varias asignaturas). Los repasos del temario siguen su calendario.
+- Ejecutado: npm test 317/317, estrés 0 fallos, Chromium 42/42. Versión 54.

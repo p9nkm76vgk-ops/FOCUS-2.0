@@ -4,7 +4,13 @@
 const QUOTA_H={'Matemáticas II':3,'Business':3,'Física':3,'Química':3,'Lengua Castellana':3,'Catalán':3,'Historia de España':3,'Historia de la Filosofía':2,'Inglés':1};
 /** Horas mínimas por asignatura y semana, ajustadas a lo que ya dominas (v49): con el temario casi todo en verde la cuota baja hasta el 40 % (queda un mantenimiento de ≥ 1 h)
  *  y esas horas pasan a las asignaturas menos dominadas, en proporción a lo que les falta × su valor. Sin temas apuntados no se toca nada. */
-function quotaMap(Sx){const g=Sx.goals||{},subs=(Sx.subjects||[]).filter(s=>!s.archived),r30=m=>Math.round(m/30)*30,o={},pm={},base={};let freed=0;
+/** Modo secuencial (v54): una asignatura hasta que se domina (≥ 90 % de su temario en verde o «ya la domino»), y entonces la siguiente. Orden: el tuyo (goals.seqOrder) o por valor × lo que falta.
+ *  Solo cuentan asignaturas con temas apuntados (sin temas no se puede medir). Si ninguna tiene temas o todas están dominadas, vuelve al reparto por cuotas. */
+function seqInfo(Sx){const g=Sx.goals||{};if(!g.pauDate||g.dailyOff||g.seqOff)return null;const subs=(Sx.subjects||[]).filter(s=>!s.archived),ord=g.seqOrder||[],rank=r=>{const i=ord.indexOf(r.s.name);return i<0?100:i};
+ const rows=subs.map(s=>({s,pm:GL.coverage(Sx.syllabus||[],s.id).pctMastery,w:GL.valueFactor(s.name)})).filter(r=>r.pm!=null);if(!rows.length)return null;
+ rows.sort((a,b)=>rank(a)-rank(b)||b.w*(1.5-b.pm/100)-a.w*(1.5-a.pm/100)||a.s.name.localeCompare(b.s.name));
+ const todo=rows.filter(r=>r.pm<90&&!(g.seqDone||{})[r.s.name]);return{cur:todo[0]||null,todo,rows}}
+function quotaMap(Sx){const sq=seqInfo(Sx);if(sq&&sq.cur){const o={};for(const s of Sx.subjects||[])if(!s.archived)o[s.id]=s.id===sq.cur.s.id?1500:0;return o}const g=Sx.goals||{},subs=(Sx.subjects||[]).filter(s=>!s.archived),r30=m=>Math.round(m/30)*30,o={},pm={},base={};let freed=0;
  for(const s of subs){const cv=GL.coverage(Sx.syllabus||[],s.id);pm[s.id]=cv.pctMastery==null?null:cv.pctMastery;base[s.id]=Math.round(60*((g.quotaH&&g.quotaH[s.name])??QUOTA_H[s.name]??2));
   const f=pm[s.id]!=null&&pm[s.id]>60?1-0.6*(pm[s.id]-60)/40:1;o[s.id]=f<1?Math.min(base[s.id],Math.max(60,r30(base[s.id]*f))):base[s.id];freed+=base[s.id]-o[s.id]}
  if(freed>0){let need=subs.filter(s=>o[s.id]===base[s.id]&&pm[s.id]!=null&&pm[s.id]<60);if(!need.length)need=subs.filter(s=>o[s.id]===base[s.id]&&pm[s.id]==null);
@@ -40,7 +46,7 @@ A.dailyToggle=()=>{S.goals={...S.goals,dailyOff:!S.goals.dailyOff};PROJ=null;com
 
 /* Cuotas mínimas semanales (v46): para una semana (lunes) cuenta hechas + previstas por asignatura y las compara con el mínimo acordado.
    Es lo que se ve de verdad en el calendario: si no cabe, se dice cuánto falta (nunca se finge que todo cabe). */
-function quotaCheck(mon){const g=S.goals||{},QM=quotaMap(S),end=addDays(mon,6),wk=Object.fromEntries(S.works.map(w=>[w.id,w.subjectId])),have={};
+function quotaCheck(mon){const sqx=seqInfo(S);if(sqx&&sqx.cur)return{rows:[],miss:0,total:0};const g=S.goals||{},QM=quotaMap(S),end=addDays(mon,6),wk=Object.fromEntries(S.works.map(w=>[w.id,w.subjectId])),have={};
  for(const b of S.blocks){if(b.date<mon||b.date>end||(b.status!=='planned'&&b.status!=='done'))continue;const id=b.subjectId||wk[b.workId];have[id]=(have[id]||0)+(b.end-b.start)}
  const rows=S.subjects.filter(x=>!x.archived).map(x=>{const q=QM[x.id]??0,h=have[x.id]||0;return{s:x,q,h,miss:Math.max(0,q-h)}});
  return{rows,miss:rows.reduce((t,r)=>t+r.miss,0),total:rows.reduce((t,r)=>t+r.q,0)}}
@@ -55,3 +61,9 @@ function migrateFiloHist(Sx){if(Sx.fhV>=2)return false;const was=Sx.fhV===1;Sx.f
 function migrateFocus(Sx){if(Sx.focV>=1)return false;Sx.focV=1;return !!(Sx.goals&&Sx.goals.pauDate)}
 {const a0=V.aj;V.aj=a=>a0(a)+`<div class=card data-sec=foco><h3>Tardes enteras a una sola asignatura</h3><p class=m>${S.goals&&S.goals.focusOff?'Desactivado: cada día mezcla varias asignaturas.':'Activado: cada tarde se dedica a una sola asignatura (cambia cuando cubre sus horas de la semana), en vez de repartirla entre varias.'}</p><div class=row style="justify-content:flex-start"><button data-a=focusToggle>${S.goals&&S.goals.focusOff?'Activar':'Desactivar'}</button></div></div>`}
 Object.assign(A,{focusToggle:()=>{ensureG(S);S.goals.focusOff=!S.goals.focusOff||undefined;if(!S.goals.focusOff)delete S.goals.focusOff;regenFuture();commit({quiet:true});toast(S.goals.focusOff?'Cada día mezcla asignaturas':'Tardes enteras a una sola asignatura')}});
+
+/* v54 · Preferencia: una asignatura hasta dominarla (activada por defecto). Se regenera el futuro una vez. */
+function migrateSeq(Sx){if(Sx.seqV>=1)return false;Sx.seqV=1;return !!(Sx.goals&&Sx.goals.pauDate)}
+{const a0=V.aj;V.aj=a=>{const q=seqInfo(S),off=S.goals&&S.goals.seqOff;return a0(a)+`<div class=card data-sec=seq><h3>Una asignatura hasta dominarla</h3><p class=m>${off?'Desactivado: el tiempo se reparte entre todas las asignaturas.':q&&q.cur?'Activado: todo el tiempo libre va a <b>'+esc(q.cur.s.name)+'</b> hasta que la domines; luego pasa a la siguiente.':'Activado. Apunta los temas de tus asignaturas en Temario para que pueda medir cuándo dominas cada una.'}</p><div class=row style="justify-content:flex-start"><button data-a=seqToggle>${off?'Activar':'Desactivar'}</button>${q&&q.cur&&!off?'<button data-a=seqNext>Ya la domino: pasar a la siguiente</button>':''}</div></div>`}}
+Object.assign(A,{seqToggle:()=>{ensureG(S);if(S.goals.seqOff)delete S.goals.seqOff;else S.goals.seqOff=true;regenFuture();commit({quiet:true});toast(S.goals.seqOff?'Reparto entre todas las asignaturas':'Una asignatura hasta dominarla')},
+ seqNext:()=>{const q=seqInfo(S);if(!q||!q.cur)return;ensureG(S);S.goals.seqDone={...(S.goals.seqDone||{}),[q.cur.s.name]:true};regenFuture();commit({quiet:true});toast(q.cur.s.name+' dominada. Siguiente: '+((seqInfo(S)||{}).cur?seqInfo(S).cur.s.name:'reparto normal'))}});
