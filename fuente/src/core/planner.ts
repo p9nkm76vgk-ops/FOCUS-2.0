@@ -225,7 +225,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       let len = Math.min(s.preferredMin, left);
       if (left - len > 0 && left - len < s.minSessionMin) len = Math.min(left, s.maxSessionMin);
       const cands: { dt: string; start: number; L: number; key: (number | string)[] }[] = [];
-      const avH = new Set(input.avoid?.hours ?? []), avD = new Set(input.avoid?.days ?? []), rev = d.w.auto === 'review';
+    const avH = new Set(input.avoid?.hours ?? []), avD = new Set(input.avoid?.days ?? []), rev = d.w.auto === 'review';
       for (const strict of [true, false]) {
         for (let dt = d.from; dt <= to; dt = addDays(dt, 1)) {
           const x = day(dt), capLeft = maxOf(dt) - x.total; if (capLeft <= 0) continue;
@@ -309,6 +309,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const skipDay = new Set<string>([...history, ...missed].filter(isD).map(b => b.date));
     const credit = new Map<string, number>(), nTop = new Map<string, number>();
     for (const dt of [...skipDay]) { const hb = history.find(b => isD(b) && b.date === dt); if (hb) { const sid = byId.get(hb.workId)!.subjectId; nTop.set(sid, (nTop.get(sid) ?? 0) + 1); } }
+    const lastTp = new Map<string, string>(); if (dl.rot) for (const h of [...history].sort(cmp)) if (isD(h)) { const sid = byId.get(h.workId)!.subjectId; if (!/^Repaso/.test(h.label ?? '')) nTop.set(sid, (nTop.get(sid) ?? 0) + 1); if (h.label && !/^Repaso/.test(h.label)) lastTp.set(sid, h.label); }
     const avH = new Set(input.avoid?.hours ?? []), avD = new Set(input.avoid?.days ?? []);
     // Cuotas semanales por asignatura (minutos/semana, ya inclinadas hacia el principio): el relleno cubre lo que falta de cada una hasta alcanzar el objetivo de horas del día.
     const hasQ = dl.subjects.some(u => (u.q ?? 0) > 0), t0 = now.date, span = Math.max(1, daysBetween(t0, until));
@@ -317,11 +318,34 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
     const oldMulti = new Map<string, Block[]>(); for (const b of autoF.filter(isD).sort(cmp)) oldMulti.set(b.date, [...(oldMulti.get(b.date) ?? []), b]);
     const dayTarget = (dt: string) => { const we = weekday(dt) === 0 || weekday(dt) === 6; return Math.min(maxOf(dt), (we ? dl.we : dl.wk) ?? (hasQ ? 0 : 1)); };
     for (let dt = dl.from && dl.from > now.date ? dl.from : now.date; dt <= until; dt = addDays(dt, 1)) {
-      let x = day(dt); if (skipDay.has(dt)) continue;
+      let x = day(dt); if (skipDay.has(dt) && !dl.rot) continue;
       const tgt = hasQ ? dayTarget(dt) : 1; if (hasQ ? x.total >= tgt - 20 : x.total > 0) continue; if (maxOf(dt) - x.total <= 0) continue;
       // Examen ese mismo día: esa asignatura ya no se repasa; el relleno va antes del examen o ≥ 3 h después de su inicio (nunca durante).
       const gd = examGuard(input.works, dt), today = new Set<string>(); let cut = 1440, after = 1440;
       for (const w of input.works) if (active(w) && w.kind === 'exam' && w.auto !== 'review' && w.dueDate === dt) { today.add(w.subjectId); const st = w.dueMinute ?? hm(9); cut = Math.min(cut, st - EXAM_BUFFER_MIN); after = Math.min(after, st + 180); }
+      if (dl.rot) { // Rotación semanal (v60): cada asignatura tiene su día fijo; el día empieza con 1–2 repasos cortos de los días anteriores y el resto es de la asignatura del día.
+        const wd = weekday(dt), avTot = avail(dt).reduce((a, w) => a + dur(w), 0), revCap = avTot < 200 ? 1 : 2, LL = Math.max(L0, Math.min(dl.len ?? L0, s.maxSessionMin));
+        const mains = dl.subjects.filter(u => u.days?.includes(wd) && !today.has(u.id)).sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0)), revs: typeof dl.subjects = [];
+        for (const k of [1, 4]) { const w2 = (wd + 7 - k) % 7; for (const u of dl.subjects) if (!u.noRev && u.days?.includes(w2) && !today.has(u.id) && !revs.includes(u) && lastTp.has(u.id)) revs.push(u); }
+        const doneH = new Set<string>(); for (const h of [...history, ...missed]) if (isD(h) && h.date === dt) doneH.add(byId.get(h.workId)!.subjectId);
+        const left = new Map<string, number>(mains.map(u => [u.id, u.dayMax ?? 1e9]));
+        for (const it of [...revs.slice(0, revCap).map(u => ({ u, rev: true })), ...mains.map(u => ({ u, rev: false }))]) {
+          if (doneH.has(it.u.id)) continue; const wid = `daily:${it.u.id}`; if (!byId.has(wid)) continue;
+          for (let g = 0; g < 8; g++) {
+            x = day(dt); const capLeft = maxOf(dt) - x.total; if (capLeft <= 0 || (!it.rev && x.total >= tgt - 20)) break;
+            const want = it.rev ? 25 : Math.min(LL, left.get(it.u.id)!); if (want < s.minSessionMin) break;
+            const wins = free(dt, true).flatMap(f => today.size ? [{ start: up5(f.start), end: Math.min(f.end, cut) }, { start: up5(Math.max(f.start, after)), end: f.end }] : [{ start: up5(f.start), end: f.end }]).filter(f => f.end - f.start >= s.minSessionMin);
+            const f0 = wins[0]; if (!f0) break; const L = Math.min(want, f0.end - f0.start, capLeft, s.maxSessionMin); if (L < s.minSessionMin) break;
+            const n = nTop.get(it.u.id) ?? 0, tp = it.u.topics.length ? it.u.topics[n % it.u.topics.length] : null, kind = it.rev ? 'rev' : 'main';
+            let id = `auto:${wid}:${kind}:${dt}:${f0.start}`, k = 1; while (used.has(id)) id = `auto:${wid}:${kind}:${dt}:${f0.start}:r${k++}`; used.add(id);
+            const label = it.rev ? `Repaso · ${lastTp.get(it.u.id)}` : tp?.name;
+            const b: Block = { id, workId: wid, date: dt, start: f0.start, end: f0.start + L, status: 'planned', manual: false, part: 'main', ...(label ? { label } : {}) };
+            occupy(b); created.push(b);
+            if (!it.rev) { nTop.set(it.u.id, n + 1); if (tp) lastTp.set(it.u.id, tp.name); left.set(it.u.id, left.get(it.u.id)! - L); } else break;
+          }
+        }
+        continue;
+      }
       let cand = dl.subjects.filter(u => (!gd.size || gd.has(u.id)) && !today.has(u.id)); if (!cand.length) cand = dl.subjects.filter(u => !today.has(u.id));
       if (!cand.length) continue;
       const tw = cand.reduce((a, u) => a + u.w, 0); for (const u of cand) credit.set(u.id, (credit.get(u.id) ?? 0) + u.w);

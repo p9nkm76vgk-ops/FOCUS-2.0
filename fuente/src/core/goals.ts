@@ -6,7 +6,7 @@ import type { Block, Work } from './types.ts';
 export type GradeKind = 'examen' | 'tarea' | 'evaluacion';
 /** Nota de un examen o trabajo: `weight` = % que vale dentro de SU evaluación (1.ª, 2.ª o 3.ª; la 3.ª es la nota final de 2.º). Sin `weight` (datos antiguos) no entra en el cálculo. */
 export interface Grade { id: string; subjectId: string; score: number; weight?: number; evalNo?: 1 | 2 | 3; kind?: GradeKind; date: string; label?: string; workId?: string }
-export interface Goals { target: number | null; prevAvg?: number | null; prev?: Record<string, number>; subjTarget: Record<string, number>; pauDate: string | null; start: string | null; pauExpected: number | null; accessTarget: number | null; admTarget?: number | null; admLabel?: string; planPau?: boolean; planOff?: boolean; dailyOff?: boolean; startFrom?: string }
+export interface Goals { target: number | null; prevAvg?: number | null; prev?: Record<string, number>; subjTarget: Record<string, number>; pauDate: string | null; start: string | null; pauExpected: number | null; accessTarget: number | null; admTarget?: number | null; admLabel?: string; planPau?: boolean; planOff?: boolean; dailyOff?: boolean; startFrom?: string; rot?: boolean; rotOff?: boolean; dayMap?: Record<string, number> }
 export interface Topic2 { id: string; subjectId: string; name: string; course?: 1 | 2; mastery: 0 | 1 | 2 | 3; reviews: number; last: string | null; next: string | null; createdAt: number }
 export const DEFAULT_GOALS: Goals = { target: null, prevAvg: null, subjTarget: {}, pauDate: null, start: null, pauExpected: null, accessTarget: null };
 

@@ -141,3 +141,36 @@ test('reinicio (v59): se borran tareas, exámenes y sesiones, se conservan notas
   assert.equal(miss, 0, 'días sin sesión: ' + miss);
   const c = await boot({ 'focusos.v1': JSON.stringify(b.S) }); assert.equal(c.S.blocks.length, b.S.blocks.length, 'no se reinicia dos veces');
 });
+
+test('semana fija (v60): cada asignatura tiene su día; repasos en la misma semana; Inglés corto; tareas con hueco; idempotente', async () => {
+  clock.t = new Date(2026, 10, 5, 16, 0).getTime(); const a = await boot(); a.S.goals.pauDate = '2027-06-01'; a.S.goals.startFrom = '2026-11-14'; a.S.goals.rot = true; a.S.rotV = 1; a.S.rstV = 1; a.S.settings.maxDayWeekend = 420;
+  a.S.syllabus = a.S.subjects.flatMap(s => [1, 2, 3, 4, 5, 6].map(i => ({ id: s.id + i, subjectId: s.id, name: s.name + ' tema ' + i, course: 2, mastery: 0, reviews: 0, last: null, next: null, createdAt: i })));
+  const b = await boot({ 'focusos.v1': JSON.stringify(a.S) }); await b.click('dailyToggle'); await b.click('dailyToggle');
+  const nm = Object.fromEntries(b.S.subjects.map(s => [s.id, s.name])), W = Object.fromEntries(b.S.works.map(w => [w.id, w])), dly = b.S.blocks.filter(x => x.status === 'planned' && W[x.workId]?.daily), wd = d => new Date(d + 'T12:00:00Z').getUTCDay();
+  const exp = { 1: ['Catalán'], 2: ['Historia de España'], 3: ['Business'], 4: ['Lengua Castellana'], 5: ['Historia de la Filosofía', 'Inglés'], 6: ['Física', 'Química'], 0: ['Matemáticas II'] };
+  assert.ok(dly.every(x => x.date >= '2026-11-14'), 'nada antes del 14 nov');
+  for (const x of dly.filter(x => !/^Repaso/.test(x.label || ''))) assert.ok(exp[wd(x.date)].includes(nm[W[x.workId].subjectId]), x.date + ' ' + nm[W[x.workId].subjectId]);
+  const days = new Set(dly.map(x => x.date)); let miss = 0; for (let d = '2026-11-14'; d <= '2027-06-01'; d = new Date(Date.parse(d + 'T12:00:00Z') + 864e5).toISOString().slice(0, 10)) if (!days.has(d)) miss++; assert.equal(miss, 0, 'días sin sesión ' + miss);
+  const rev = dly.filter(x => /^Repaso/.test(x.label || '')); assert.ok(rev.length > 50, 'hay repasos'); assert.ok(dly.some(x => x.date === '2026-11-17' && /^Repaso/.test(x.label || '') && nm[W[x.workId].subjectId] === 'Catalán'), 'martes repasa lo del lunes (Catalán)');
+  assert.ok(rev.every(x => x.end - x.start === 25 && !/Inglés/.test(nm[W[x.workId].subjectId])), 'repasos cortos y sin Inglés');
+  const ing = dly.filter(x => nm[W[x.workId].subjectId] === 'Inglés'); assert.ok(ing.length > 10 && ing.every(x => x.end - x.start <= 45), 'Inglés ≤ 45 min');
+  assert.ok(dly.filter(x => [0, 6].includes(wd(x.date))).every(x => x.start >= 600), 'findes desde las 10:00');
+  const sig = JSON.stringify(b.S.blocks.map(x => [x.id, x.start, x.end])); await b.click('dailyToggle'); await b.click('dailyToggle'); assert.equal(JSON.stringify(b.S.blocks.map(x => [x.id, x.start, x.end])), sig, 'idempotente');
+});
+
+test('semana fija (v60): una tarea para mañana encuentra su hueco sin romper el día de la asignatura', async () => {
+  clock.t = new Date(2026, 10, 16, 15, 0).getTime(); const a = await boot(); a.S.goals.pauDate = '2027-06-01'; a.S.goals.startFrom = '2026-11-14'; a.S.goals.rot = true; a.S.rotV = 1; a.S.rstV = 1; a.S.settings.maxDayWeekend = 420;
+  a.S.syllabus = a.S.subjects.flatMap(s => [1, 2, 3].map(i => ({ id: s.id + i, subjectId: s.id, name: s.name + ' tema ' + i, course: 2, mastery: 0, reviews: 0, last: null, next: null, createdAt: i })));
+  const b = await boot({ 'focusos.v1': JSON.stringify(a.S) }); await b.click('addTask');
+  await b.submit({ title: 'Ejercicios', subjectId: b.S.subjects.find(s => s.name === 'Inglés').id, dueDate: '2026-11-17', time: '', estOverride: '30', difficulty: '2', importance: '3', status: 'pending', notes: '' });
+  const w = b.S.works.find(x => x.title === 'Ejercicios'); const bl = b.S.blocks.filter(x => x.workId === w.id && x.status === 'planned');
+  assert.ok(bl.length && bl.reduce((p, x) => p + x.end - x.start, 0) >= 30 && bl.every(x => x.date <= '2026-11-17' && !(x.date === '2026-11-16' && x.start < 900)), 'la tarea tiene su hueco antes de la fecha');
+  const W = Object.fromEntries(b.S.works.map(x => [x.id, x])); assert.ok(b.S.blocks.some(x => x.date === '2026-11-17' && W[x.workId]?.daily && /Historia/.test(b.S.subjects.find(s => s.id === W[x.workId].subjectId).name)), 'el martes sigue siendo de Historia');
+});
+
+test('semana fija (v60): Ajustes permite mover una asignatura de día y el plan se rehace sin duplicar', async () => {
+  clock.t = new Date(2026, 10, 5, 16, 0).getTime(); const a = await boot(); a.S.goals.pauDate = '2027-06-01'; a.S.goals.startFrom = '2026-11-14'; a.S.goals.rot = true; a.S.rotV = 1; a.S.rstV = 1;
+  assert.match(a.t.V.aj(), /Día de cada asignatura/); const cat = a.S.subjects.find(s => s.name === 'Catalán');
+  await a.click('dayNext', cat.id); assert.equal(a.S.goals.dayMap['Catalán'], 2, 'Catalán pasa al martes'); assert.match(a.t.V.aj(), /Catalán<\/b><button[^>]*>Martes/);
+  const W = Object.fromEntries(a.S.works.map(w => [w.id, w])), ids = a.S.blocks.map(b => b.id); assert.equal(new Set(ids).size, ids.length, 'sin duplicados');
+});

@@ -6,11 +6,11 @@ const QUOTA_H={'Matemáticas II':3,'Business':3,'Física':3,'Química':3,'Lengua
  *  y esas horas pasan a las asignaturas menos dominadas, en proporción a lo que les falta × su valor. Sin temas apuntados no se toca nada. */
 /** Modo secuencial (v54): una asignatura hasta que se domina (≥ 90 % de su temario en verde o «ya la domino»), y entonces la siguiente. Orden: el tuyo (goals.seqOrder) o por valor × lo que falta.
  *  Solo cuentan asignaturas con temas apuntados (sin temas no se puede medir). Si ninguna tiene temas o todas están dominadas, vuelve al reparto por cuotas. */
-function seqInfo(Sx){const g=Sx.goals||{};if(!g.pauDate||g.dailyOff||g.seqOff)return null;const subs=(Sx.subjects||[]).filter(s=>!s.archived),ord=g.seqOrder||[],DEF=[/filosof/i,/historia/i,/business|empresa/i,/lengua|castellan/i,/catal/i,/ingl/i,/qu[ií]m/i,/f[ií]sic/i,/mat/i],rank=r=>{const i=ord.indexOf(r.s.name);if(i>=0)return i;const d=DEF.findIndex(x=>x.test(r.s.name));return 100+(d<0?99:d)};
+function seqInfo(Sx){const g=Sx.goals||{};if(!g.pauDate||g.dailyOff||g.seqOff||rotOn(Sx))return null;const subs=(Sx.subjects||[]).filter(s=>!s.archived),ord=g.seqOrder||[],DEF=[/filosof/i,/historia/i,/business|empresa/i,/lengua|castellan/i,/catal/i,/ingl/i,/qu[ií]m/i,/f[ií]sic/i,/mat/i],rank=r=>{const i=ord.indexOf(r.s.name);if(i>=0)return i;const d=DEF.findIndex(x=>x.test(r.s.name));return 100+(d<0?99:d)};
  const rows=subs.map(s=>({s,pm:GL.coverage(Sx.syllabus||[],s.id).pctMastery,w:GL.valueFactor(s.name)})).filter(r=>r.pm!=null);if(!rows.length)return null;
  rows.sort((a,b)=>rank(a)-rank(b)||b.w*(1.5-b.pm/100)-a.w*(1.5-a.pm/100)||a.s.name.localeCompare(b.s.name));
  const todo=rows.filter(r=>r.pm<90&&!(g.seqDone||{})[r.s.name]);return{cur:todo[0]||null,todo,rows}}
-function quotaMap(Sx){const sq=seqInfo(Sx);if(sq&&sq.cur){const o={};for(const s of Sx.subjects||[])if(!s.archived){if(s.id===sq.cur.s.id){o[s.id]=1500;continue}const r=sq.rows.find(x=>x.s.id===s.id),dom=r&&(r.pm>=90||(Sx.goals.seqDone||{})[r.s.name]);o[s.id]=dom?(/filosof|historia|business|empresa|lengua|castellan|catal|ingl/i.test(s.name)?60:30):0}return o}const g=Sx.goals||{},subs=(Sx.subjects||[]).filter(s=>!s.archived),r30=m=>Math.round(m/30)*30,o={},pm={},base={};let freed=0;
+function quotaMap(Sx){if(rotOn(Sx)){const m=rotMap(Sx),o={};for(const s of Sx.subjects||[])if(!s.archived)o[s.id]=m[s.id]!=null?1500:0;return o}const sq=seqInfo(Sx);if(sq&&sq.cur){const o={};for(const s of Sx.subjects||[])if(!s.archived){if(s.id===sq.cur.s.id){o[s.id]=1500;continue}const r=sq.rows.find(x=>x.s.id===s.id),dom=r&&(r.pm>=90||(Sx.goals.seqDone||{})[r.s.name]);o[s.id]=dom?(/filosof|historia|business|empresa|lengua|castellan|catal|ingl/i.test(s.name)?60:30):0}return o}const g=Sx.goals||{},subs=(Sx.subjects||[]).filter(s=>!s.archived),r30=m=>Math.round(m/30)*30,o={},pm={},base={};let freed=0;
  for(const s of subs){const cv=GL.coverage(Sx.syllabus||[],s.id);pm[s.id]=cv.pctMastery==null?null:cv.pctMastery;base[s.id]=Math.round(60*((g.quotaH&&g.quotaH[s.name])??QUOTA_H[s.name]??2));
   const f=pm[s.id]!=null&&pm[s.id]>60?1-0.6*(pm[s.id]-60)/40:1;o[s.id]=f<1?Math.min(base[s.id],Math.max(60,r30(base[s.id]*f))):base[s.id];freed+=base[s.id]-o[s.id]}
  if(freed>0){let need=subs.filter(s=>o[s.id]===base[s.id]&&pm[s.id]!=null&&pm[s.id]<60);if(!need.length)need=subs.filter(s=>o[s.id]===base[s.id]&&pm[s.id]==null);
@@ -18,6 +18,7 @@ function quotaMap(Sx){const sq=seqInfo(Sx);if(sq&&sq.cur){const o={};for(const s
   for(let u=Math.floor(freed/30);u>0&&need.length;u--){let best=null,bs=-1;for(const s of need){if((got[s.id]||0)>=60)continue;const sc=wt[s.id]/(1+(got[s.id]||0)/30);if(sc>bs){bs=sc;best=s}}if(!best)break;got[best.id]=(got[best.id]||0)+30;o[best.id]+=30}}
  return o}
 function planDiario(Sx,today){const g=Sx.goals;if(!g||!g.pauDate||g.dailyOff||g.pauDate<today)return undefined;
+ if(rotOn(Sx)){const m=rotMap(Sx),subs=(Sx.subjects||[]).filter(s=>!s.archived&&m[s.id]!=null);return{until:g.pauDate,from:g.startFrom||undefined,rot:true,wk:240,we:420,len:60,focus:true,subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),r=ROT_X.find(x=>x[0].test(s.name))||[];return{id:s.id,q:1500,w:1,days:[m[s.id]],ord:r[1]||0,dayMax:r[2]||undefined,noRev:!!r[3],topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
  const QM=quotaMap(Sx),subs=(Sx.subjects||[]).filter(s=>!s.archived&&QM[s.id]>0);if(!subs.length)return undefined;
  return{until:g.pauDate,from:g.startFrom||undefined,wk:180,we:300,len:60,tilt:g.focusOff?[1.1,1]:[1,1],focus:!g.focusOff,subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
   return{id:s.id,q:QM[s.id],cur:QM[s.id]>=1500,w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
@@ -46,7 +47,7 @@ A.dailyToggle=()=>{S.goals={...S.goals,dailyOff:!S.goals.dailyOff};PROJ=null;com
 
 /* Cuotas mínimas semanales (v46): para una semana (lunes) cuenta hechas + previstas por asignatura y las compara con el mínimo acordado.
    Es lo que se ve de verdad en el calendario: si no cabe, se dice cuánto falta (nunca se finge que todo cabe). */
-function quotaCheck(mon){const sqx=seqInfo(S);if(sqx&&sqx.cur)return{rows:[],miss:0,total:0};const g=S.goals||{},QM=quotaMap(S),end=addDays(mon,6),wk=Object.fromEntries(S.works.map(w=>[w.id,w.subjectId])),have={};
+function quotaCheck(mon){const sqx=seqInfo(S);if(rotOn(S)||(sqx&&sqx.cur))return{rows:[],miss:0,total:0};const g=S.goals||{},QM=quotaMap(S),end=addDays(mon,6),wk=Object.fromEntries(S.works.map(w=>[w.id,w.subjectId])),have={};
  for(const b of S.blocks){if(b.date<mon||b.date>end||(b.status!=='planned'&&b.status!=='done'))continue;const id=b.subjectId||wk[b.workId];have[id]=(have[id]||0)+(b.end-b.start)}
  const rows=S.subjects.filter(x=>!x.archived).map(x=>{const q=QM[x.id]??0,h=have[x.id]||0;return{s:x,q,h,miss:Math.max(0,q-h)}});
  return{rows,miss:rows.reduce((t,r)=>t+r.miss,0),total:rows.reduce((t,r)=>t+r.q,0)}}
@@ -71,3 +72,14 @@ function migrateReset59(Sx){if(Sx.rstV>=1)return false;Sx.rstV=1;if(!Sx.subjects
  try{localStorage.setItem('focusos.backup.pre59',JSON.stringify(Sx))}catch{}
  Sx.works=[];Sx.blocks=[];Sx.autopsies=[];Sx.deshacer={};Sx.errors=[];Sx.estimateLog=[];Sx.suggestionLog=[];Sx.explore={log:[]};Sx.warnOff={};
  if(Sx.refuerzo)Sx.refuerzo.on=false;if(Sx.goals){Sx.goals.startFrom='2026-11-14';delete Sx.goals.seqDone}return true}
+
+/** v60 · Rotación semanal: cada asignatura tiene un día fijo (0=domingo … 6=sábado). Por defecto: Lun Catalán · Mar Historia · Mié Business · Jue Lengua · Vie Filosofía + Inglés · Sáb Física + Química · Dom Mates II. Editable en Ajustes. */
+const ROT_D=[[/filosof/i,5],[/historia/i,2],[/catal/i,1],[/business|empresa/i,3],[/lengua|castellan/i,4],[/ingl/i,5],[/f[ií]sic/i,6],[/qu[ií]m/i,6],[/mat/i,0]];
+const ROT_X=[[/ingl/i,0,45,true],[/filosof/i,1,150],[/f[ií]sic/i,0,210],[/qu[ií]m/i,1]]; // [nombre, orden en el día, minutos máx. ese día, sin repasos]
+const DIAS7=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+function rotMap(Sx){const g=Sx.goals||{},dm=g.dayMap||{},o={};for(const s of Sx.subjects||[]){if(s.archived)continue;const d=dm[s.name]!=null?dm[s.name]:(ROT_D.find(x=>x[0].test(s.name))||[])[1];if(d!=null)o[s.id]=d}return o}
+function rotOn(Sx){const g=Sx&&Sx.goals;return !!(g&&g.rot&&g.pauDate&&!g.dailyOff&&!g.rotOff&&Object.keys(rotMap(Sx)).length)}
+function migrateRot(Sx){if(Sx.rotV>=1)return false;Sx.rotV=1;if(!(Sx.goals&&Sx.goals.pauDate))return false;Sx.goals.rot=true;return true}
+function rotCard(){const m=rotMap(S),td=new Date(now().date+'T12:00:00Z').getUTCDay(),rows=[1,2,3,4,5,6,0].map(d=>{const ss=(S.subjects||[]).filter(s=>!s.archived&&m[s.id]===d);return`<div class="asr" ${d===td?'aria-current=date':''} style="--c:${ss[0]?ss[0].color:'var(--muted)'}"><i class=dot></i><b>${DIAS7[d].slice(0,3)}</b><span class=hrs>${ss.length?ss.map(x=>esc(x.name)).join(' + '):'libre'}</span></div>`}).join('');return`<div class="card bc"><div class=bch><div><small class=lab>Tu semana fija</small></div></div>${rows}</div>`}
+{const a0=V.aj;V.aj=a=>a0(a)+(rotOn(S)?`<div class=card data-sec=dias><h3>Día de cada asignatura</h3><p class=m>Ese día se estudia solo esa asignatura. Toca para pasarla al día siguiente.</p>${(S.subjects||[]).filter(s=>!s.archived).map(s=>{const d=rotMap(S)[s.id];return`<div class=asr style="--c:${s.color}"><i class=dot></i><b>${esc(s.name)}</b><button class=lnk data-a=dayNext data-id="${s.id}">${d!=null?DIAS7[d]:'Sin día'}</button></div>`}).join('')}</div>`:'')}
+Object.assign(A,{dayNext:t=>{const s=S.subjects.find(x=>x.id===t.dataset.id);if(!s)return;ensureG(S);const d=rotMap(S)[s.id],nx=d==null?1:(d+1)%7;S.goals.dayMap={...(S.goals.dayMap||{}),[s.name]:nx};regenFuture();commit({quiet:true});toast(s.name+': '+DIAS7[nx])}});

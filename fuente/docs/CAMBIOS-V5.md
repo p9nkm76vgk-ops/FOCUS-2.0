@@ -428,3 +428,9 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 - Reinicio (una vez): se borran tareas, exámenes, sesiones e historial; se conservan notas, temario, asignaturas, ajustes, objetivos y rutina. Copia local `focusos.backup.pre59` y copia en la nube (`focus_state_backup_20261105`).
 - `goals.startFrom = 2026-11-14`: el relleno diario no genera nada antes. Prueba: sesiones todos los días del 14 nov al 1 jun.
 - Iconos y theme-color con la paleta del interior (esfera lavanda sobre #0e0b0f).
+
+## v60 — Semana fija
+- Cada asignatura tiene un día fijo (0=dom…6=sáb): Lun Catalán · Mar Historia de España · Mié Business · Jue Lengua · Vie Filosofía (máx. 2 h 30) + Inglés (45 min) · Sáb Física (máx. 3 h 30) + Química · Dom Mates II. Se cambia en Ajustes → «Día de cada asignatura».
+- Cada día empieza con 1–2 repasos de 25 min de lo estudiado 1 y 4 días antes (misma semana); Inglés sin repasos. Lunes y martes (ventana corta) solo 1 repaso.
+- Las tareas y exámenes siguen colocándose antes que el relleno, así que las tareas para mañana encuentran hueco.
+- `goals.rot` lo activa `migrateRot` en los datos existentes con PAU; reemplaza «una asignatura hasta dominarla» y las cuotas semanales mientras esté activa.
