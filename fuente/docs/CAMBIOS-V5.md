@@ -411,3 +411,6 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 ## v55 (5-nov-2026) — tardes enteras también en semanas de exámenes
 - Con la preferencia activada (y fecha de PAU), las sesiones de preparación de examen se colocan primero en días sin otra asignatura, luego en los que ya tienen ésa (llenando su día), y se admite repetir el trabajo el mismo día. Es una preferencia blanda: si no hay hueco (examen al día siguiente, víspera, capacidad) se mezcla. El reparto por rondas, las guardias de factibilidad y el repaso de la víspera no cambian. Sin foco o sin PAU, todo igual que antes.
 - Simulación (5 exámenes del 9 al 13 nov): menos días mezclados, aunque quedan algunos (p. ej. exámenes en días consecutivos). Ejecutado: npm test 318/318, estrés 6000 estados 0 fallos, Chromium 42/42. Versión 55.
+
+## v56
+- Se eliminan de Ajustes las tarjetas "Tardes enteras a una sola asignatura" y "Una asignatura hasta dominarla": ambos comportamientos son automáticos (no son opciones). Se mantiene el botón "Ya la domino" en Hoy.

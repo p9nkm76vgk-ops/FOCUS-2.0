@@ -95,7 +95,7 @@ test('v51 revierte v50: quien lo había recibido recupera cuotas y sesiones de F
 
 test('tardes enteras (v52): por defecto cada día es de una sola asignatura (o dos si no cabe), se puede desactivar y repetir no cambia nada', async () => {
   const a = await base(); const per = (S) => { const W = Object.fromEntries(S.works.map(w => [w.id, w])), by = {}; for (const x of S.blocks) if (x.status === 'planned' && x.date >= '2026-11-09' && x.date <= '2027-01-31' && W[x.workId]?.daily) (by[x.date] ??= new Set()).add(W[x.workId].subjectId); const v = Object.values(by).map(s => s.size); return v.reduce((p, c) => p + c, 0) / v.length; };
-  const on = per(a.S); assert.ok(on <= 1.6, 'con foco: pocas asignaturas por día (' + on + ')'); assert.match(a.t.V.aj(), /Tardes enteras a una sola asignatura/);
+  const on = per(a.S); assert.ok(on <= 1.6, 'con foco: pocas asignaturas por día (' + on + ')'); assert.doesNotMatch(a.t.V.aj(), /Tardes enteras a una sola asignatura|Una asignatura hasta dominarla/, 'no es una opción: es automático');
   const sig = JSON.stringify(a.S.blocks.map(x => [x.id, x.start, x.end])); await a.click('dailyToggle'); await a.click('dailyToggle'); assert.equal(JSON.stringify(a.S.blocks.map(x => [x.id, x.start, x.end])), sig, 'idempotente');
   await a.click('focusToggle'); assert.equal(a.S.goals.focusOff, true); assert.ok(per(a.S) > on + 0.8, 'sin foco se vuelve a mezclar'); await a.click('focusToggle'); assert.ok(!a.S.goals.focusOff);
 });
