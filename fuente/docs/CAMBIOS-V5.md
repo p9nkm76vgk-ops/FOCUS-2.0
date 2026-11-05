@@ -399,3 +399,6 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 - Nueva preferencia (activada por defecto; Ajustes → «Tardes enteras a una sola asignatura»): el relleno diario sigue con la misma asignatura hasta cubrir su cuota semanal en vez de repartir cada tarde entre varias. En los días con poco hueco (lunes/martes) se elige una asignatura cuya cuota restante cabe. La inclinación +10 % se desactiva con el foco para no inflar cuotas. Una vez se regenera el futuro.
 - Medido con datos de prueba: de 3,0 a ~1,4 asignaturas por día. Con la disponibilidad por defecto (21 h/semana frente a 24 h) siguen faltando horas: en la simulación Business −1 h y Física −2 h.
 - Ejecutado: npm test 316/316, estrés 0 fallos, Chromium 42/42.
+
+## v53 (5-nov-2026) — versión visible y actualización forzada
+- Ajustes muestra «Focus OS versión 53» y un botón «Buscar actualización» (borra la caché de la app y recarga; los datos no se tocan), para saber siempre qué versión corre en el iPad/iPhone. Ejecutado: npm test 316/316, Chromium 42/42.
