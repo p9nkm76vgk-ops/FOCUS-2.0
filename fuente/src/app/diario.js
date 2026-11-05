@@ -13,7 +13,7 @@ function quotaMap(Sx){const g=Sx.goals||{},subs=(Sx.subjects||[]).filter(s=>!s.a
  return o}
 function planDiario(Sx,today){const g=Sx.goals;if(!g||!g.pauDate||g.dailyOff||g.pauDate<today)return undefined;
  const QM=quotaMap(Sx),subs=(Sx.subjects||[]).filter(s=>!s.archived&&QM[s.id]>0);if(!subs.length)return undefined;
- return{until:g.pauDate,wk:180,we:300,len:60,tilt:[1.1,1],subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
+ return{until:g.pauDate,wk:180,we:300,len:60,tilt:g.focusOff?[1.1,1]:[1,1],focus:!g.focusOff,subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
   return{id:s.id,q:QM[s.id],w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
 /** Un trabajo oculto por asignatura (auto:'review' + daily:true: ninguna pantalla lo lista como tarea). Idempotente. */
 function syncDaily(Sx){const g=Sx.goals,on=planDiario(Sx,now().date),have=new Map((Sx.works||[]).filter(w=>w.daily).map(w=>[w.id,w])),want=new Set(on?on.subjects.map(u=>u.id):[]);let out=Sx.works;
@@ -50,3 +50,8 @@ function migrateFiloHist(Sx){if(Sx.fhV>=2)return false;const was=Sx.fhV===1;Sx.f
  if(g.quotaH){if(g.quotaH['Historia de la Filosofía']===0)delete g.quotaH['Historia de la Filosofía'];if(g.quotaH['Historia de España']===5)delete g.quotaH['Historia de España'];if(!Object.keys(g.quotaH).length)delete g.quotaH}
  const dw=Object.fromEntries((Sx.works||[]).map(w=>[w.id,w]));for(const b of Sx.blocks||[]){const w=dw[b.workId];if(w&&w.daily&&fi&&w.subjectId===fi.id&&b.status==='planned'&&b.manual)b.manual=false}
  return true}
+
+/* v52 · Preferencia: tardes enteras a una sola asignatura (activada por defecto). Una vez, el futuro se regenera para que el plan ya hecho siga la preferencia. */
+function migrateFocus(Sx){if(Sx.focV>=1)return false;Sx.focV=1;return !!(Sx.goals&&Sx.goals.pauDate)}
+{const a0=V.aj;V.aj=a=>a0(a)+`<div class=card data-sec=foco><h3>Tardes enteras a una sola asignatura</h3><p class=m>${S.goals&&S.goals.focusOff?'Desactivado: cada día mezcla varias asignaturas.':'Activado: cada tarde se dedica a una sola asignatura (cambia cuando cubre sus horas de la semana), en vez de repartirla entre varias.'}</p><div class=row style="justify-content:flex-start"><button data-a=focusToggle>${S.goals&&S.goals.focusOff?'Activar':'Desactivar'}</button></div></div>`}
+Object.assign(A,{focusToggle:()=>{ensureG(S);S.goals.focusOff=!S.goals.focusOff||undefined;if(!S.goals.focusOff)delete S.goals.focusOff;regenFuture();commit({quiet:true});toast(S.goals.focusOff?'Cada día mezcla asignaturas':'Tardes enteras a una sola asignatura')}});

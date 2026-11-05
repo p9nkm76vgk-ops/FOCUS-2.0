@@ -394,3 +394,8 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 
 ## v51 (4-nov-2026) — revertido v50
 - El cambio de Filosofía → Historia de España no era lo que se quería. Quien ya lo había recibido (fhV=1) recupera las cuotas de Filosofía y Historia de España y sus sesiones dejan de estar fijas; el futuro se regenera una vez. Ejecutado: npm test 315/315, estrés 0 fallos, Chromium 42/42.
+
+## v52 (5-nov-2026) — tardes enteras a una sola asignatura
+- Nueva preferencia (activada por defecto; Ajustes → «Tardes enteras a una sola asignatura»): el relleno diario sigue con la misma asignatura hasta cubrir su cuota semanal en vez de repartir cada tarde entre varias. En los días con poco hueco (lunes/martes) se elige una asignatura cuya cuota restante cabe. La inclinación +10 % se desactiva con el foco para no inflar cuotas. Una vez se regenera el futuro.
+- Medido con datos de prueba: de 3,0 a ~1,4 asignaturas por día. Con la disponibilidad por defecto (21 h/semana frente a 24 h) siguen faltando horas: en la simulación Business −1 h y Física −2 h.
+- Ejecutado: npm test 316/316, estrés 0 fallos, Chromium 42/42.

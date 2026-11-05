@@ -331,9 +331,10 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
         const ok = (b: Block) => wins.some(f => f.start <= b.start && b.end <= f.end) && dur(b) <= capLeft && (!hasQ || x.total + dur(b) <= tgt + 20);
         const o = keepOld.find(b => cand.some(u => u.id === byId.get(b.workId)!.subjectId) && ok(b));
         if (o) { const oSub = byId.get(o.workId)!.subjectId; keepOld.splice(keepOld.indexOf(o), 1); occupy(o); kept.push(o); credit.set(oSub, (credit.get(oSub) ?? 0) - tw); nTop.set(oSub, (nTop.get(oSub) ?? 0) + 1); continue; }
-        // Asignatura: la que más le falta para su cuota semanal (otra distinta a las ya puestas hoy si es posible); sin cuotas, rotación por crédito.
+        // Asignatura: la que más le falta para su cuota semanal (con `focus`, la tarde entera para una sola: se sigue con la misma hasta cubrir su cuota; sin él, otra distinta a las ya puestas hoy si es posible); sin cuotas, rotación por crédito.
         let pickS = cand[0];
-        if (hasQ) { const inDay = new Set(x.occ.map(q => q.sub)); const sc = (u: typeof cand[number]) => { const q = (u.q ?? 0) * tiltAt(dt); return (q > 0 ? 100 * (q - weekMin(dt, u.id)) / q : -100) + (inDay.has(u.id) ? -12 : 0) + (u.w * 0.01); }; for (const u of cand) if (sc(u) > sc(pickS) + 1e-9) pickS = u; if ((pickS.q ?? 0) * tiltAt(dt) - weekMin(dt, pickS.id) <= 0 && x.total > 0) break; }
+        if (hasQ) { const inDay = new Set(x.occ.map(q => q.sub)); const Lq = Math.max(L0, Math.min(dl.len ?? L0, s.maxSessionMin)), room = Math.min(tgt - x.total, wins.reduce((a, f) => a + Math.floor((f.end - f.start + s.minGapMin) / (Lq + s.minGapMin)) * Lq, 0));
+          const sc = (u: typeof cand[number]) => { const q = (u.q ?? 0) * tiltAt(dt), rem = q - weekMin(dt, u.id), fit = dl.focus && !inDay.has(u.id) && rem > room + 20 ? -25 * (rem - room) / 60 : 0; return (q > 0 ? 100 * rem / q : -100) + fit + (inDay.has(u.id) ? (dl.focus ? (q - weekMin(dt, u.id) >= 30 ? 150 : 0) : -12) : 0) + (u.w * (dl.focus ? 1 : 0.01)); }; for (const u of cand) if (sc(u) > sc(pickS) + 1e-9) pickS = u; if ((pickS.q ?? 0) * tiltAt(dt) - weekMin(dt, pickS.id) <= 0 && x.total > 0) break; }
         else for (const u of cand) if ((credit.get(u.id) ?? 0) > (credit.get(pickS.id) ?? 0) + 1e-9) pickS = u;
         const LL = Math.max(L0, Math.min(dl.len ?? L0, s.maxSessionMin));
         let best: { start: number; L: number; sc: number } | null = null;
