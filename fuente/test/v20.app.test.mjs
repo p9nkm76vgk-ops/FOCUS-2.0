@@ -62,7 +62,7 @@ test('valor por asignatura: Matemáticas II > Física/Química > lenguas > Busin
 test('fines de semana activos: se migran una vez las ventanas por defecto (8:00–13:30 y tarde), tope 7 h, y la mañana del refuerzo solo de lunes a viernes', async () => {
   clock.t = new Date(2026, 9, 26, 14, 30).getTime();
   const a = await boot(); await a.click('addExam'); await a.submit({ title: '', subjectId: a.S.subjects[0].id, dueDate: '2026-11-09', time: '', estOverride: '', difficulty: '3', importance: '4', readiness: '0', status: 'pending', notes: '' });
-  const st = JSON.parse(a.store['focusos.v1']); delete st.weV; delete st.settings.maxDayWeekend;
+  const st = JSON.parse(a.store['focusos.v1']); delete st.weV; st.we10V = 1; delete st.settings.maxDayWeekend;
   const b = await boot({ 'focusos.v1': JSON.stringify(st) });
   assert.deepEqual(JSON.parse(JSON.stringify(b.S.settings.availability[6])), [{ start: 480, end: 810 }, { start: 900, end: 1020 }, { start: 1080, end: 1230 }]);
   assert.equal(b.S.settings.maxDayWeekend, 420); assert.equal(b.S.weV, 1);

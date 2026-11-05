@@ -3,6 +3,8 @@ const WE_OLD='600-810,960-1020,1050-1230';
 function migrateWeekend(Sx){if(Sx.weV>=1||!Sx.settings)return;Sx.weV=1;const av=Sx.settings.availability||{},key=d=>(av[d]||[]).map(w=>w.start+'-'+w.end).join(',');
  for(const d of [0,6]){if(key(d)===WE_OLD)av[d]=[{start:480,end:810},{start:900,end:1020},{start:1050,end:1230}];else if(key(d)===WE_OLD.replace('1050','1080'))av[d]=[{start:480,end:810},{start:900,end:1020},{start:1080,end:1230}]}
  if(!(Sx.settings.maxDayWeekend>0))Sx.settings.maxDayWeekend=420}
+/** v58 · Fines de semana: se estudia desde las 10:00, nunca antes. Una vez; devuelve true si cambió algo. */
+function migrateWeekend10(Sx){if(Sx.we10V>=1||!Sx.settings)return false;Sx.we10V=1;const av=Sx.settings.availability||{};let ch=false;for(const d of [0,6]){const o=JSON.stringify(av[d]||[]);av[d]=(av[d]||[]).map(w=>({start:Math.max(w.start,600),end:w.end})).filter(w=>w.end-w.start>=15);if(JSON.stringify(av[d])!==o)ch=true}return ch}
 const NIVEL={'Matemáticas II':1,'Física':0,'Química':2,'Business':1,'Lengua Castellana':0,'Catalán':0,'Inglés':2,'Historia de España':0,'Historia de la Filosofía':2};
 function migrateNivel(Sx){if(Sx.nivV>=1||!Sx.subjects)return;Sx.nivV=1;
  for(const s of Sx.subjects)if(s.name in NIVEL&&s.prep==null)s.prep=NIVEL[s.name];

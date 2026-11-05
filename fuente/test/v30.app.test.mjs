@@ -83,7 +83,7 @@ test('semanas de exámenes del 2.º y 3.er trimestre: copia provisional de la se
   assert.equal(JSON.stringify(b.S.blocks.filter(x => x.date <= '2026-11-13').map(x => [x.id, x.date, x.start, x.end])), nov, 'el plan de noviembre no cambia');
   const t2 = tri.filter(w => w.id.startsWith('tri2')).map(w => w.id), t3 = tri.filter(w => w.id.startsWith('tri3')).map(w => w.id);
   assert.ok(b.S.blocks.some(x => t2.includes(x.workId)), 'el 2.º trimestre se planifica'); assert.ok(b.S.blocks.filter(x => t2.includes(x.workId)).every(x => x.date >= '2026-11-14'), 'no antes del 14 de noviembre');
-  assert.ok(!b.S.blocks.some(x => t3.includes(x.workId)), 'el 3.º queda fuera del horizonte: sin sesiones aún');
+  assert.ok(b.S.blocks.every(x => !t3.includes(x.workId) || x.date >= '2026-11-14'), 'el 3.º trimestre, ahora dentro del horizonte hasta la PAU, solo después del plan de noviembre');
   b.S.pausaEntreno = { on: true }; assert.equal(b.t.pausaHasta(b.S, '2026-11-02'), '2026-11-13', 'la pausa de entreno no se alarga a febrero/mayo');
   const ew = b.t.examWeekWins(b.S, '2026-11-02').map(x => x.date).filter(d => d >= '2027-01-01' && d < '2027-04-01'); const set = new Set(ew);
   for (const d of ['2027-02-03', '2027-02-04', '2027-02-05', '2027-02-08', '2027-02-09']) assert.ok(set.has(d), 'ventana de semana de exámenes ' + d); for (const d of ['2027-02-01', '2027-02-02', '2027-02-06', '2027-02-07', '2027-02-10']) assert.ok(!set.has(d), 'sin ventana ' + d);

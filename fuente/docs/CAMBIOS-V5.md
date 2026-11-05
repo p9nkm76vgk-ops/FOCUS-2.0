@@ -418,3 +418,8 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 ## v57
 - Orden automático por defecto: asignaturas de memoria primero (Filosofía, Historia, Business, Lengua, Catalán, Inglés), luego Química, Física y Mates.
 - Las ya dominadas no se abandonan: repaso semanal en 2 sesiones (60 min) las de memoria y 30 min el resto, para recordar y no olvidar.
+
+## v58
+- El plan se genera hasta la PAU (antes el horizonte de 120 días cortaba hacia marzo).
+- Fines de semana: ventanas de estudio desde las 10:00 (migración única).
+- Registro: se envía `redirect_to` con la dirección de la app; el enlace del correo solo funciona si la Site URL de Supabase apunta a la app (ajuste en el panel de Supabase, no en el código).

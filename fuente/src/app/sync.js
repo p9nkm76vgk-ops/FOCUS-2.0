@@ -45,7 +45,7 @@ const SY=(()=>{
   sync,flush:()=>sync({force:true}),
   init(){if(typeof document==='undefined')return;try{document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});window.addEventListener('online',()=>sync({force:true}))}catch{}sync({force:true})},
   async signIn(email,pw){const j=await api('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password:pw})});setSession(j);st.base=0;st.dirty=true;st.sig='';save();await sync({force:true})},
-  async signUp(email,pw){const j=await api('/auth/v1/signup',{method:'POST',body:JSON.stringify({email,password:pw})});if(j&&j.access_token){setSession(j);st.base=0;st.dirty=true;st.sig='';save();await sync({force:true});return{confirm:false}}return{confirm:true}},
+  async signUp(email,pw){const j=await api('/auth/v1/signup?redirect_to='+encodeURIComponent(location.origin+location.pathname),{method:'POST',body:JSON.stringify({email,password:pw})});if(j&&j.access_token){setSession(j);st.base=0;st.dirty=true;st.sig='';save();await sync({force:true});return{confirm:false}}return{confirm:true}},
   signOut(){st.session=null;st.base=0;st.dirty=false;st.sig='';err='';save();note()},
   _state:()=>st}})();
 const syncCard=()=>{const on=SY.on;return`<div class=card><h3>Cuenta y sincronización</h3>`+(on?`<p class=m>Sesión: <b>${esc(SY.email)}</b><br>${esc(SY.status())}</p><p class=m>Entra con esta misma cuenta en el móvil y en el iPad: los datos se mantienen iguales. Sin conexión sigue funcionando y se sube al volver.</p><div class=row><button data-a=syncNow>Sincronizar ahora</button><button class=danger data-a=syncOut>Cerrar sesión</button></div>`:

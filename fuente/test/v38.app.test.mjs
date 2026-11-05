@@ -121,3 +121,12 @@ test('semana de exámenes con tardes enteras (v55): las sesiones de cada examen 
   await b.click('dailyToggle'); await b.click('dailyToggle'); assert.equal(JSON.stringify(b.S.blocks.map(x => [x.id, x.start, x.end])), sig, 'idempotente');
   await b.click('focusToggle'); const off = mix(b.S); assert.ok(on < off - 0.2, `con foco menos mezcla (${on.toFixed(2)} < ${off.toFixed(2)})`);
 });
+
+test('hasta el final del curso (v58): hay sesiones hasta la PAU y los fines de semana nunca antes de las 10:00', async () => {
+  const a = await base(); a.S.settings.horizonDays = 120; a.S.we10V = 0; a.S.settings.availability[6] = [{ start: 480, end: 810 }]; a.S.settings.availability[0] = [{ start: 480, end: 810 }];
+  const b = await boot({ 'focusos.v1': JSON.stringify(a.S) }); await b.click('dailyToggle'); await b.click('dailyToggle');
+  const W = Object.fromEntries(b.S.works.map(w => [w.id, w])); const last = b.S.blocks.filter(x => x.status === 'planned' && W[x.workId]?.daily).map(x => x.date).sort().pop();
+  assert.ok(last >= '2027-05-20', 'sesiones hasta final de curso: ' + last);
+  const we = b.S.blocks.filter(x => x.status === 'planned' && [0, 6].includes(new Date(x.date + 'T12:00:00Z').getUTCDay()));
+  assert.ok(we.length > 10 && we.every(x => x.start >= 600), 'findes desde las 10:00');
+});
