@@ -431,6 +431,6 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 
 ## v60 — Semana fija
 - Cada asignatura tiene un día fijo (0=dom…6=sáb): Lun Business · Mar Historia de España · Mié Catalán · Jue Lengua · Vie Filosofía (máx. 2 h 30) + Inglés (45 min) · Sáb Física (máx. 3 h 30) + Química · Dom Mates II. Se cambia en Ajustes → «Día de cada asignatura».
-- Cada día empieza con 1–2 repasos de 25 min de lo estudiado 1 y 4 días antes (misma semana); Inglés sin repasos. Lunes y martes (ventana corta) solo 1 repaso.
+- v62: un repaso de 30 min al día (lo de ayer); fines de semana 2 (ayer y hace 4 días). Inglés sin repasos.
 - Las tareas y exámenes siguen colocándose antes que el relleno, así que las tareas para mañana encuentran hueco.
 - `goals.rot` lo activa `migrateRot` en los datos existentes con PAU; reemplaza «una asignatura hasta dominarla» y las cuotas semanales mientras esté activa.

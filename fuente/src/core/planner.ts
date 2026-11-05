@@ -324,7 +324,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
       const gd = examGuard(input.works, dt), today = new Set<string>(); let cut = 1440, after = 1440;
       for (const w of input.works) if (active(w) && w.kind === 'exam' && w.auto !== 'review' && w.dueDate === dt) { today.add(w.subjectId); const st = w.dueMinute ?? hm(9); cut = Math.min(cut, st - EXAM_BUFFER_MIN); after = Math.min(after, st + 180); }
       if (dl.rot) { // Rotación semanal (v60): cada asignatura tiene su día fijo; el día empieza con 1–2 repasos cortos de los días anteriores y el resto es de la asignatura del día.
-        const wd = weekday(dt), avTot = avail(dt).reduce((a, w) => a + dur(w), 0), revCap = avTot < 200 ? 1 : 2, LL = Math.max(L0, Math.min(dl.len ?? L0, s.maxSessionMin));
+        const wd = weekday(dt), avTot = avail(dt).reduce((a, w) => a + dur(w), 0), revCap = avTot < 300 ? 1 : 2, LL = Math.max(L0, Math.min(dl.len ?? L0, s.maxSessionMin));
         const mains = dl.subjects.filter(u => u.days?.includes(wd) && !today.has(u.id)).sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0)), revs: typeof dl.subjects = [];
         for (const k of [1, 4]) { const w2 = (wd + 7 - k) % 7; for (const u of dl.subjects) if (!u.noRev && u.days?.includes(w2) && !today.has(u.id) && !revs.includes(u) && lastTp.has(u.id)) revs.push(u); }
         const doneH = new Set<string>(); for (const h of [...history, ...missed]) if (isD(h) && h.date === dt) doneH.add(byId.get(h.workId)!.subjectId);
@@ -333,7 +333,7 @@ export function plan(input: { settings: Settings; works: Work[]; blocks: Block[]
           if (doneH.has(it.u.id)) continue; const wid = `daily:${it.u.id}`; if (!byId.has(wid)) continue;
           for (let g = 0; g < 8; g++) {
             x = day(dt); const capLeft = maxOf(dt) - x.total; if (capLeft <= 0 || (!it.rev && x.total >= tgt - 20)) break;
-            const want = it.rev ? 25 : Math.min(LL, left.get(it.u.id)!); if (want < s.minSessionMin) break;
+            const want = it.rev ? 30 : Math.min(LL, left.get(it.u.id)!); if (want < s.minSessionMin) break;
             const wins = free(dt, true).flatMap(f => today.size ? [{ start: up5(f.start), end: Math.min(f.end, cut) }, { start: up5(Math.max(f.start, after)), end: f.end }] : [{ start: up5(f.start), end: f.end }]).filter(f => f.end - f.start >= s.minSessionMin);
             const f0 = wins[0]; if (!f0) break; const L = Math.min(want, f0.end - f0.start, capLeft, s.maxSessionMin); if (L < s.minSessionMin) break;
             const n = nTop.get(it.u.id) ?? 0, tp = it.u.topics.length ? it.u.topics[n % it.u.topics.length] : null, kind = it.rev ? 'rev' : 'main';

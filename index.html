@@ -798,7 +798,7 @@ function plan(input                                                             
       const gd = examGuard(input.works, dt), today = new Set        (); let cut = 1440, after = 1440;
       for (const w of input.works) if (active(w) && w.kind === 'exam' && w.auto !== 'review' && w.dueDate === dt) { today.add(w.subjectId); const st = w.dueMinute ?? hm(9); cut = Math.min(cut, st - EXAM_BUFFER_MIN); after = Math.min(after, st + 180); }
       if (dl.rot) { // Rotación semanal (v60): cada asignatura tiene su día fijo; el día empieza con 1–2 repasos cortos de los días anteriores y el resto es de la asignatura del día.
-        const wd = weekday(dt), avTot = avail(dt).reduce((a, w) => a + dur(w), 0), revCap = avTot < 200 ? 1 : 2, LL = Math.max(L0, Math.min(dl.len ?? L0, s.maxSessionMin));
+        const wd = weekday(dt), avTot = avail(dt).reduce((a, w) => a + dur(w), 0), revCap = avTot < 300 ? 1 : 2, LL = Math.max(L0, Math.min(dl.len ?? L0, s.maxSessionMin));
         const mains = dl.subjects.filter(u => u.days?.includes(wd) && !today.has(u.id)).sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0)), revs                     = [];
         for (const k of [1, 4]) { const w2 = (wd + 7 - k) % 7; for (const u of dl.subjects) if (!u.noRev && u.days?.includes(w2) && !today.has(u.id) && !revs.includes(u) && lastTp.has(u.id)) revs.push(u); }
         const doneH = new Set        (); for (const h of [...history, ...missed]) if (isD(h) && h.date === dt) doneH.add(byId.get(h.workId) .subjectId);
@@ -807,7 +807,7 @@ function plan(input                                                             
           if (doneH.has(it.u.id)) continue; const wid = `daily:${it.u.id}`; if (!byId.has(wid)) continue;
           for (let g = 0; g < 8; g++) {
             x = day(dt); const capLeft = maxOf(dt) - x.total; if (capLeft <= 0 || (!it.rev && x.total >= tgt - 20)) break;
-            const want = it.rev ? 25 : Math.min(LL, left.get(it.u.id) ); if (want < s.minSessionMin) break;
+            const want = it.rev ? 30 : Math.min(LL, left.get(it.u.id) ); if (want < s.minSessionMin) break;
             const wins = free(dt, true).flatMap(f => today.size ? [{ start: up5(f.start), end: Math.min(f.end, cut) }, { start: up5(Math.max(f.start, after)), end: f.end }] : [{ start: up5(f.start), end: f.end }]).filter(f => f.end - f.start >= s.minSessionMin);
             const f0 = wins[0]; if (!f0) break; const L = Math.min(want, f0.end - f0.start, capLeft, s.maxSessionMin); if (L < s.minSessionMin) break;
             const n = nTop.get(it.u.id) ?? 0, tp = it.u.topics.length ? it.u.topics[n % it.u.topics.length] : null, kind = it.rev ? 'rev' : 'main';
@@ -2067,7 +2067,7 @@ function resumenSemana(a                                                        
 }
 ;return{weekToReview,resumenSemana,WEAK_BELOW}})();
 const {EJERCICIO:EJ}=P,{plan,priority,DEFAULT_SETTINGS,addDays,weekday,totalNeed,capacityFor,isUndated,NO_DATE}=P,{recordPrediction,closePrediction}=EST2,{stats}=ST,{reestimate,assignTopics}=EST,{migrateState,lostPaths}=MIG,{effectiveColor,nextSpare,colorConflict,resetColors,DEFAULT_SUBJECT_COLORS}=PAL,{EXERCISE_TYPES,LIMITS,findSlot,conflictOf,validateActivity,weekMinutes,suggest,mondayOf}=LIFE,{DEFAULT_ROUTINE,fixedBusy,generate,regenerate,proposeSchedule,describe}=RTN;
-const BUILD='84152d2344',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
+const BUILD='9abaa01d0b',$=s=>document.querySelector(s),pad=n=>String(n).padStart(2,'0');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fm=m=>pad(Math.floor(m/60))+':'+pad(m%60),pm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 const hr=m=>m>=60?Math.floor(m/60)+'h'+(m%60?pad(m%60):''):m+'min';
@@ -2375,7 +2375,7 @@ document.addEventListener('submit',e=>{if(e.target.id!=='sf')return;e.preventDef
 function render(){const [r,arg]=route.split(':');renderNav();$('#main').innerHTML=(V[r]||V.hoy)(arg);$('#topTitle').textContent=r==='asg'&&arg?sub(arg).name:NAVT[r]||'Focus OS'}
 const tick=()=>{if(S&&!$('#dlg').open&&route!=='aj'&&route!=='rut'){extendRoutine();commit({quiet:true})}};
 const dl=(txt,name,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:type||'application/json'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)};
-const fresh=()=>({rstV:1,rotV:1,weV:1,nivV:1,refV:1,trV:2,fiV:1,hzV:1,tmV:3,obV:1,triV:2,rtV:1,timetable:[],patternV:2,cenaV:1,ejV:1,metV:2,goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
+const fresh=()=>({rstV:1,rotV:2,weV:1,nivV:1,refV:1,trV:2,fiV:1,hzV:1,tmV:3,obV:1,triV:2,rtV:1,timetable:[],patternV:2,cenaV:1,ejV:1,metV:2,goals:{...GL.DEFAULT_GOALS,prev:{},subjTarget:{}},grades:[],syllabus:[],schemaVersion:3,estimateLog:[],version:storedVer(),routine:{...DEFAULT_ROUTINE},habit:[],explore:{log:[]},activities:[],suggestionLog:[],subjects:NAMES.map(name=>({id:uid(),name,color:DEFAULT_SUBJECT_COLORS[name],colorKey:name})),works:[],blocks:[],settings:DEFAULT_SETTINGS});
 function recovery(err){S=null;$('#main').innerHTML=`<h1>Datos no válidos</h1><div class="card warn">${esc(err)}</div><p class=m>No se ha sobrescrito nada: la copia dañada sigue guardada en este navegador. Puedes descargarla, importar una copia JSON válida o empezar de cero (la dañada se conserva aparte).</p><div class=row style="justify-content:flex-start"><button data-a=dlBad>Descargar copia dañada</button><button class=danger data-a=fresh>Empezar de cero</button></div><label>Importar copia JSON<input type=file id=imp accept=".json,application/json"></label>`}
 function importText(text){let o;try{o=JSON.parse(text)}catch{toast('El archivo no es un JSON válido.');return'json'}
  const e=validate(o);if(e){toast('Copia no válida: '+e);return e}
@@ -3037,7 +3037,7 @@ const ROT_X=[[/ingl/i,0,45,true],[/filosof/i,1,150],[/f[ií]sic/i,0,210],[/qu[i�
 const DIAS7=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
 function rotMap(Sx){const g=Sx.goals||{},dm=g.dayMap||{},o={};for(const s of Sx.subjects||[]){if(s.archived)continue;const d=dm[s.name]!=null?dm[s.name]:(ROT_D.find(x=>x[0].test(s.name))||[])[1];if(d!=null)o[s.id]=d}return o}
 function rotOn(Sx){const g=Sx&&Sx.goals;return !!(g&&g.rot&&g.pauDate&&!g.dailyOff&&!g.rotOff&&Object.keys(rotMap(Sx)).length)}
-function migrateRot(Sx){if(Sx.rotV>=1)return false;Sx.rotV=1;if(!(Sx.goals&&Sx.goals.pauDate))return false;Sx.goals.rot=true;return true}
+function migrateRot(Sx){if(Sx.rotV>=2)return false;const had=Sx.rotV>=1;Sx.rotV=2;if(!(Sx.goals&&Sx.goals.pauDate))return false;if(!had)Sx.goals.rot=true;return true}
 function rotCard(){const m=rotMap(S),td=new Date(now().date+'T12:00:00Z').getUTCDay(),rows=[1,2,3,4,5,6,0].map(d=>{const ss=(S.subjects||[]).filter(s=>!s.archived&&m[s.id]===d);return`<div class="asr" ${d===td?'aria-current=date':''} style="--c:${ss[0]?ss[0].color:'var(--muted)'}"><i class=dot></i><b>${DIAS7[d].slice(0,3)}</b><span class=hrs>${ss.length?ss.map(x=>esc(x.name)).join(' + '):'libre'}</span></div>`}).join('');return`<div class="card bc"><div class=bch><div><small class=lab>Tu semana fija</small></div></div>${rows}</div>`}
 {const a0=V.aj;V.aj=a=>a0(a)+(rotOn(S)?`<div class=card data-sec=dias><h3>Día de cada asignatura</h3><p class=m>Ese día se estudia solo esa asignatura. Toca para pasarla al día siguiente.</p>${(S.subjects||[]).filter(s=>!s.archived).map(s=>{const d=rotMap(S)[s.id];return`<div class=asr style="--c:${s.color}"><i class=dot></i><b>${esc(s.name)}</b><button class=lnk data-a=dayNext data-id="${s.id}">${d!=null?DIAS7[d]:'Sin día'}</button></div>`}).join('')}</div>`:'')}
 Object.assign(A,{dayNext:t=>{const s=S.subjects.find(x=>x.id===t.dataset.id);if(!s)return;ensureG(S);const d=rotMap(S)[s.id],nx=d==null?1:(d+1)%7;S.goals.dayMap={...(S.goals.dayMap||{}),[s.name]:nx};regenFuture();commit({quiet:true});toast(s.name+': '+DIAS7[nx])}});
@@ -3249,7 +3249,7 @@ for(const k of ['seg','cur','tem','est','exa','obj']){const v0=V[k];V[k]=a=>sinT
 {const a0=V.aj;V.aj=a=>a0(a)+`<details class="card adv"><summary><b>Avanzado</b></summary><p class=m>Detalles técnicos del planificador. No hace falta tocarlos.</p><div class=row style="justify-content:flex-start"><button data-a=nav data-r=met>Método de estudio</button><button data-a=nav data-r=est>Estimaciones</button><button data-a=dailyToggle>${S.goals&&S.goals.dailyOff?'Activar':'Quitar'} las sesiones diarias de relleno</button></div></details>`}
 
 /* v53 · Versión visible y botón de actualización forzada (no toca los datos: solo borra la caché de la app y la recarga). */
-const APP_VER = '61';
+const APP_VER = '62';
 {const a0=V.aj;V.aj=a=>a0(a)+`<div class=card data-sec=ver><h3>Versión de la app</h3><p class=m>Focus OS versión <b>${APP_VER}</b>. Si no coincide con la última que te he indicado, pulsa el botón: se descarga la versión nueva sin perder tus datos.</p><div class=row style="justify-content:flex-start"><button data-a=forceUpdate>Buscar actualización</button></div></div>`}
 Object.assign(A,{forceUpdate:async()=>{toast('Actualizando…');try{const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()));const ks=await caches.keys();await Promise.all(ks.filter(k=>k.startsWith('focusos-')).map(k=>caches.delete(k)))}catch{}setTimeout(()=>location.reload(),400)}});
 
