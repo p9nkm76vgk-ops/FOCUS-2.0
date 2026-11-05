@@ -6,11 +6,11 @@ const QUOTA_H={'Matemáticas II':3,'Business':3,'Física':3,'Química':3,'Lengua
  *  y esas horas pasan a las asignaturas menos dominadas, en proporción a lo que les falta × su valor. Sin temas apuntados no se toca nada. */
 /** Modo secuencial (v54): una asignatura hasta que se domina (≥ 90 % de su temario en verde o «ya la domino»), y entonces la siguiente. Orden: el tuyo (goals.seqOrder) o por valor × lo que falta.
  *  Solo cuentan asignaturas con temas apuntados (sin temas no se puede medir). Si ninguna tiene temas o todas están dominadas, vuelve al reparto por cuotas. */
-function seqInfo(Sx){const g=Sx.goals||{};if(!g.pauDate||g.dailyOff||g.seqOff)return null;const subs=(Sx.subjects||[]).filter(s=>!s.archived),ord=g.seqOrder||[],rank=r=>{const i=ord.indexOf(r.s.name);return i<0?100:i};
+function seqInfo(Sx){const g=Sx.goals||{};if(!g.pauDate||g.dailyOff||g.seqOff)return null;const subs=(Sx.subjects||[]).filter(s=>!s.archived),ord=g.seqOrder||[],DEF=[/filosof/i,/historia/i,/business|empresa/i,/lengua|castellan/i,/catal/i,/ingl/i,/qu[ií]m/i,/f[ií]sic/i,/mat/i],rank=r=>{const i=ord.indexOf(r.s.name);if(i>=0)return i;const d=DEF.findIndex(x=>x.test(r.s.name));return 100+(d<0?99:d)};
  const rows=subs.map(s=>({s,pm:GL.coverage(Sx.syllabus||[],s.id).pctMastery,w:GL.valueFactor(s.name)})).filter(r=>r.pm!=null);if(!rows.length)return null;
  rows.sort((a,b)=>rank(a)-rank(b)||b.w*(1.5-b.pm/100)-a.w*(1.5-a.pm/100)||a.s.name.localeCompare(b.s.name));
  const todo=rows.filter(r=>r.pm<90&&!(g.seqDone||{})[r.s.name]);return{cur:todo[0]||null,todo,rows}}
-function quotaMap(Sx){const sq=seqInfo(Sx);if(sq&&sq.cur){const o={};for(const s of Sx.subjects||[])if(!s.archived)o[s.id]=s.id===sq.cur.s.id?1500:0;return o}const g=Sx.goals||{},subs=(Sx.subjects||[]).filter(s=>!s.archived),r30=m=>Math.round(m/30)*30,o={},pm={},base={};let freed=0;
+function quotaMap(Sx){const sq=seqInfo(Sx);if(sq&&sq.cur){const o={};for(const s of Sx.subjects||[])if(!s.archived){if(s.id===sq.cur.s.id){o[s.id]=1500;continue}const r=sq.rows.find(x=>x.s.id===s.id),dom=r&&(r.pm>=90||(Sx.goals.seqDone||{})[r.s.name]);o[s.id]=dom?(/filosof|historia|business|empresa|lengua|castellan|catal|ingl/i.test(s.name)?60:30):0}return o}const g=Sx.goals||{},subs=(Sx.subjects||[]).filter(s=>!s.archived),r30=m=>Math.round(m/30)*30,o={},pm={},base={};let freed=0;
  for(const s of subs){const cv=GL.coverage(Sx.syllabus||[],s.id);pm[s.id]=cv.pctMastery==null?null:cv.pctMastery;base[s.id]=Math.round(60*((g.quotaH&&g.quotaH[s.name])??QUOTA_H[s.name]??2));
   const f=pm[s.id]!=null&&pm[s.id]>60?1-0.6*(pm[s.id]-60)/40:1;o[s.id]=f<1?Math.min(base[s.id],Math.max(60,r30(base[s.id]*f))):base[s.id];freed+=base[s.id]-o[s.id]}
  if(freed>0){let need=subs.filter(s=>o[s.id]===base[s.id]&&pm[s.id]!=null&&pm[s.id]<60);if(!need.length)need=subs.filter(s=>o[s.id]===base[s.id]&&pm[s.id]==null);
@@ -20,7 +20,7 @@ function quotaMap(Sx){const sq=seqInfo(Sx);if(sq&&sq.cur){const o={};for(const s
 function planDiario(Sx,today){const g=Sx.goals;if(!g||!g.pauDate||g.dailyOff||g.pauDate<today)return undefined;
  const QM=quotaMap(Sx),subs=(Sx.subjects||[]).filter(s=>!s.archived&&QM[s.id]>0);if(!subs.length)return undefined;
  return{until:g.pauDate,wk:180,we:300,len:60,tilt:g.focusOff?[1.1,1]:[1,1],focus:!g.focusOff,subjects:subs.map(s=>{const ts=(Sx.syllabus||[]).filter(t=>t.subjectId===s.id).sort((a,b)=>a.mastery-b.mastery||String(a.next||'9').localeCompare(String(b.next||'9'))||a.name.localeCompare(b.name)),cv=GL.coverage(Sx.syllabus||[],s.id),pm=cv.pctMastery==null?0:cv.pctMastery;
-  return{id:s.id,q:QM[s.id],w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
+  return{id:s.id,q:QM[s.id],cur:QM[s.id]>=1500,w:Math.round(100*GL.valueFactor(s.name)*(1.5-pm/100))/100,topics:ts.map(t=>({id:t.id,name:t.name}))}})}}
 /** Un trabajo oculto por asignatura (auto:'review' + daily:true: ninguna pantalla lo lista como tarea). Idempotente. */
 function syncDaily(Sx){const g=Sx.goals,on=planDiario(Sx,now().date),have=new Map((Sx.works||[]).filter(w=>w.daily).map(w=>[w.id,w])),want=new Set(on?on.subjects.map(u=>u.id):[]);let out=Sx.works;
  for(const sid of want){const id='daily:'+sid,w=have.get(id);

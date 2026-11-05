@@ -107,10 +107,9 @@ test('una asignatura hasta dominarla (v54): todo el relleno va a la actual, salt
   const q = a.t.seqInfo(a.S); assert.equal(q.cur.s.name, 'Business'); assert.ok(!q.todo.some(r => r.s.name === 'Historia de la Filosofía'), 'la dominada se salta');
   await a.click('dailyToggle'); await a.click('dailyToggle');
   const W = Object.fromEntries(a.S.works.map(w => [w.id, w])); const fill = a.S.blocks.filter(x => x.status === 'planned' && x.date >= '2026-11-16' && x.date <= '2026-12-20' && W[x.workId]?.daily);
-  assert.ok(fill.length > 20 && fill.every(x => W[x.workId].subjectId === id('Business')), 'solo Business');
+  assert.ok(fill.length > 20 && fill.every(x => [id('Business'), id('Historia de la Filosofía')].includes(W[x.workId].subjectId)), 'Business + repaso de la dominada'); assert.ok(fill.filter(x => W[x.workId].subjectId === id('Business')).length > 3 * fill.filter(x => W[x.workId].subjectId === id('Historia de la Filosofía')).length, 'casi todo a Business'); assert.ok(fill.some(x => W[x.workId].subjectId === id('Historia de la Filosofía')), 'la dominada se repasa');
   await a.click('seqNext'); assert.equal(a.t.seqInfo(a.S).cur.s.name, 'Matemáticas II');
-  const W2 = Object.fromEntries(a.S.works.map(w => [w.id, w])); assert.ok(a.S.blocks.filter(x => x.status === 'planned' && x.date >= '2026-11-16' && x.date <= '2026-12-20' && W2[x.workId]?.daily).every(x => W2[x.workId].subjectId === id('Matemáticas II')), 'ahora solo Mates');
-  await a.click('seqToggle'); assert.equal(a.t.seqInfo(a.S), null, 'desactivado');
+  const W2 = Object.fromEntries(a.S.works.map(w => [w.id, w])); const f2 = a.S.blocks.filter(x => x.status === 'planned' && x.date >= '2026-11-16' && x.date <= '2026-12-20' && W2[x.workId]?.daily); assert.ok(f2.filter(x => W2[x.workId].subjectId === id('Matemáticas II')).length > 3 * f2.filter(x => W2[x.workId].subjectId !== id('Matemáticas II')).length, 'ahora casi todo Mates, con repasos de las dominadas');
 });
 
 test('semana de exámenes con tardes enteras (v55): las sesiones de cada examen se agrupan por días; mezcla menos que sin la preferencia y repetir no cambia nada', async () => {

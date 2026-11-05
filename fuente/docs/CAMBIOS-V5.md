@@ -414,3 +414,7 @@ El relleno diario deja de ser «una sesión en días vacíos»: ahora completa c
 
 ## v56
 - Se eliminan de Ajustes las tarjetas "Tardes enteras a una sola asignatura" y "Una asignatura hasta dominarla": ambos comportamientos son automáticos (no son opciones). Se mantiene el botón "Ya la domino" en Hoy.
+
+## v57
+- Orden automático por defecto: asignaturas de memoria primero (Filosofía, Historia, Business, Lengua, Catalán, Inglés), luego Química, Física y Mates.
+- Las ya dominadas no se abandonan: repaso semanal en 2 sesiones (60 min) las de memoria y 30 min el resto, para recordar y no olvidar.
